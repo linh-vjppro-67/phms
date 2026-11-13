@@ -3,6 +3,7 @@ import { useState } from "react";
 import { api } from "../api";
 import Workbench from "../components/Workbench.jsx";
 import { PatientPicker } from "../patient.jsx";
+import { VerifyIdentityModal } from "./Intake.jsx";
 import { Badge, Banner, Card, Drawer, Empty, Field, Form, FormModal, KV, PageHeader, Seg, Status, fmtDT, useApp, useAct, useAuth, useLoad } from "../ui.jsx";
 
 const localNow = () => { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); };
@@ -65,14 +66,7 @@ function EventCard({ ev, onOpen, reload }) {
           </div>
         </>
       )}
-      {m === "verify" && (
-        <FormModal title="Đối soát danh tính (hồ sơ tạm)" onClose={() => setM(null)} submit="Xác minh"
-          onSubmit={async (d) => { const r = await act(() => api("POST", `/persons/${ev.person_id}/verify`, d), "Đã xác minh danh tính"); if (r) reload(); return !!r; }}>
-          <div className="grid2"><Field label="Họ tên"><input name="full_name" /></Field><Field label="Ngày sinh"><input type="date" name="date_of_birth" /></Field>
-            <Field label="Hệ thống nguồn" required><input name="source_system" defaultValue="QLPN" required /></Field><Field label="Mã nguồn" required><input name="external_id" required /></Field></div>
-          <Field label="Căn cứ đối soát" required><textarea name="note" required /></Field>
-        </FormModal>
-      )}
+      {m === "verify" && <VerifyIdentityModal personId={ev.person_id} title="Đối soát danh tính (hồ sơ tạm)" onClose={() => setM(null)} onDone={() => { setM(null); reload(); }} />}
       {m === "close" && (
         <FormModal title="Đóng sự kiện cấp cứu" onClose={() => setM(null)} submit="Đóng sự kiện"
           onSubmit={async (d) => { const r = await act(() => api("POST", `/emergency-events/${ev.id}/close`, d), "Đã đóng sự kiện"); if (r) reload(); return !!r; }}>

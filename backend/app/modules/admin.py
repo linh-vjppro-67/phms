@@ -46,7 +46,8 @@ def session_for(u: User) -> dict:
     return {"access_token": make_token(u), "token_type": "bearer", "requires": None, "user": _user_out(u)}
 
 
-def _fail_login(db, u, request, why: str):
+def _fail_login(db, u, request, why: str, action: str = "login_failed"):
+    """Đếm lần xác thực sai (đăng nhập, mật khẩu cũ khi đổi mật khẩu, mã OTP) – chung ngưỡng khóa tài khoản."""
     if u:
         u.failed_attempts += 1
         if u.failed_attempts >= config.MAX_FAILED_LOGINS:
@@ -55,7 +56,7 @@ def _fail_login(db, u, request, why: str):
             emit(db, kind="security.lockout", category="security", severity="warning", facility_id=None, include_global=True, perms=("audit.read",),
                  title="Tài khoản bị khóa do đăng nhập sai nhiều lần", plain=f"Tài khoản {u.username} bị khóa {config.LOCKOUT_MINUTES} phút sau {config.MAX_FAILED_LOGINS} lần sai.",
                  link_page="admin", dedupe=f"lock:{u.id}:{u.locked_until.isoformat()}")
-    audit(db, u, "login_failed", result="denied", reason=why[:64], request=request, commit=True)
+    audit(db, u, action, result="denied", reason=why[:64], request=request, commit=True)
 
 
 @router.post("/auth/login", tags=["auth"])
@@ -99,8 +100,11 @@ class PwdIn(BaseModel):
 @router.post("/auth/change-password", tags=["auth"])
 def change_password(body: PwdIn, request: Request, user: User = Depends(current_user),
                     db: Session = Depends(get_db)):
+    if user.locked_until and user.locked_until > utcnow():
+        audit(db, user, "password_change_locked", result="denied", request=request, commit=True)
+        fail(423, "ACCOUNT_LOCKED", "Tài khoản tạm khóa do xác thực sai nhiều lần")
     if not verify_password(body.old_password, user.password_hash):
-        audit(db, user, "password_change_failed", result="denied", request=request, commit=True)
+        _fail_login(db, user, request, user.username, action="password_change_failed")
         fail(401, "BAD_CREDENTIALS", "Mật khẩu cũ không đúng")
     err = password_policy_error(body.new_password)
     if err:
@@ -133,8 +137,7 @@ def create_user(body: UserIn, request: Request, actor: User = Depends(require("u
                 db: Session = Depends(get_db)):
     if body.role not in ROLES:
         fail(422, "BAD_ROLE", f"Vai trò không hợp lệ: {sorted(ROLES)}")
-    if body.role != "sysadmin" and not (body.facility_id and db.get(Facility, body.facility_id)):
-        fail(422, "FACILITY_REQUIRED", "Người dùng nghiệp vụ phải thuộc một cơ sở hợp lệ")
+    _check_role_facility(db, body.role, body.facility_id)
     err = password_policy_error(body.password)
     if err:
         fail(422, "WEAK_PASSWORD", err)
@@ -159,22 +162,36 @@ class UserPatch(BaseModel):
     active: bool | None = None
 
 
+def _check_role_facility(db: Session, role: str, facility_id: str | None) -> None:
+    """Vai trò nghiệp vụ phải thuộc một cơ sở hợp lệ; quản trị hệ thống không gắn cơ sở."""
+    if role == "sysadmin":
+        if facility_id:
+            fail(422, "FACILITY_NOT_ALLOWED", "Quản trị hệ thống không thuộc cơ sở nghiệp vụ")
+    elif not (facility_id and db.get(Facility, facility_id)):
+        fail(422, "FACILITY_REQUIRED", "Người dùng nghiệp vụ phải thuộc một cơ sở hợp lệ")
+
+
 @router.patch("/users/{user_id}", tags=["users"])
 def patch_user(user_id: str, body: UserPatch, request: Request, actor: User = Depends(require("user.manage")),
                db: Session = Depends(get_db)):
     u = db.get(User, user_id)
     if not u:
         fail(404, "NOT_FOUND", "Không tìm thấy người dùng")
-    if body.role is not None:
-        if body.role not in ROLES:
-            fail(422, "BAD_ROLE", "Vai trò không hợp lệ")
-        u.role = body.role
-    if body.facility_id is not None:
-        u.facility_id = body.facility_id
+    if u.id == actor.id:   # tách nhiệm vụ: không tự nâng/đổi quyền, tự khóa hay tự chuyển cơ sở
+        fail(403, "SELF_CHANGE", "Không được tự đổi vai trò, cơ sở hoặc trạng thái tài khoản của chính mình")
+    role = body.role if body.role is not None else u.role
+    if role not in ROLES:
+        fail(422, "BAD_ROLE", "Vai trò không hợp lệ")
+    if "facility_id" in body.model_fields_set:      # gửi null/"" -> bỏ cơ sở
+        facility_id = body.facility_id or None
+    else:   # chuyển sang quản trị hệ thống mà không nêu cơ sở -> tự bỏ cơ sở
+        facility_id = None if role == "sysadmin" and body.role is not None else u.facility_id
+    _check_role_facility(db, role, facility_id)
+    u.role, u.facility_id = role, facility_id
     if body.active is not None:
         u.active = body.active
     u.token_version += 1  # đổi quyền / khóa -> thu hồi phiên
-    audit(db, actor, "user_updated", "User", u.id, reason=f"{u.username}: {body.model_dump(exclude_none=True)}", request=request)
+    audit(db, actor, "user_updated", "User", u.id, reason=f"{u.username}: {body.model_dump(exclude_unset=True)}", request=request)
     db.commit()
     return _user_out(u)
 
@@ -326,16 +343,21 @@ def upsert_catalog(body: CatalogIn, request: Request, actor: User = Depends(requ
 
 # ---- audit
 @router.get("/audit", tags=["audit"])
-def list_audit(person_id: str | None = None, actor: str | None = None, action: str | None = None,
+def list_audit(request: Request, person_id: str | None = None, actor: str | None = None, action: str | None = None,
                limit: int = 100, user: User = Depends(require("audit.read")), db: Session = Depends(get_db)):
-    q = select(AuditEvent).order_by(AuditEvent.seq.desc()).limit(min(limit, 500))
+    q = select(AuditEvent).order_by(AuditEvent.seq.desc()).limit(max(1, min(limit, 500)))
     if person_id:
         q = q.where(AuditEvent.person_id == person_id)
     if actor:
         q = q.where(AuditEvent.actor_name == actor)
     if action:
         q = q.where(AuditEvent.action == action)
-    return [to_dict(e) for e in db.scalars(q)]
+    rows = [to_dict(e) for e in db.scalars(q)]
+    filters = {k: v for k, v in (("person_id", person_id), ("actor", actor), ("action", action)) if v}
+    audit(db, user, "audit_viewed", "AuditEvent", person_id=person_id, reason=str(filters) if filters else None,
+          request=request)
+    db.commit()
+    return rows
 
 
 @router.get("/audit/verify", tags=["audit"])

@@ -3,7 +3,7 @@ import functools
 import hashlib
 import json
 
-from fastapi import Request
+from fastapi import HTTPException, Request
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -16,12 +16,14 @@ from .utils import dumps, fail
 
 
 def run_idempotent(db: Session, request: Request, user, payload, fn):
-    """fn() -> (status_code, body). fn không được tự commit."""
+    """fn() -> (status_code, body). fn không được tự commit.
+    Mã hóa JSON phản hồi TRƯỚC khi commit: dữ liệu không mã hóa được thì không lưu (không có "đã ghi nhưng báo lỗi 500")."""
     key = request.headers.get("Idempotency-Key")
     if not key:
         status, body = fn()
+        resp = JSONResponse(jsonable_encoder(body), status_code=status)
         db.commit()
-        return JSONResponse(jsonable_encoder(body), status_code=status)
+        return resp
     h = hashlib.sha256(dumps(payload).encode()).hexdigest()
     path = request.url.path
 
@@ -32,16 +34,24 @@ def run_idempotent(db: Session, request: Request, user, payload, fn):
 
     rec = existing()
     if rec is None:
-        status, body = fn()
-        body = jsonable_encoder(body)
-        db.add(IdempotencyRecord(key=key, user_id=user.id, path=path, request_hash=h,
-                                 status_code=status, response_json=json.dumps(body)))
         try:
-            db.commit()
-            return JSONResponse(body, status_code=status)
-        except IntegrityError:  # request song song cùng key
+            status, body = fn()
+        except HTTPException:
+            # yêu cầu song song cùng key vừa ghi xong (fn chờ khóa rồi thấy dữ liệu đã đổi) -> trả kết quả cũ thay vì lỗi
             db.rollback()
             rec = existing()
+            if rec is None:
+                raise
+        else:
+            resp = JSONResponse(jsonable_encoder(body), status_code=status)
+            db.add(IdempotencyRecord(key=key, user_id=user.id, path=path, request_hash=h,
+                                     status_code=status, response_json=resp.body.decode()))
+            try:
+                db.commit()
+                return resp
+            except IntegrityError:  # request song song cùng key
+                db.rollback()
+                rec = existing()
     if rec.request_hash != h:
         fail(422, "IDEMPOTENCY_MISMATCH", "Idempotency-Key đã được dùng với nội dung khác")
     return JSONResponse(json.loads(rec.response_json), status_code=rec.status_code,

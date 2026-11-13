@@ -1,17 +1,18 @@
 """M09: chuyển viện (WF-06). Trạng thái độc lập với CustodyStay (BR-05)."""
-from datetime import datetime
+from datetime import datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from .. import config
 from ..audit import audit
-from ..db import get_db
-from ..deps import ensure_clinical_access, require
+from ..db import get_db, lock_row
+from ..deps import active_stay, ensure_clinical_access, require
 from ..idempotency import run_idempotent
 from ..notify import emit, person_name
-from ..models import Alert, Encounter, MedicalDocument, Referral, ReferralEvent, User
+from ..models import Alert, Encounter, MedicalDocument, Person, Referral, ReferralEvent, User
 from ..permissions import perms_of
 from ..utils import bump_version, fail, norm_dt, to_dict, utcnow
 from .clinical import load_encounter
@@ -30,6 +31,18 @@ TRANS = {
     ("coordinated", "cancelled"): "referral.write",
 }
 OPEN_STATES = ("draft", "pending", "coordinated", "in_external_treatment", "result_received")
+IN_PROGRESS = ("pending", "coordinated", "in_external_treatment")   # đang xử lý / đang ở bệnh viện: tối đa một hồ sơ mỗi người
+
+
+def ensure_no_other_open(db: Session, person_id: str, exclude_id: str | None = None) -> None:
+    """Một người không thể đồng thời có hai đề nghị chuyển viện đang xử lý (không thể ở hai bệnh viện cùng lúc)."""
+    lock_row(db, Person, person_id)   # tuần tự hóa kiểm tra-rồi-ghi giữa các yêu cầu đồng thời cho cùng người
+    q = select(Referral.id).where(Referral.person_id == person_id, Referral.status.in_(IN_PROGRESS))
+    if exclude_id:
+        q = q.where(Referral.id != exclude_id)
+    other = db.scalars(q).first()
+    if other:
+        fail(409, "REFERRAL_OPEN", "Người bệnh đã có đề nghị chuyển viện khác đang xử lý", referral_id=other)
 
 
 def referral_out(r: Referral, user: User, db: Session) -> dict:
@@ -80,6 +93,9 @@ def create_referral(enc_id: str, body: ReferralIn, request: Request, user: User 
                     db: Session = Depends(get_db)):
     def work():
         e = load_encounter(db, user, enc_id, request, write=True)
+        if e.status == "cancelled":
+            fail(409, "ENCOUNTER_CANCELLED", "Lượt khám đã hủy – không lập đề nghị chuyển viện")
+        ensure_no_other_open(db, e.person_id)
         data = body.model_dump()
         data["handover_docs"] = check_handover_docs(db, e.person_id, body.handover_docs)
         r = Referral(encounter_id=e.id, person_id=e.person_id, facility_id=e.facility_id, created_by=user.id, **data)
@@ -102,13 +118,17 @@ class StatusIn(BaseModel):
     expected_version: int | None = None
 
 
-def _load(db: Session, user: User, rid: str, request: Request) -> Referral:
+def _load(db: Session, user: User, rid: str, request: Request, write: bool = False) -> Referral:
     r = db.get(Referral, rid)
     if not r:
         fail(404, "REFERRAL_NOT_FOUND", "Không tìm thấy hồ sơ chuyển viện")
     if r.facility_id != user.facility_id:
         fail(403, "FACILITY_SCOPE", "Hồ sơ chuyển viện thuộc cơ sở khác")
-    return r
+    if write and not active_stay(db, r.person_id, user.facility_id):   # đã chuyển trại/kết thúc: cơ sở cũ chỉ được xem
+        audit(db, user, "access_denied", "Referral", r.id, person_id=r.person_id, result="denied",
+              reason="ghi chuyển viện khi cơ sở không còn quản lý người bệnh", request=request, commit=True)
+        fail(403, "FACILITY_SCOPE", "Cơ sở không còn quản lý người bệnh – hồ sơ chuyển viện chỉ được xem")
+    return lock_row(db, Referral, rid) if write else r
 
 
 class DocsIn(BaseModel):
@@ -119,10 +139,10 @@ class DocsIn(BaseModel):
 def set_handover_docs(rid: str, body: DocsIn, request: Request, user: User = Depends(require("referral.write")),
                       db: Session = Depends(get_db)):
     """Chọn/đổi tài liệu bàn giao kèm đề nghị chuyển viện – chỉ khi chưa chuyển đi (nháp/chờ xử lý/đã điều phối)."""
-    r = _load(db, user, rid, request)
+    r = _load(db, user, rid, request, write=True)
     if r.status not in ("draft", "pending", "coordinated"):
         fail(409, "NOT_EDITABLE", "Đề nghị đã chuyển đi hoặc đã đóng – không đổi tài liệu bàn giao")
-    ensure_clinical_access(db, user, r.person_id, request)
+    ensure_clinical_access(db, user, r.person_id, request, write=True)
     r.handover_docs = check_handover_docs(db, r.person_id, body.handover_docs)
     bump_version(r, None)
     audit(db, user, "referral_handover_docs", "Referral", r.id, person_id=r.person_id, reason=f"{len(r.handover_docs or [])} tài liệu", request=request)
@@ -133,11 +153,11 @@ def set_handover_docs(rid: str, body: DocsIn, request: Request, user: User = Dep
 @router.patch("/referrals/{rid}/status", tags=["referral"])
 def change_status(rid: str, body: StatusIn, request: Request, user: User = Depends(require("referral.read")),
                   db: Session = Depends(get_db)):
-    r = _load(db, user, rid, request)
+    r = _load(db, user, rid, request, write=True)
     perms = perms_of(user)
     frm, to = r.status, body.to
-    emergency_shortcut = r.urgency == "emergency" and frm in ("draft", "pending", "coordinated") \
-        and to == "in_external_treatment"
+    # đường tắt chỉ khi CHƯA được phê duyệt; đã điều phối (coordinated) -> bàn giao là bước bình thường
+    emergency_shortcut = r.urgency == "emergency" and frm in ("draft", "pending") and to == "in_external_treatment"
     if emergency_shortcut:
         # Đường tắt cấp cứu: không chặn xử trí y tế, nhưng bắt buộc hậu kiểm
         if not ({"referral.write", "referral.update"} & perms):
@@ -155,8 +175,20 @@ def change_status(rid: str, body: StatusIn, request: Request, user: User = Depen
         r.destination = body.destination
     if to in ("coordinated", "in_external_treatment") and not r.destination:
         fail(422, "DESTINATION_REQUIRED", "Cần cơ sở tiếp nhận")
+    if to in IN_PROGRESS and frm not in IN_PROGRESS:
+        ensure_no_other_open(db, r.person_id, exclude_id=r.id)
     if to == "in_external_treatment":
-        r.left_at = norm_dt(body.left_at) or utcnow()
+        now, left = utcnow(), norm_dt(body.left_at)
+        if left:
+            if left > now + timedelta(minutes=config.FUTURE_TOLERANCE_MIN):
+                fail(422, "FUTURE_TIME", "Thời điểm rời trại không được ở tương lai")
+            # không trước khi lập đề nghị (dung sai phút do giao diện nhập theo phút); cấp cứu ghi muộn: không trước lượt khám chỉ định
+            enc = db.get(Encounter, r.encounter_id)
+            base = enc.occurred_at if r.urgency == "emergency" and enc else r.recorded_at
+            floor = base - timedelta(minutes=config.FUTURE_TOLERANCE_MIN)
+            if left < floor:
+                fail(422, "BAD_LEFT_AT", "Thời điểm rời trại không được trước khi lập đề nghị chuyển viện")
+        r.left_at = left or now
     if to == "result_received":
         has_doc = db.scalars(select(MedicalDocument.id).where(MedicalDocument.referral_id == r.id,
                                                               MedicalDocument.status == "valid")).first()
@@ -216,7 +248,7 @@ class NoteIn(BaseModel):
 def add_event(rid: str, body: NoteIn, request: Request, user: User = Depends(require("referral.update")),
               db: Session = Depends(get_db)):
     """Điều trị kéo dài: giữ Referral mở, ghi thêm sự kiện theo dõi."""
-    r = _load(db, user, rid, request)
+    r = _load(db, user, rid, request, write=True)
     if r.status not in OPEN_STATES:
         fail(409, "REFERRAL_CLOSED", "Hồ sơ đã đóng")
     _event(db, r, r.status, r.status, user, body.note)
@@ -228,7 +260,8 @@ def add_event(rid: str, body: NoteIn, request: Request, user: User = Depends(req
 @router.post("/referrals/{rid}/post-review", tags=["referral"])
 def post_review(rid: str, body: NoteIn, request: Request, user: User = Depends(require("referral.approve")),
                 db: Session = Depends(get_db)):
-    r = _load(db, user, rid, request)
+    # hậu kiểm là trách nhiệm giải trình của cơ sở đã chuyển viện -> vẫn làm được sau khi người bệnh chuyển trại
+    r = lock_row(db, Referral, _load(db, user, rid, request).id)
     if not r.needs_post_review:
         fail(409, "NO_REVIEW_NEEDED", "Hồ sơ không cần hậu kiểm")
     r.needs_post_review = False

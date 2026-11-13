@@ -18,6 +18,12 @@ from .referral import OPEN_STATES
 
 router = APIRouter()
 OPEN_ENC = ("draft", "in_progress", "awaiting_results", "in_treatment")
+MAX_PAGE = 500
+
+
+def _page(limit: int) -> int:
+    """Giới hạn số dòng trong [1, MAX_PAGE] – giá trị âm/0 không được bỏ trần trang."""
+    return max(1, min(limit, MAX_PAGE))
 
 
 def _people(db: Session, ids) -> dict:
@@ -48,7 +54,7 @@ def list_stays(status: str | None = None, limit: int = 200, user: User = Depends
         q = q.where(CustodyStay.status.in_(("received", "managed")))
     elif status:
         q = q.where(CustodyStay.status == status)
-    stays = db.scalars(q.order_by(CustodyStay.recorded_at.desc()).limit(min(limit, 500))).all()
+    stays = db.scalars(q.order_by(CustodyStay.recorded_at.desc()).limit(_page(limit))).all()
     out = _named(db, stays)
     for d in out:
         init = db.scalars(select(Encounter).where(Encounter.stay_id == d["id"], Encounter.type == "initial",
@@ -74,7 +80,7 @@ def list_encounters(status: str | None = None, type: str | None = None, open_onl
         q = q.where(Encounter.status.in_(OPEN_ENC))
     audit(db, user, "list_encounters", reason=f"status={status} type={type}", request=request)
     db.commit()
-    return _named(db, db.scalars(q.limit(min(limit, 500))).all())
+    return _named(db, db.scalars(q.limit(_page(limit))).all())
 
 
 @router.get("/medication-orders", tags=["worklists"])
@@ -84,7 +90,7 @@ def list_orders(status: str | None = None, limit: int = 200, user: User = Depend
         MedicationOrder.recorded_at.desc())
     if status:
         q = q.where(MedicationOrder.status.in_(status.split(",")))
-    rows = db.scalars(q.limit(min(limit, 500))).all()
+    rows = db.scalars(q.limit(_page(limit))).all()
     people = _people(db, [r.person_id for r in rows])
     return [{**order_out(db, r), "person_name": people[r.person_id].full_name} for r in rows]
 

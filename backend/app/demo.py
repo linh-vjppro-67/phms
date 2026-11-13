@@ -1,7 +1,8 @@
 """Dữ liệu demo HƯ CẤU nhưng đi đúng luồng nghiệp vụ, để test tính năng.
 
-Mọi bản ghi được tạo qua chính API của hệ thống (đúng phân quyền, đúng máy trạng thái, có audit), không ghi thẳng DB,
-nên các quy tắc (cảnh báo dị ứng, cấp phát ≤ số kê, bàn giao cần tóm tắt, …) đều được áp dụng như thật.
+Mọi bản ghi được tạo qua chính API của hệ thống (đúng phân quyền, đúng máy trạng thái, có audit) với giá trị hợp lệ tại thời điểm chạy,
+nên các quy tắc (cảnh báo dị ứng, cấp phát ≤ số kê, bàn giao cần tóm tắt, …) đều được áp dụng như thật. Để mô phỏng LỊCH SỬ
+(đợt khám đã qua hạn, đề nghị chuyển viện lập từ nhiều ngày trước) demo chỉ LÙI MỐC THỜI GIAN trực tiếp trong DB sau khi tạo (`backdate`).
 Tên, mã phạm nhân, quyết định, bệnh viện... đều là giả lập.
 
 Chạy:  python -m app.seed && python -m app.demo          (DB đang có hồ sơ thì từ chối)
@@ -15,12 +16,12 @@ from datetime import date, datetime, timedelta, timezone
 from urllib.parse import quote
 
 from fastapi.testclient import TestClient
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 
 from .db import Base, SessionLocal, engine
 from .migrate import ensure_schema
 from .main import app
-from .models import (Alert, Appointment, AuditEvent, CustodyStay, EmergencyEvent, Encounter, Handover,
+from .models import (Alert, Appointment, AuditEvent, CheckupRound, CustodyStay, EmergencyEvent, Encounter, Handover,
                      MedicalDocument, MedicationOrder, Person, Referral)
 from .seed import DEFAULT_PASSWORD, seed
 
@@ -110,6 +111,13 @@ class Demo:
     def post(self, u, p, j=None, **kw): return self.call("POST", u, p, j, **kw)
     def patch(self, u, p, j=None, **kw): return self.call("PATCH", u, p, j, **kw)
     def put(self, u, p, j=None, **kw): return self.call("PUT", u, p, j, **kw)
+
+    @staticmethod
+    def backdate(model, where, **values) -> None:
+        """Mô phỏng lịch sử: bản ghi đã tạo hợp lệ qua API được lùi mốc thời gian trực tiếp trong DB."""
+        with SessionLocal() as s:
+            s.execute(update(model).where(where).values(**values).execution_options(synchronize_session=False))
+            s.commit()
 
     # ---- nhân thân
     def name(self, female=False) -> str:
@@ -232,6 +240,9 @@ class Demo:
         order = ["draft", "pending", "coordinated", "in_external_treatment", "result_received", "completed"]
         r = self.post(doc, f"/api/encounters/{enc}/referrals", {"urgency": urgency, "reason": reason, "destination": dest})
         rid = r["id"]
+        if upto in order and order.index(upto) >= 3 and urgency != "emergency":   # đề nghị lập trước ngày rời trại (left_at không được trước khi lập)
+            t = datetime.fromisoformat(ago(left_days, hours=1))
+            self.backdate(Referral, Referral.id == rid, recorded_at=t, occurred_at=t)
         st = lambda u, **b: self.patch(u, f"/api/referrals/{rid}/status", b)  # noqa: E731
         if upto == "cancelled":
             st(doc, to="pending"); return st(doc, to="cancelled", note=plan or "Bệnh nhân ổn định, không còn chỉ định chuyển viện")
@@ -256,14 +267,17 @@ class Demo:
         return r
 
     def round(self, mgr, doc, nurse, name, due, complete_n, postpone_n=0, notdone_n=0, lock=False, days_range=(1, 10)):
-        rd = self.post(mgr, "/api/checkup-rounds", {"name": name, "due_date": dstr(due)})
+        rd = self.post(mgr, "/api/checkup-rounds", {"name": name, "due_date": dstr(max(due, 0))})
+        if due < 0:   # đợt đã qua hạn: tạo với hạn hôm nay (hạn quá khứ bị từ chối) rồi lùi hạn của đợt và các nhiệm vụ
+            self.backdate(CheckupRound, CheckupRound.id == rd["id"], due_date=date.today() + timedelta(days=due))
+            self.backdate(Appointment, Appointment.round_id == rd["id"], due_date=date.today() + timedelta(days=due))
         received = {s["person_id"] for s in self.get(nurse, "/api/stays?status=received")}
         tasks = self.get(nurse, f"/api/appointments?round_id={rd['id']}&limit=500")
         self.r.shuffle(tasks)
         done = 0
         for t in tasks:
             if t["person_id"] in received:
-                self.post(nurse, f"/api/appointments/{t['id']}/status", {"to": "postponed", "reason": "Chưa hoàn tất khám ban đầu – khám định kỳ sau", "new_due_date": dstr(7)})
+                self.post(nurse, f"/api/appointments/{t['id']}/status", {"to": "postponed", "reason": "Chưa hoàn tất khám ban đầu – khám định kỳ sau", "new_due_date": dstr(max(due, 0) + 7)})
             elif done < complete_n:
                 when = ago(self.r.randint(*days_range), hours=self.r.randint(0, 5))
                 e = self.enc(doc, t["person_id"], "periodic", f"Khám định kỳ – {name}", when, appointment_id=t["id"])
@@ -271,7 +285,7 @@ class Demo:
                 self.done(doc, e["id"]); done += 1
             elif postpone_n > 0:
                 postpone_n -= 1
-                self.post(nurse, f"/api/appointments/{t['id']}/status", {"to": "postponed", "reason": "Đang lao động ngoài trại, hẹn lại", "new_due_date": dstr(5)})
+                self.post(nurse, f"/api/appointments/{t['id']}/status", {"to": "postponed", "reason": "Đang lao động ngoài trại, hẹn lại", "new_due_date": dstr(max(due, 0) + 5)})
             elif notdone_n > 0:
                 notdone_n -= 1
                 self.post(nurse, f"/api/appointments/{t['id']}/status", {"to": "not_done", "reason": "Người bệnh từ chối khám, đã lập biên bản"})

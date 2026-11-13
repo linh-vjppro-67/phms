@@ -398,7 +398,7 @@ def test_referral_handover_documents_validated(api):
     assert len(seen["handover_docs_detail"]) == 1 and seen["handover_docs_detail"][0]["filename"] is None
     api.patch("doctor1", f"/api/referrals/{rid}/status", {"to": "pending"})
     api.patch("approver1", f"/api/referrals/{rid}/status", {"to": "coordinated", "destination": "BV Đa khoa tỉnh"})
-    api.patch("doctor1", f"/api/referrals/{rid}/status", {"to": "in_external_treatment", "left_at": "2026-11-12T08:00:00"})
+    api.patch("doctor1", f"/api/referrals/{rid}/status", {"to": "in_external_treatment"})   # rời trại lúc ghi nhận (left_at không được trước khi lập đề nghị)
     assert api.put("doctor1", f"/api/referrals/{rid}/handover-docs", {"handover_docs": []}).status_code == 409   # đã chuyển đi: khóa
     assert uuid.UUID(rid)
 

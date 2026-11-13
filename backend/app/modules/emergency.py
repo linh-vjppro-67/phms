@@ -9,10 +9,10 @@ from sqlalchemy.orm import Session
 from .. import config
 from ..audit import audit
 from ..idempotency import idempotent
-from ..db import get_db
+from ..db import get_db, lock_row
 from ..deps import active_stay, ensure_clinical_access, person_or_404, require
 from ..notify import emit, person_name
-from ..models import Appointment, CustodyStay, EmergencyEvent, Encounter, Person, User
+from ..models import Appointment, CustodyStay, EmergencyEvent, Encounter, Handover, Person, User
 from ..utils import fail, norm_dt, to_dict, uid, utcnow
 from .identity import get_or_create_record
 
@@ -40,6 +40,7 @@ def create_event(body: EmergencyIn, request: Request, user: User = Depends(requi
     if (now - occ) > timedelta(minutes=config.LATE_ENTRY_MIN) and not body.late_entry_reason:
         fail(422, "LATE_ENTRY_REASON", "Ghi nhận muộn cần nêu lý do (late_entry_reason)")
     if body.person_id:
+        lock_row(db, Person, body.person_id)   # tuần tự hóa: hai ca cấp cứu đồng thời không tạo hai kỳ tạm
         person_or_404(db, body.person_id)
         person = body.person_id
     elif body.temp_identity:
@@ -55,6 +56,12 @@ def create_event(body: EmergencyIn, request: Request, user: User = Depends(requi
     if not stay:  # không chặn cấp cứu: tạo kỳ tạm, đánh dấu cần đối soát
         if active_stay(db, person):
             fail(409, "ACTIVE_STAY_ELSEWHERE", "Người này đang thuộc cơ sở khác – dùng break-glass để xử trí")
+        ho = db.scalars(select(Handover).where(Handover.person_id == person, Handover.status == "confirmed")
+                        .order_by(Handover.confirmed_at.desc()).limit(1)).first()
+        if ho and ho.kind == "transfer" and ho.received_at is None and ho.from_facility_id == user.facility_id:
+            # đã bàn giao chuyển trại, cơ sở đích chưa tiếp nhận: cơ sở cũ không mở kỳ tạm (sẽ chặn bước tiếp nhận ở cơ sở đích)
+            fail(409, "TRANSFER_IN_PROGRESS", "Người này đã được bàn giao chuyển sang cơ sở khác – "
+                                              "báo cơ sở nhận hoặc dùng break-glass để xem hồ sơ")
         stay = CustodyStay(person_id=person, facility_id=user.facility_id, start_date=date.today(), provisional=True,
                            created_by=user.id)
         db.add(stay)
@@ -89,8 +96,8 @@ class StepIn(BaseModel):
     occurred_at: datetime | None = None
 
 
-def _load(db, user, eid) -> EmergencyEvent:
-    ev = db.get(EmergencyEvent, eid)
+def _load(db, user, eid, lock: bool = False) -> EmergencyEvent:
+    ev = lock_row(db, EmergencyEvent, eid) if lock else db.get(EmergencyEvent, eid)   # ghi: khóa để chống đóng/ghi đồng thời
     if not ev or ev.facility_id != user.facility_id:
         fail(404, "NOT_FOUND", "Không tìm thấy sự kiện cấp cứu")
     return ev
@@ -99,12 +106,19 @@ def _load(db, user, eid) -> EmergencyEvent:
 @router.post("/emergency-events/{eid}/interventions", tags=["emergency"])
 def add_step(eid: str, body: StepIn, request: Request, user: User = Depends(require("emergency.write")),
              db: Session = Depends(get_db)):
-    ev = _load(db, user, eid)
+    ev = _load(db, user, eid, lock=True)
+    ensure_clinical_access(db, user, ev.person_id, request, write=True)
     if ev.status != "open":
         fail(409, "EVENT_CLOSED", "Sự kiện đã đóng")
+    now = utcnow()
+    occ = norm_dt(body.occurred_at) or now
+    if occ > now + timedelta(minutes=config.FUTURE_TOLERANCE_MIN):
+        fail(422, "FUTURE_TIME", "occurred_at không được ở tương lai")
+    if occ < norm_dt(ev.occurred_at):
+        fail(422, "BEFORE_EVENT", "Thời điểm xử trí không được trước thời điểm xảy ra sự kiện cấp cứu")
     ev.timeline = [*(ev.timeline or []), {
         "action": body.action, "performer": body.performer or user.full_name, "actor_id": user.id,
-        "occurred_at": (norm_dt(body.occurred_at) or utcnow()).isoformat(), "recorded_at": utcnow().isoformat()}]
+        "occurred_at": occ.isoformat(), "recorded_at": now.isoformat()}]
     audit(db, user, "emergency_intervention", "EmergencyEvent", ev.id, person_id=ev.person_id, request=request)
     db.commit()
     return to_dict(ev)
@@ -114,6 +128,8 @@ def add_step(eid: str, body: StepIn, request: Request, user: User = Depends(requ
 def get_event(eid: str, request: Request, user: User = Depends(require("emergency.write")), db: Session = Depends(get_db)):
     ev = _load(db, user, eid)
     ensure_clinical_access(db, user, ev.person_id, request)
+    audit(db, user, "view_emergency_event", "EmergencyEvent", ev.id, person_id=ev.person_id, request=request)
+    db.commit()
     return to_dict(ev)
 
 
@@ -125,12 +141,17 @@ class CloseIn(BaseModel):
 @router.post("/emergency-events/{eid}/close", tags=["emergency"])
 def close_event(eid: str, body: CloseIn, request: Request, user: User = Depends(require("emergency.close")),
                 db: Session = Depends(get_db)):
-    ev = _load(db, user, eid)
+    ev = _load(db, user, eid, lock=True)
+    ensure_clinical_access(db, user, ev.person_id, request, write=True)
     if ev.status != "open":
         fail(409, "EVENT_CLOSED", "Sự kiện đã đóng")
+    if body.follow_up_date and body.follow_up_date < date.today():
+        fail(422, "PAST_DATE", "Ngày tái khám/theo dõi không được ở quá khứ")
     problems = []
     enc = db.get(Encounter, ev.encounter_id)
-    if enc and enc.status not in ("completed", "cancelled"):
+    if enc and enc.status == "cancelled":   # hủy lượt khám ≠ hoàn tất hồ sơ cấp cứu
+        problems.append("Lượt khám cấp cứu đã bị hủy – không được coi là hoàn tất hồ sơ")
+    elif enc and enc.status != "completed":
         problems.append("Lượt khám cấp cứu chưa hoàn tất hồ sơ")
     p = db.get(Person, ev.person_id)
     if p and p.status != "verified":

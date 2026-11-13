@@ -124,14 +124,26 @@ def grant_break_glass(db: Session, user: User, person_id: str, reason: str, requ
     return g
 
 
-def ensure_clinical_access(db: Session, user: User, person_id: str, request: Request | None = None) -> None:
+def ensure_clinical_access(db: Session, user: User, person_id: str, request: Request | None = None,
+                           write: bool = False) -> None:
     """ABAC + need-to-know: người dùng phải thuộc cơ sở có quan hệ quản lý với người bệnh.
-    Ngoại lệ: break-glass – CÓ HẠN THỜI GIAN, chỉ đọc, bắt buộc lý do, hậu kiểm. Cấp bằng POST /persons/{id}/break-glass
+    - ĐỌC: cơ sở từng quản lý (đợt tiếp nhận không bị hủy, kể cả đã chuyển trại/kết thúc) được xem lịch sử.
+    - GHI (write=True): chỉ cơ sở đang quản lý (đợt tiếp nhận còn hiệu lực tại cơ sở của người dùng).
+    Ngoại lệ đọc: break-glass – CÓ HẠN THỜI GIAN, CHỈ ĐỌC, bắt buộc lý do, hậu kiểm. Cấp bằng POST /persons/{id}/break-glass
     (hoặc header X-Break-Glass-Reason để tương thích API: tự tạo lượt cấp có hạn)."""
     if "clinical.read" not in perms_of(user):
         audit(db, user, "access_denied", "Person", person_id, person_id=person_id, result="denied",
               reason="thiếu quyền clinical.read", request=request, commit=True)
         fail(403, "FORBIDDEN", "Không có quyền xem thông tin lâm sàng")
+    if db.get(Person, person_id) is None:
+        fail(404, "PERSON_NOT_FOUND", "Không tìm thấy hồ sơ")
+    if write:
+        if user.facility_id and active_stay(db, person_id, user.facility_id):
+            return
+        audit(db, user, "access_denied", "Person", person_id, person_id=person_id, result="denied",
+              reason="ghi dữ liệu khi cơ sở không còn quản lý người bệnh", request=request, commit=True)
+        fail(403, "FACILITY_SCOPE", "Chỉ cơ sở đang quản lý người bệnh được ghi dữ liệu lâm sàng "
+                                    "(truy cập khẩn cấp và cơ sở cũ chỉ được xem)")
     if has_facility_link(db, person_id, user.facility_id):
         return
     if active_grant(db, user.id, person_id):

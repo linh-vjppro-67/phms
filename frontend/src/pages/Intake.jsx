@@ -4,6 +4,44 @@ import { ApiError, api, qs } from "../api";
 import { usePatient } from "../patient.jsx";
 import { Badge, Banner, Card, DataTable, Drawer, Empty, Field, FormModal, KV, Modal, PageHeader, Seg, Status, fmtDate, today, useApp, useAct, useAuth, useDebounced, useLoad } from "../ui.jsx";
 
+/** Đối soát danh tính. Máy chủ báo nghi trùng (409 DUPLICATE_SUSPECTED) -> xem danh sách, rồi xác nhận
+ *  "đây là người khác" (confirm_distinct) giống bước kiểm tra trùng khi tạo hồ sơ mới; cùng một người thì đề nghị gộp. */
+export function VerifyIdentityModal({ personId, defaults = {}, title = "Đối soát danh tính", onClose, onDone }) {
+  const act = useAct();
+  const { notify } = useApp();
+  const [draft, setDraft] = useState(defaults);
+  const [cands, setCands] = useState(null);
+  const send = async (body) => {
+    try {
+      await api("POST", `/persons/${personId}/verify`, body);
+      notify("Đã xác minh danh tính"); onDone(); return true;
+    } catch (e) {
+      if (e instanceof ApiError && e.data.code === "DUPLICATE_SUSPECTED") { setDraft(body); setCands(e.data.candidates || []); return false; }
+      await act(() => Promise.reject(e));
+      return false;
+    }
+  };
+  if (cands) return (
+    <Modal title={`${title} – kiểm tra trùng hồ sơ`} onClose={onClose} wide
+      footer={<><button className="btn" onClick={() => setCands(null)}>← Sửa thông tin</button><button className="btn primary" onClick={() => send({ ...draft, confirm_distinct: true })}>Đây là người khác – xác minh</button></>}>
+      <Banner tone="warn"><span>Có {cands.length} hồ sơ trùng họ tên/ngày sinh vừa nhập. Hệ thống <b>không tự gộp</b>. Nếu là cùng một người, hãy hủy và dùng <b>Đề nghị gộp hồ sơ</b>.</span></Banner>
+      <DataTable rows={cands} columns={[{ h: "Họ tên", c: (p) => <b>{p.full_name}</b> }, { h: "Ngày sinh", c: (p) => fmtDate(p.date_of_birth) },
+        { h: "Mã nguồn", c: (p) => `${p.source_system || ""} ${p.external_id || ""}` }, { h: "Trạng thái", c: (p) => <Status d="person" v={p.status} /> }]} />
+    </Modal>
+  );
+  return (
+    <FormModal title={title} onClose={onClose} submit="Xác minh" onSubmit={send}>
+      <div className="grid2">
+        <Field label="Họ tên"><input name="full_name" defaultValue={draft.full_name || ""} /></Field>
+        <Field label="Ngày sinh"><input type="date" name="date_of_birth" defaultValue={draft.date_of_birth || ""} /></Field>
+        <Field label="Hệ thống nguồn" required><input name="source_system" defaultValue={draft.source_system || "QLPN"} required /></Field>
+        <Field label="Mã nguồn" required><input name="external_id" defaultValue={draft.external_id || ""} required /></Field>
+      </div>
+      <Field label="Căn cứ đối soát" required><textarea name="note" required defaultValue={draft.note || ""} placeholder="Đối chiếu hồ sơ giấy/QLPN số…" /></Field>
+    </FormModal>
+  );
+}
+
 function IntakeWizard({ onClose, onDone }) {
   const act = useAct();
   const { notify } = useApp();
@@ -198,16 +236,8 @@ function PersonDrawer({ id, onClose, onChanged }) {
         </Card>
       </div>
       {m === "verify" && (
-        <FormModal title="Đối soát danh tính" onClose={() => setM(null)} submit="Xác minh"
-          onSubmit={async (d) => { const r = await act(() => api("POST", `/persons/${id}/verify`, d), "Đã xác minh danh tính"); if (r) reload(); return !!r; }}>
-          <div className="grid2">
-            <Field label="Họ tên"><input name="full_name" defaultValue={p.is_temporary ? "" : p.full_name} /></Field>
-            <Field label="Ngày sinh"><input type="date" name="date_of_birth" defaultValue={p.date_of_birth || ""} /></Field>
-            <Field label="Hệ thống nguồn" required><input name="source_system" defaultValue={p.is_temporary ? "QLPN" : p.source_system || "QLPN"} required /></Field>
-            <Field label="Mã nguồn" required><input name="external_id" defaultValue={p.is_temporary ? "" : p.external_id || ""} required /></Field>
-          </div>
-          <Field label="Căn cứ đối soát" required><textarea name="note" required placeholder="Đối chiếu hồ sơ giấy/QLPN số…" /></Field>
-        </FormModal>
+        <VerifyIdentityModal personId={id} onClose={() => setM(null)} onDone={() => { setM(null); reload(); }}
+          defaults={p.is_temporary ? { date_of_birth: p.date_of_birth } : { full_name: p.full_name, date_of_birth: p.date_of_birth, source_system: p.source_system, external_id: p.external_id }} />
       )}
       {m === "merge" && <MergeRequestModal person={p} onClose={() => setM(null)} onDone={() => { setM(null); reload(); }} />}
       {m === "stay" && (

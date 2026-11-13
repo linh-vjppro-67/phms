@@ -6,13 +6,13 @@ from datetime import date, datetime, time, timedelta
 
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import Response
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from ..audit import audit
 from ..db import get_db
 from ..deps import require
-from ..models import (Alert, Appointment, Encounter, HealthProblem, MedicationOrder, Referral, User)
+from ..models import (Alert, Appointment, CustodyStay, Encounter, HealthProblem, MedicationOrder, Referral, User)
 from ..permissions import perms_of
 from ..utils import fail, utcnow
 from .medication import dispense_totals
@@ -55,11 +55,18 @@ def r_checkups(db, fac, a, b, frm, to):
 
 
 def r_problems(db, fac, a, b, frm, to):
-    rows = db.execute(select(HealthProblem.name, func.count(func.distinct(HealthProblem.person_id))).where(
-        HealthProblem.facility_id == fac, HealthProblem.status == "active").group_by(HealthProblem.name)
-        .order_by(func.count(func.distinct(HealthProblem.person_id)).desc())).all()
-    return {"active_by_problem": {n: c for n, c in rows},
-            "note": "Số người có vấn đề sức khỏe đang hiệu lực; không kèm định danh."}
+    # theo cơ sở ĐANG quản lý người bệnh (đợt tiếp nhận còn hiệu lực), không theo cơ sở đã ghi nhận vấn đề;
+    # vấn đề tính khi có hiệu lực trong khoảng ngày [date_from, date_to]
+    managed_here = select(CustodyStay.id).where(CustodyStay.person_id == HealthProblem.person_id, CustodyStay.facility_id == fac,
+                                                CustodyStay.status.in_(("received", "managed"))).exists()
+    in_range = and_(HealthProblem.effective_from <= to,
+                    or_(and_(HealthProblem.effective_to.is_(None), HealthProblem.status == "active"),
+                        HealthProblem.effective_to >= frm))
+    n = func.count(func.distinct(HealthProblem.person_id))
+    rows = db.execute(select(HealthProblem.name, n).where(managed_here, in_range)
+                      .group_by(HealthProblem.name).order_by(n.desc())).all()
+    return {"active_by_problem": {name: c for name, c in rows},
+            "note": "Số người đang do cơ sở quản lý có vấn đề sức khỏe còn hiệu lực trong khoảng ngày; không kèm định danh."}
 
 
 def r_dispensing(db, fac, a, b, frm, to):

@@ -10,20 +10,20 @@ def test_person_date_of_birth_must_be_plausible(api, dob):
     assert r.status_code == 422
 
 
-@pytest.mark.parametrize("typ,val,code", [("Mạch", "abc", "OBS_NOT_NUMERIC"), ("Mạch", "500", "OBS_OUT_OF_RANGE"),
-                                          ("Nhiệt độ", "99", "OBS_OUT_OF_RANGE"), ("SpO2", "130", "OBS_OUT_OF_RANGE")])
-def test_vital_signs_reject_impossible_values(api, typ, val, code):
+@pytest.mark.parametrize("typ,val,unit,code", [("Mạch", "abc", "lần/phút", "OBS_NOT_NUMERIC"), ("Mạch", "500", "lần/phút", "OBS_OUT_OF_RANGE"),
+                                               ("Nhiệt độ", "99", "°C", "OBS_OUT_OF_RANGE"), ("SpO2", "130", "%", "OBS_OUT_OF_RANGE")])
+def test_vital_signs_reject_impossible_values(api, typ, val, unit, code):
     p, _ = api.patient("QC1", "Sinh Hiệu")
     e = api.encounter(p["id"])
-    r = api.post("nurse1", f"/api/encounters/{e['id']}/observations", {"type": typ, "value": val, "unit": "x"})
+    r = api.post("nurse1", f"/api/encounters/{e['id']}/observations", {"type": typ, "value": val, "unit": unit})
     assert r.status_code == 422 and r.json()["error"]["code"] == code
 
 
 def test_vital_signs_accept_valid_and_comma_decimal_and_free_text_types(api):
     p, _ = api.patient("QC2", "Sinh Hiệu Hợp Lệ")
     e = api.encounter(p["id"])
-    for typ, val in [("Mạch", "78"), ("Nhiệt độ", "36,8"), ("Ghi chú khác", "tùy ý")]:
-        r = api.post("nurse1", f"/api/encounters/{e['id']}/observations", {"type": typ, "value": val, "unit": "-"})
+    for typ, val, unit in [("Mạch", "78", "lần/phút"), ("Nhiệt độ", "36,8", "°C"), ("Ghi chú khác", "tùy ý", "-")]:   # chỉ số đã biết: bắt buộc đúng đơn vị
+        r = api.post("nurse1", f"/api/encounters/{e['id']}/observations", {"type": typ, "value": val, "unit": unit})
         assert r.status_code == 201, r.text
     assert api.get("nurse1", f"/api/encounters/{e['id']}").status_code == 200
 

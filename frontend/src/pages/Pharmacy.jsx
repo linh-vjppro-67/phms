@@ -1,16 +1,30 @@
 // M06 – Cấp phát thuốc & xác nhận sử dụng (WF-03 bước 4–5). Cấp phát ≠ sử dụng: hai sự kiện riêng.
 import { useState } from "react";
 import { api, idem } from "../api";
-import { Badge, Banner, Card, DataTable, Drawer, Empty, Field, FormModal, KV, PageHeader, Seg, Status, fmtDT, fmtDate, useAct, useAuth, useLoad } from "../ui.jsx";
+import { Badge, Banner, Card, DataTable, Drawer, Empty, Field, FormModal, KV, PageHeader, Seg, Status, fmtDT, fmtDate, useAct, useApp, useAuth, useLoad } from "../ui.jsx";
 
 function OrderDrawer({ id, onClose, onChanged }) {
   const { has } = useAuth();
   const act = useAct();
+  const { notify } = useApp();
   const { data: o, reload } = useLoad(() => api("GET", `/medication-orders/${id}`), [id]);
   const [m, setM] = useState(null);
   if (!o) return null;
   const done = () => { reload(); onChanged(); };
   const dispenses = o.dispenses.filter((d) => d.kind === "dispense");
+  // Dị ứng mới ghi nhận sau khi kê đơn -> máy chủ trả WARNINGS_UNACKNOWLEDGED: hiện cảnh báo, bắt buộc ghi chú xử lý rồi gửi lại
+  const post = async (path, body, onOk) => {
+    try {
+      onOk(await api("POST", path, body, idem()));
+      return true;
+    } catch (er) {
+      if (er.data?.code === "WARNINGS_UNACKNOWLEDGED") { setM({ t: "warn", path, body, onOk, warnings: er.data.warnings }); return false; }
+      notify(er.message, false);
+      return false;
+    }
+  };
+  const dispensed = (r) => { notify(r.status === "full" ? "Đã cấp đủ theo đơn" : `Cấp một phần – còn thiếu ${r.order.remaining}`); done(); };
+  const administered = () => { notify("Đã ghi nhận"); done(); };
   return (
     <Drawer title={`${o.drug_name} ${o.strength || ""}`} onClose={onClose}>
       <div className="cols">
@@ -37,10 +51,7 @@ function OrderDrawer({ id, onClose, onChanged }) {
       </Card>
       {m === "dispense" && (
         <FormModal title="Cấp thuốc" onClose={() => setM(null)} submit="Ghi nhận cấp phát"
-          onSubmit={async (d) => {
-            const r = await act(() => api("POST", `/medication-orders/${o.id}/dispenses`, { quantity: +d.quantity, ...(d.note && { note: d.note }) }, idem()));
-            if (r?.order) { act(async () => {}, r.status === "full" ? "Đã cấp đủ theo đơn" : `Cấp một phần – còn thiếu ${r.order.remaining}`); done(); } return !!r;
-          }}>
+          onSubmit={(d) => post(`/medication-orders/${o.id}/dispenses`, { quantity: +d.quantity, ...(d.note && { note: d.note }) }, dispensed)}>
           <Banner tone="info"><span className="sm">Đối chiếu đơn: <b>{o.drug_name}</b>, còn được cấp tối đa <b>{o.remaining}</b>. Số lượng thực cấp có thể khác số lượng kê.</span></Banner>
           <Field label="Số lượng thực cấp" required><input type="number" name="quantity" min="0.01" max={o.remaining} step="any" defaultValue={o.remaining} required /></Field>
           <Field label="Ghi chú"><input name="note" placeholder="Hết thuốc, cấp trước 10 viên…" /></Field>
@@ -57,10 +68,18 @@ function OrderDrawer({ id, onClose, onChanged }) {
       )}
       {m === "admin" && (
         <FormModal title="Ghi nhận sử dụng thuốc" onClose={() => setM(null)}
-          onSubmit={async (d) => { const r = await act(() => api("POST", `/medication-orders/${o.id}/administrations`, { administered: d.administered === "yes", reason: d.reason, ...(d.dispense_id && { dispense_id: d.dispense_id }) }), "Đã ghi nhận"); if (r) done(); return !!r; }}>
+          onSubmit={(d) => post(`/medication-orders/${o.id}/administrations`, { administered: d.administered === "yes", reason: d.reason, ...(d.dispense_id && { dispense_id: d.dispense_id }) }, administered)}>
           <Field label="Người bệnh đã dùng thuốc?" required><select name="administered" defaultValue="yes"><option value="yes">Đã dùng</option><option value="no">Không dùng (từ chối/quên liều/đổi thuốc)</option></select></Field>
           <Field label="Lần cấp phát"><select name="dispense_id" defaultValue=""><option value="">— Không chỉ định —</option>{dispenses.map((d) => <option key={d.id} value={d.id}>{fmtDT(d.occurred_at)} · {d.quantity}</option>)}</select></Field>
           <Field label="Lý do (bắt buộc nếu không dùng)"><textarea name="reason" /></Field>
+        </FormModal>
+      )}
+      {m?.t === "warn" && (
+        <FormModal title="Cảnh báo dị ứng mới ghi nhận sau khi kê đơn" danger submit="Vẫn tiếp tục" onClose={() => setM(null)}
+          onSubmit={async (d) => { const r = await act(() => api("POST", m.path, { ...m.body, acknowledge_warnings: true, ack_note: d.note }, idem())); if (r) m.onOk(r); return !!r; }}>
+          <Banner tone="bad"><div><b>{o.drug_name}</b>{m.warnings.map((w, i) => <div key={i}>• {w.message}</div>)}</div></Banner>
+          <p className="sm muted">Nên trao đổi với bác sĩ điều trị trước khi tiếp tục. Việc xác nhận và ghi chú xử lý sẽ được lưu vào nhật ký kiểm toán.</p>
+          <Field label="Ghi chú xử lý (bắt buộc)" required><textarea name="note" required minLength={3} placeholder="Đã báo bác sĩ / biện pháp theo dõi…" /></Field>
         </FormModal>
       )}
     </Drawer>
@@ -81,7 +100,7 @@ export default function Pharmacy({ focus }) {
       <div style={{ marginBottom: 14 }}><Seg value={view} onChange={setView} items={[has("dispense.write") && { id: "queue", label: "Hàng đợi cấp phát" }, { id: "super", label: "Giám sát dùng thuốc" }, { id: "hist", label: "Tất cả đơn" }].filter(Boolean)} /></div>
       <Card flat>
         <DataTable rows={rows} onRow={(o) => setOpen(o.id)} empty={<Empty title={view === "queue" ? "Không có đơn nào cần cấp phát" : "Không có dữ liệu"} />}
-          columns={[{ h: "Người bệnh", c: (o) => <b>{o.person_name}</b> }, { h: "Thuốc", c: (o) => <>{o.drug_name} {o.supervised && <Badge tone="info">Giám sát</Badge>}</> }, { h: "Cách dùng", c: (o) => <span className="sm">{o.dose} · {o.frequency}</span> },
+          columns={[{ h: "Người bệnh", c: (o) => <b>{o.person_name}</b> }, { h: "Thuốc", c: (o) => <>{o.drug_name} {o.supervised && <Badge tone="info">Giám sát</Badge>} {o.requires_ack && <Badge tone="bad">Dị ứng mới – cần xác nhận</Badge>}</> }, { h: "Cách dùng", c: (o) => <span className="sm">{o.dose} · {o.frequency}</span> },
             { h: "Kê", cls: "r", c: (o) => o.quantity_prescribed }, { h: "Đã cấp", cls: "r", c: (o) => o.dispensed_net }, { h: "Còn thiếu", cls: "r", c: (o) => <b>{o.remaining}</b> }, { h: "Cấp phát", c: (o) => <Status d="dispense" v={o.dispense_status} /> },
             { h: "", c: () => <button className="btn sm primary">Mở</button> }]} />
       </Card>

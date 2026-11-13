@@ -46,3 +46,16 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+def lock_row(db, model, pk):
+    """Khóa ghi một dòng đến hết giao dịch để tuần tự hóa kiểu "kiểm tra rồi ghi" (chống chạy đua).
+    PostgreSQL: SELECT ... FOR UPDATE. SQLite (không có FOR UPDATE): UPDATE không đổi giá trị để giành khóa ghi
+    của CSDL – yêu cầu đồng thời khác phải chờ (busy_timeout) tới khi giao dịch này commit/rollback.
+    Trả về đối tượng đã nạp lại từ CSDL (dữ liệu mới nhất), None nếu không tồn tại."""
+    from sqlalchemy import select, update
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(update(model).where(model.id == pk).values(id=model.id).execution_options(synchronize_session=False))
+    else:
+        db.execute(select(model.id).where(model.id == pk).with_for_update())
+    return db.get(model, pk, populate_existing=True)

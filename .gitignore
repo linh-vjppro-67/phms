@@ -1,0 +1,41 @@
+# ===== Dữ liệu thật / bí mật – TUYỆT ĐỐI KHÔNG đưa lên git =====
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+storage/            # tài liệu y tế (đã mã hóa) do người dùng tải lên
+backups/            # gói sao lưu (chứa dữ liệu y tế)
+*.tar.gz
+*.pgdump
+.env
+.env.*
+!.env.example
+deploy/phms.env     # bản cấu hình thật (chỉ giữ deploy/phms.env.example)
+*.pem
+*.key
+
+# ===== Python =====
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# ===== Node / frontend =====
+node_modules/
+frontend/dist/
+frontend/e2e/shots/
+npm-debug.log*
+.vite/
+
+# ===== Hệ điều hành / editor =====
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.log

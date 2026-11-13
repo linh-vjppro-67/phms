@@ -1,0 +1,16 @@
+# crontab của tài khoản chạy PHMS (ví dụ). Thay đường dẫn cho khớp môi trường.
+SHELL=/bin/bash
+PHMS_ENV_FILE=/etc/phms/phms.env
+BK=/var/backups/phms
+
+# 02:10 hằng ngày: sao lưu + giữ 30 gói mới nhất (gói quyền 0600). Thất bại -> cron gửi mail/log của bạn
+10 2 * * *  set -a; . $PHMS_ENV_FILE; set +a; cd /srv/phms/backend && .venv/bin/python -m app.backup create --out $BK && .venv/bin/python -m app.backup prune --out $BK --keep 30
+
+# 02:40: kiểm sâu gói mới nhất (SHA-256, chuỗi nhật ký, giải mã & checksum từng tài liệu). Exit != 0 -> cảnh báo
+40 2 * * *  set -a; . $PHMS_ENV_FILE; set +a; cd /srv/phms/backend && .venv/bin/python -m app.backup verify "$(ls -1 $BK/phms-backup-*.tar.gz | tail -1)" --check-docs
+
+# 03:00: chuỗi nhật ký kiểm toán còn nguyên vẹn? (cần token quản trị – dùng tài khoản dịch vụ riêng + MFA ngoại lệ do bạn quyết định)
+# 0 3 * * *  curl -fsS -H "Authorization: Bearer $PHMS_AUDIT_TOKEN" https://phms.example.org/api/audit/verify | grep -q '"ok":true' || echo "PHMS: chuỗi nhật ký lỗi" | mail -s "PHMS ALERT" ops@example.org
+
+# Sao chép ra ngoài máy chủ (3-2-1): ví dụ rsync/rclone sang kho lưu trữ mã hóa
+# 20 3 * * *  rclone copy /var/backups/phms remote:phms-backups --max-age 2d

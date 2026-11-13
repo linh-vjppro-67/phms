@@ -1,0 +1,28 @@
+{
+  "name": "phms-frontend",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "e2e": "node e2e/smoke.mjs && node e2e/flow.mjs && node e2e/followup.mjs && node e2e/notify.mjs && node e2e/alignment.mjs",
+    "e2e:flows": "for f in intake clinical followup referral emergency handover docs-admin security; do node e2e/flow-$f.mjs || exit 1; done",
+    "e2e:responsive": "node e2e/responsive.mjs",
+    "e2e:load": "node e2e/load.mjs",
+    "e2e:soak": "node e2e/soak.mjs",
+    "e2e:a11y": "node e2e/a11y.mjs"
+  },
+  "dependencies": {
+    "qrcode-generator": "^1.4.4",
+    "react": "18.3.1",
+    "react-dom": "18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "4.3.4",
+    "axe-core": "^4.10.2",
+    "playwright": "^1.49.1",
+    "vite": "5.4.11"
+  }
+}

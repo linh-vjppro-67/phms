@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from .. import config
 from ..audit import audit
 from ..idempotency import idempotent
-from ..db import get_db
+from ..db import get_db, lock_row
 from ..deps import active_stay, current_user, ensure_clinical_access, require
 from ..notify import emit, person_name, purge
 from ..models import (MedicationOrder, Alert, Appointment, CarePlan, CheckupRound, CustodyStay, Encounter, Handover, HealthProblem,
@@ -21,7 +21,38 @@ from .identity import get_or_create_record
 router = APIRouter()
 
 
-def complete_appointment(db: Session, ap: Appointment, encounter_id: str | None = None):
+OPEN_APPT = ("scheduled", "due")
+
+
+def close_overdue_alerts(db: Session, appt_ids, resolution: str) -> None:
+    """Lịch đã được xử lý (hoàn tất/hoãn/không thực hiện/kết thúc kế hoạch) -> cảnh báo quá hạn của lịch đó đóng theo,
+    tránh cảnh báo mồ côi bị nâng mức."""
+    keys = [f"overdue:{i}" for i in appt_ids]
+    if not keys:
+        return
+    for a in db.scalars(select(Alert).where(Alert.dedupe_key.in_(keys), Alert.status.in_(("new", "acknowledged")))):
+        a.status, a.resolution, a.handled_at = "resolved", resolution, utcnow()
+
+
+def check_assignee(db: Session, user_id: str | None, facility_id: str | None) -> str | None:
+    """Người phụ trách/được giao phải là nhân viên y tế (khám được) đang hoạt động của đúng cơ sở."""
+    if user_id is None:
+        return None
+    u = db.get(User, user_id)
+    if not u or not u.active or u.facility_id != facility_id or "encounter.write" not in perms_of(u):
+        fail(422, "BAD_ASSIGNEE", "Người phụ trách phải là nhân viên y tế đang hoạt động của cơ sở")
+    return u.id
+
+
+def complete_appointment(db: Session, ap: Appointment, encounter_id: str | None = None) -> bool:
+    """Hoàn tất lịch – CHỈ khi lịch còn mở (scheduled/due) và đợt khám (nếu có) chưa khóa. Lịch đã hoàn tất/hoãn/
+    không thực hiện giữ nguyên (không tạo trùng lịch theo dõi, không đổi thống kê đợt đã khóa). Người gọi khóa dòng lịch."""
+    if ap.status not in OPEN_APPT:
+        return False
+    if ap.round_id:
+        r = db.get(CheckupRound, ap.round_id)
+        if r and r.status == "locked":
+            return False
     ap.status, ap.completed_at, ap.completed_encounter_id = "completed", utcnow(), encounter_id
     if ap.care_plan_id:
         cp = db.get(CarePlan, ap.care_plan_id)
@@ -29,8 +60,8 @@ def complete_appointment(db: Session, ap: Appointment, encounter_id: str | None 
             db.add(Appointment(person_id=ap.person_id, facility_id=ap.facility_id, kind="care_plan",
                                care_plan_id=cp.id, due_date=date.today() + timedelta(days=cp.review_interval_days),
                                assignee_id=cp.responsible_user_id))
-    for a in db.scalars(select(Alert).where(Alert.dedupe_key == f"overdue:{ap.id}", Alert.status.in_(("new", "acknowledged")))):
-        a.status, a.resolution, a.handled_at = "resolved", "Lịch đã hoàn tất", utcnow()
+    close_overdue_alerts(db, [ap.id], "Lịch đã hoàn tất")
+    return True
 
 
 def appt_out(db: Session, a: Appointment, with_name: bool) -> dict:
@@ -55,7 +86,7 @@ class ProblemIn(BaseModel):
 @idempotent(201)
 def add_problem(person_id: str, body: ProblemIn, request: Request, user: User = Depends(require("problem.write")),
                 db: Session = Depends(get_db)):
-    ensure_clinical_access(db, user, person_id, request)
+    ensure_clinical_access(db, user, person_id, request, write=True)
     rec = get_or_create_record(db, person_id)
     p = HealthProblem(record_id=rec.id, person_id=person_id, name=body.name, code=body.code,
                       confirmation=body.confirmation, source=body.source or f"Bác sĩ {user.full_name}",
@@ -70,14 +101,39 @@ class ResolveIn(BaseModel):
     note: str = Field(min_length=3)
 
 
+class ResolveProblemIn(ResolveIn):
+    end_plans: bool = False   # True: kết thúc luôn các kế hoạch theo dõi đang hiệu lực của vấn đề này
+
+
+def _end_plan(db: Session, cp: CarePlan, reason: str) -> None:
+    cp.status, cp.end_reason = "ended", reason
+    closed = []
+    for a in db.scalars(select(Appointment).where(Appointment.care_plan_id == cp.id, Appointment.status.in_(OPEN_APPT))):
+        a.status, a.status_reason = "not_done", "Kế hoạch theo dõi đã kết thúc"
+        closed.append(a.id)
+    close_overdue_alerts(db, closed, "Kế hoạch theo dõi đã kết thúc")
+
+
 @router.post("/problems/{problem_id}/resolve", tags=["scheduling"])
-def resolve_problem(problem_id: str, body: ResolveIn, request: Request, user: User = Depends(require("problem.write")),
+def resolve_problem(problem_id: str, body: ResolveProblemIn, request: Request, user: User = Depends(require("problem.write")),
                     db: Session = Depends(get_db)):
+    """Vấn đề đã hết hiệu lực thì kế hoạch theo dõi của nó không còn căn cứ: nếu còn kế hoạch đang hiệu lực, chặn (409 PLAN_ACTIVE)
+    để bác sĩ quyết định – gửi lại với end_plans=true để kết thúc luôn các kế hoạch đó (cùng lý do)."""
     p = db.get(HealthProblem, problem_id)
     if not p:
         fail(404, "NOT_FOUND", "Không tìm thấy vấn đề sức khỏe")
-    ensure_clinical_access(db, user, p.person_id, request)
+    ensure_clinical_access(db, user, p.person_id, request, write=True)
+    p = lock_row(db, HealthProblem, problem_id)
+    if p.status != "active":
+        fail(409, "PROBLEM_RESOLVED", "Vấn đề sức khỏe đã được đóng trước đó")
+    plans = db.scalars(select(CarePlan).where(CarePlan.problem_id == p.id, CarePlan.status == "active")).all()
+    if plans and not body.end_plans:
+        fail(409, "PLAN_ACTIVE", "Vấn đề còn kế hoạch theo dõi đang hiệu lực – kết thúc kế hoạch trước (hoặc chọn kết thúc kèm theo)",
+             care_plan_ids=[c.id for c in plans])
     p.status, p.effective_to = "resolved", date.today()
+    for cp in plans:
+        _end_plan(db, cp, f"Vấn đề sức khỏe đã đóng: {body.note}")
+        audit(db, user, "care_plan_ended", "CarePlan", cp.id, person_id=cp.person_id, reason=cp.end_reason, request=request)
     audit(db, user, "problem_resolved", "HealthProblem", p.id, person_id=p.person_id, reason=body.note, request=request)
     db.commit()
     return to_dict(p)
@@ -96,7 +152,7 @@ class CarePlanIn(BaseModel):
 @idempotent(201)
 def create_care_plan(person_id: str, body: CarePlanIn, request: Request,
                      user: User = Depends(require("careplan.write")), db: Session = Depends(get_db)):
-    ensure_clinical_access(db, user, person_id, request)
+    ensure_clinical_access(db, user, person_id, request, write=True)
     prob = db.get(HealthProblem, body.problem_id)
     if not prob or prob.person_id != person_id or prob.status != "active":
         fail(409, "BAD_PROBLEM", "Vấn đề sức khỏe không hợp lệ hoặc không còn hiệu lực")
@@ -104,14 +160,15 @@ def create_care_plan(person_id: str, body: CarePlanIn, request: Request,
     if not stay:
         fail(409, "NO_ACTIVE_STAY", "Không có đợt tiếp nhận hiệu lực tại cơ sở")
     start = body.start_date or date.today()
+    responsible = check_assignee(db, body.responsible_user_id, user.facility_id)
     cp = CarePlan(person_id=person_id, problem_id=prob.id, facility_id=user.facility_id, goals=body.goals,
                   measures=body.measures, review_interval_days=body.review_interval_days, start_date=start,
-                  responsible_user_id=body.responsible_user_id, created_by=user.id)
+                  responsible_user_id=responsible, created_by=user.id)
     db.add(cp)
     db.flush()
     db.add(Appointment(person_id=person_id, facility_id=user.facility_id, kind="care_plan", care_plan_id=cp.id,
                        due_date=start + timedelta(days=cp.review_interval_days),
-                       assignee_id=body.responsible_user_id))
+                       assignee_id=responsible))
     audit(db, user, "care_plan_created", "CarePlan", cp.id, person_id=person_id, request=request)
     return to_dict(cp)
 
@@ -130,7 +187,7 @@ def patch_care_plan(plan_id: str, body: CarePlanPatch, request: Request,
     cp = db.get(CarePlan, plan_id)
     if not cp:
         fail(404, "NOT_FOUND", "Không tìm thấy kế hoạch")
-    ensure_clinical_access(db, user, cp.person_id, request)
+    ensure_clinical_access(db, user, cp.person_id, request, write=True)
     if cp.status != "active":
         fail(409, "PLAN_ENDED", "Kế hoạch đã kết thúc")
     changes = body.model_dump(exclude={"expected_version"}, exclude_none=True)
@@ -139,9 +196,7 @@ def patch_care_plan(plan_id: str, body: CarePlanPatch, request: Request,
     if "goals" in changes and len(changes["goals"].strip()) < 3:
         fail(422, "GOALS_REQUIRED", "Mục tiêu không được để trống")
     if "responsible_user_id" in changes:
-        ru = db.get(User, changes["responsible_user_id"])
-        if not ru or not ru.active or ru.facility_id != cp.facility_id:
-            fail(422, "BAD_ASSIGNEE", "Người phụ trách phải là người dùng đang hoạt động của cơ sở")
+        check_assignee(db, changes["responsible_user_id"], cp.facility_id)
     old_interval = cp.review_interval_days
     bump_version(cp, body.expected_version)
     for k, v in changes.items():
@@ -170,11 +225,11 @@ def end_care_plan(plan_id: str, body: ResolveIn, request: Request, user: User = 
     cp = db.get(CarePlan, plan_id)
     if not cp:
         fail(404, "NOT_FOUND", "Không tìm thấy kế hoạch")
-    ensure_clinical_access(db, user, cp.person_id, request)
-    cp.status, cp.end_reason = "ended", body.note
-    for a in db.scalars(select(Appointment).where(Appointment.care_plan_id == cp.id,
-                                                   Appointment.status.in_(("scheduled", "due")))):
-        a.status, a.status_reason = "not_done", "Kế hoạch theo dõi đã kết thúc"
+    ensure_clinical_access(db, user, cp.person_id, request, write=True)
+    cp = lock_row(db, CarePlan, plan_id)
+    if cp.status != "active":
+        fail(409, "PLAN_ENDED", "Kế hoạch đã kết thúc")
+    _end_plan(db, cp, body.note)
     audit(db, user, "care_plan_ended", "CarePlan", cp.id, person_id=cp.person_id, reason=body.note, request=request)
     db.commit()
     return to_dict(cp)
@@ -199,10 +254,13 @@ class ApptIn(BaseModel):
 @idempotent(201)
 def create_appt(body: ApptIn, request: Request, user: User = Depends(require("schedule.write")),
                 db: Session = Depends(get_db)):
+    ensure_clinical_access(db, user, body.person_id, request, write=True)
     if not active_stay(db, body.person_id, user.facility_id):
         fail(409, "NO_ACTIVE_STAY", "Không có đợt tiếp nhận hiệu lực tại cơ sở")
+    if body.due_date < date.today():
+        fail(422, "PAST_DUE_DATE", "Ngày hẹn không được ở quá khứ")
     a = Appointment(person_id=body.person_id, facility_id=user.facility_id, kind="follow_up", due_date=body.due_date,
-                    note=body.note, assignee_id=body.assignee_id)
+                    note=body.note, assignee_id=check_assignee(db, body.assignee_id, user.facility_id))
     db.add(a)
     audit(db, user, "appointment_created", "Appointment", a.id, person_id=body.person_id, request=request)
     return appt_out(db, a, True)
@@ -225,7 +283,7 @@ def list_appts(status: str | None = None, overdue: bool | None = None, assignee_
     if overdue:
         q = q.where(Appointment.status.in_(("scheduled", "due")), Appointment.due_date < date.today())
     with_name = "person.read" in perms_of(user)
-    return [appt_out(db, a, with_name) for a in db.scalars(q.limit(min(limit, 500)))]
+    return [appt_out(db, a, with_name) for a in db.scalars(q.limit(max(1, min(limit, 500))))]
 
 
 class ApptStatusIn(BaseModel):
@@ -240,12 +298,20 @@ def appt_status(appt_id: str, body: ApptStatusIn, request: Request, user: User =
     a = db.get(Appointment, appt_id)
     if not a or a.facility_id != user.facility_id:
         fail(404, "NOT_FOUND", "Không tìm thấy lịch hẹn")
-    if a.status not in ("scheduled", "due"):
+    ensure_clinical_access(db, user, a.person_id, request, write=True)
+    # hạn của lịch định kỳ là hạn chót của đợt, nên ngày hẹn mới được phép sớm hơn hạn cũ – chỉ cấm ngày quá khứ
+    if body.to == "postponed" and body.new_due_date and body.new_due_date < date.today():
+        fail(422, "BAD_DUE_DATE", "Ngày hẹn mới phải từ hôm nay trở đi")
+    a = lock_row(db, Appointment, appt_id)
+    if a.status not in OPEN_APPT:
         fail(409, "BAD_TRANSITION", f"Lịch đang ở trạng thái '{a.status}'")
     a.status, a.status_reason = body.to, body.reason
     if body.to == "postponed" and body.new_due_date:
         db.add(Appointment(person_id=a.person_id, facility_id=a.facility_id, kind=a.kind, care_plan_id=a.care_plan_id,
                            round_id=a.round_id, due_date=body.new_due_date, assignee_id=a.assignee_id))
+        close_overdue_alerts(db, [a.id], f"Đã hoãn sang {body.new_due_date.strftime('%d/%m/%Y')}: {body.reason}")
+    else:
+        close_overdue_alerts(db, [a.id], f"{'Đã hoãn' if body.to == 'postponed' else 'Không thực hiện'}: {body.reason}")
     audit(db, user, f"appointment_{body.to}", "Appointment", a.id, person_id=a.person_id, reason=body.reason,
           request=request)
     db.commit()
@@ -289,6 +355,8 @@ def resolve_alert(alert_id: str, body: ResolveIn, request: Request, user: User =
     a = _alert_for(db, user, alert_id)
     if a.status not in ("new", "acknowledged"):
         fail(409, "BAD_TRANSITION", f"Cảnh báo đang ở trạng thái '{a.status}'")
+    if a.kind == "referral_post_review":   # chỉ đóng qua bước hậu kiểm hồ sơ chuyển viện (người có thẩm quyền phê duyệt)
+        fail(409, "POST_REVIEW_REQUIRED", "Cảnh báo hậu kiểm chuyển viện chỉ được đóng khi thực hiện hậu kiểm hồ sơ chuyển viện")
     a.owner_id = a.owner_id or user.id  # luôn có người chịu trách nhiệm
     a.status, a.resolution, a.handled_at = "resolved", body.note, utcnow()
     audit(db, user, "alert_resolved", "Alert", a.id, person_id=a.person_id, reason=body.note, request=request)
@@ -306,6 +374,8 @@ class RoundIn(BaseModel):
 @router.post("/checkup-rounds", status_code=201, tags=["scheduling"])
 def create_round(body: RoundIn, request: Request, user: User = Depends(require("checkup.manage")),
                  db: Session = Depends(get_db)):
+    if body.due_date < date.today():
+        fail(422, "PAST_DUE_DATE", "Hạn hoàn thành đợt khám không được ở quá khứ")
     r = CheckupRound(name=body.name, facility_id=user.facility_id, due_date=body.due_date, status="open",
                      criteria=body.model_dump(mode="json", exclude={"name", "due_date"}), created_by=user.id)
     db.add(r)
@@ -323,9 +393,9 @@ def create_round(body: RoundIn, request: Request, user: User = Depends(require("
             reason = "Đang chờ chuyển trại"
         elif s.status == "received":
             reason = "Chưa hoàn tất khám ban đầu"
-        elif db.scalars(select(Appointment.id).where(
-                Appointment.person_id == s.person_id, Appointment.facility_id == s.facility_id, Appointment.kind == "periodic",
-                Appointment.status.in_(("scheduled", "due")), Appointment.due_date <= body.due_date)).first():
+        elif db.scalars(select(Appointment.id).where(   # mỗi người tối đa một lịch khám định kỳ đang mở (dù thuộc đợt nào, hạn nào)
+                Appointment.person_id == s.person_id, Appointment.kind == "periodic",
+                Appointment.status.in_(OPEN_APPT))).first():
             reason = "Đã có lịch khám định kỳ khác đang mở (tránh trùng lịch)"
         elif body.min_days_since_last_periodic is not None:
             last = db.scalar(select(func.max(Encounter.occurred_at)).where(
@@ -348,18 +418,30 @@ def create_round(body: RoundIn, request: Request, user: User = Depends(require("
 
 
 def round_stats(db: Session, r: CheckupRound) -> dict:
-    counts = dict(db.execute(select(Appointment.status, func.count()).where(Appointment.round_id == r.id)
-                             .group_by(Appointment.status)).all())
-    total = sum(counts.values())
-    overdue = db.scalar(select(func.count()).select_from(Appointment).where(
-        Appointment.round_id == r.id, Appointment.status.in_(("scheduled", "due")), Appointment.due_date < date.today()))
+    # mỗi người tính MỘT lần theo lịch mới nhất của họ trong đợt: hoãn kèm ngày mới -> bản thay thế thay cho bản đã hoãn
+    latest: dict[str, tuple[str, date]] = {}
+    for pid, st, due in db.execute(select(Appointment.person_id, Appointment.status, Appointment.due_date).where(
+            Appointment.round_id == r.id).order_by(Appointment.recorded_at)):
+        latest[pid] = (st, due)
+    counts: dict[str, int] = {}
+    for st, _ in latest.values():
+        counts[st] = counts.get(st, 0) + 1
+    total = len(latest)
+    overdue = sum(1 for st, due in latest.values() if st in OPEN_APPT and due < date.today())
     done = counts.get("completed", 0)
+    # vấn đề sức khỏe mới phát hiện: chỉ của người thuộc đợt, ghi nhận trong thời gian đợt mở (đến lúc khóa)
+    new_problems = 0
+    if latest:
+        q = select(func.count()).select_from(HealthProblem).where(
+            HealthProblem.facility_id == r.facility_id, HealthProblem.person_id.in_(list(latest)),
+            HealthProblem.recorded_at >= r.recorded_at)
+        if r.locked_at:
+            q = q.where(HealthProblem.recorded_at <= r.locked_at)
+        new_problems = db.scalar(q)
     return {"total": total, "completed": done, "postponed": counts.get("postponed", 0),
             "not_done": counts.get("not_done", 0), "pending": counts.get("scheduled", 0) + counts.get("due", 0),
             "overdue": overdue, "completion_rate": round(done / total, 4) if total else None,
-            "excluded_count": len(r.excluded or []),
-            "new_problems_detected": db.scalar(select(func.count()).select_from(HealthProblem).where(
-                HealthProblem.facility_id == r.facility_id, HealthProblem.recorded_at >= r.recorded_at))}
+            "excluded_count": len(r.excluded or []), "new_problems_detected": new_problems}
 
 
 @router.get("/checkup-rounds", tags=["scheduling"])
@@ -387,11 +469,15 @@ def lock_round(round_id: str, request: Request, user: User = Depends(require("ch
     r = db.get(CheckupRound, round_id)
     if not r or r.facility_id != user.facility_id:
         fail(404, "NOT_FOUND", "Không tìm thấy đợt khám")
+    r = lock_row(db, CheckupRound, round_id)
     if r.status == "locked":
         fail(409, "ALREADY_LOCKED", "Đợt khám đã khóa")
+    closed = []
     for a in db.scalars(select(Appointment).where(Appointment.round_id == r.id,
-                                                   Appointment.status.in_(("scheduled", "due")))):
+                                                   Appointment.status.in_(OPEN_APPT)).with_for_update()):
         a.status, a.status_reason = "not_done", "Khóa đợt khám – chưa khám"  # không bỏ sót: ghi rõ chưa khám
+        closed.append(a.id)
+    close_overdue_alerts(db, closed, "Khóa đợt khám – chưa khám")
     r.status, r.locked_at = "locked", utcnow()
     audit(db, user, "checkup_round_locked", "CheckupRound", r.id, request=request)
     db.commit()
@@ -424,9 +510,15 @@ def run_scheduler(db: Session, escalate_after_hours: float | None = None) -> dic
     for cp in db.scalars(select(CarePlan).where(CarePlan.status == "active")):
         st = active_stay(db, cp.person_id)
         if st and not db.scalars(select(Appointment.id).where(
-                Appointment.care_plan_id == cp.id, Appointment.status.in_(("scheduled", "due")))).first():
+                Appointment.care_plan_id == cp.id, Appointment.status.in_(OPEN_APPT))).first():
+            # lịch kế tiếp theo chu kỳ tính từ lần theo dõi hoàn tất gần nhất (không bắt đầu lại từ ngày chuyển trại)
+            last = db.scalar(select(func.max(Appointment.completed_at)).where(
+                Appointment.care_plan_id == cp.id, Appointment.status == "completed"))
+            due = max(today, (last.date() if last else cp.start_date) + timedelta(days=cp.review_interval_days))
+            ru = db.get(User, cp.responsible_user_id) if cp.responsible_user_id else None
+            assignee = ru.id if ru and ru.active and ru.facility_id == st.facility_id else None   # không giao cho người cơ sở khác
             db.add(Appointment(person_id=cp.person_id, facility_id=st.facility_id, kind="care_plan",
-                               care_plan_id=cp.id, due_date=today, assignee_id=cp.responsible_user_id))
+                               care_plan_id=cp.id, due_date=due, assignee_id=assignee))
             res["care_plan_tasks"] += 1
     # WF-03 bước 6: nhắc hết liệu trình để bác sĩ đánh giá hiệu quả / tái kê / ngừng (không tự đổi trạng thái đơn)
     from .medication import course_end

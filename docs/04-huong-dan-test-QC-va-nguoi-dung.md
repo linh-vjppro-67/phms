@@ -161,9 +161,10 @@ Tạo mới: *Chuyển viện* → **+ Lập đề nghị** (hoặc trong bàn l
 | J2 | `officer1` bấm **Xác nhận bàn giao** ngay | **Lỗi “Chưa có tóm tắt y tế”** (duy trì trạng thái chờ) |
 | J3 | `nurse1` → **Soạn tóm tắt y tế** | Phiếu sang bước 3; `officer1` chỉ thấy “đã có tóm tắt”, **không đọc được nội dung** |
 | J4 | `officer1` xác nhận khi người còn điều trị/lịch mở (mẫu **Dương Ngọc Nghĩa**) | Hiện các chỉ số “đang mở”, **phải tick xác nhận** mới được xác nhận |
-| J5 | Sau khi xác nhận | Đợt tiếp nhận ở Trại 1 “Đã chuyển trại”; lịch hẹn mở bị hoãn. `officer2` thấy phiếu “Tiếp nhận đến” → tạo **kỳ mới** ở Trại 2 → `doctor2` mở hồ sơ thấy **toàn bộ lịch sử** (mẫu **Lý Xuân Phong**, Ngô Quốc Tài) |
-| J6 | Hình thức *Kết thúc quản lý* | Kỳ “Đã kết thúc”, không xóa dữ liệu (mẫu Trần Trọng Tài) |
-| J7 | Tạo bàn giao thứ 2 cho cùng một người khi phiếu cũ còn chờ | **Lỗi “Đã có phiếu bàn giao đang chờ”** |
+| J5 | Sau khi xác nhận | Đợt tiếp nhận ở Trại 1 “Đã chuyển trại”. Việc dài hạn **đi theo người** sang Trại 2: đơn thuốc còn hiệu lực, kế hoạch theo dõi (bỏ trống người phụ trách để Trại 2 phân công), lịch tái khám/theo dõi (bỏ người được giao); lịch của đợt khám định kỳ Trại 1 → “Không thực hiện”; lượt khám dở dang + chỉ định chưa có kết quả ở Trại 1 → hủy với lý do “Chuyển trại – đã bàn giao”. `officer2` thấy phiếu “Tiếp nhận đến” → tạo **kỳ mới** ở Trại 2 → `doctor2` mở hồ sơ thấy **toàn bộ lịch sử** (mẫu **Lý Xuân Phong**, Ngô Quốc Tài). Trại 2 chỉ đọc được nội dung tóm tắt y tế **sau khi đã tiếp nhận** (mỗi lần xem được ghi nhật ký) |
+| J6 | Hình thức *Kết thúc quản lý* | Kỳ “Đã kết thúc”, lịch mở bị hoãn, không xóa dữ liệu (mẫu Trần Trọng Tài). Kết thúc quản lý không có cơ sở đích (API gửi `to_facility_id` → 422) |
+| J7 | Tạo bàn giao thứ 2 cho cùng một người khi phiếu cũ còn chờ | **Lỗi “Đã có phiếu bàn giao đang chờ”** (kể cả hai yêu cầu gửi đồng thời) |
+| J8 | Phiếu lập nhầm (sai trại đích) → `POST /handovers/{id}/cancel` (lý do bắt buộc, chỉ khi còn chờ) | Phiếu “Đã hủy”, đợt tiếp nhận giữ nguyên, lập được phiếu mới. Khi còn phiếu chờ thì **không hủy liên kết đợt tiếp nhận được**; đợt đã chuyển/kết thúc cũng không hủy được |
 
 ### K. Hồ sơ sức khỏe & Tài liệu (M02, M12) – `doctor1`, `nurse1`
 | # | Các bước | ✔ Kết quả |
@@ -213,7 +214,8 @@ Tạo mới: *Chuyển viện* → **+ Lập đề nghị** (hoặc trong bàn l
 | Q1 | `officer1` → Tiếp nhận → *Chờ đối soát danh tính* → mở hồ sơ “Phạm Quốc Khánh” (không mã) → **Đề nghị gộp hồ sơ** | Thấy hồ sơ nghi trùng (có mã PN). Chọn hồ sơ giữ lại, nhập căn cứ ≥10 ký tự → “Đã gửi đề nghị” |
 | Q2 | Tab **Đề nghị gộp hồ sơ** (cùng tài khoản) → mở đề nghị | Trạng thái **Chờ duyệt**; **không có nút Duyệt** (bốn mắt), chỉ có *Rút đề nghị* |
 | Q3 | `approver1` → chuông thông báo → bấm “Đề nghị gộp hồ sơ trùng chờ duyệt” (hoặc Tiếp nhận → Đề nghị gộp hồ sơ) → xem 2 hồ sơ → **Duyệt & gộp** (xác nhận) | “Đã gộp hồ sơ”; liệt kê số bản ghi đã chuyển; `officer1` nhận thông báo kết quả. Hồ sơ bị gộp ở trạng thái **Đã gộp**, không còn trong tra cứu, **không tạo được kỳ mới**; dữ liệu nằm ở hồ sơ giữ lại. Từ chối thì bắt buộc nêu lý do |
-| Q4 | Thử tạo mới một hồ sơ cùng họ tên + ngày sinh (Tiếp nhận mới) | Bước 2 cảnh báo trùng; chỉ tạo được khi bấm “Đây là người khác”. Qua API không kèm xác nhận → 409 `DUPLICATE_SUSPECTED` |
+| Q4 | Thử tạo mới một hồ sơ cùng họ tên + ngày sinh (Tiếp nhận mới) | Bước 2 cảnh báo trùng; chỉ tạo được khi bấm “Đây là người khác”. Qua API không kèm xác nhận → 409 `DUPLICATE_SUSPECTED`. So khớp họ tên **không phân biệt hoa/thường, dấu, khoảng trắng, dạng Unicode** (“ĐỖ VĂN NAM”, “do van nam” trùng “Đỗ Văn Nam”); một bên thiếu ngày sinh cũng bị cảnh báo. Mã nguồn so khớp không phân biệt hoa/thường (`qlpn`/`ih-x` = `QLPN`/`IH-X`) |
+| Q5 | Đề nghị gộp khi một hồ sơ đang được **trại khác** quản lý | 403 `ACTIVE_ELSEWHERE` – chỉ trại đang quản lý được gộp. Hồ sơ [TẠM] cấp cứu của người đang quản lý tại cùng trại: gộp được, kỳ tạm bị hủy liên kết và lượt khám cấp cứu gắn vào đợt tiếp nhận hiện tại |
 
 ### R. Ưu tiên khám, tài liệu bàn giao chuyển viện, sửa kế hoạch – `doctor1`, `approver1`, `nurse1`
 | # | Các bước | ✔ Kết quả |

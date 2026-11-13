@@ -35,10 +35,19 @@ def _ensure(engine) -> list[str]:
             with engine.begin() as conn:
                 conn.execute(text(f'ALTER TABLE "{table.name}" ADD COLUMN "{col.name}" {ddl}'))
             added.append(f"{table.name}.{col.name}")
-    from sqlalchemy import select
+        for idx in table.indexes:      # chỉ mục của cột mới thêm (create_all không tạo cho bảng đã có)
+            idx.create(engine, checkfirst=True)
+    from sqlalchemy import select, update
     from sqlalchemy.orm import Session
-    from .models import AuditHead
+    from .models import AuditHead, Person
+    from .utils import name_key
     with Session(engine) as db:
         if not db.scalar(select(AuditHead.id).where(AuditHead.id == 1)):
             db.add(AuditHead(id=1, counter=0)); db.commit()
+        # khóa so khớp họ tên cho hồ sơ tạo từ phiên bản cũ (chưa có cột name_key)
+        rows = db.execute(select(Person.id, Person.full_name).where(Person.name_key.is_(None))).all()
+        for pid, full in rows:
+            db.execute(update(Person).where(Person.id == pid).values(name_key=name_key(full)))
+        if rows:
+            db.commit()
     return added

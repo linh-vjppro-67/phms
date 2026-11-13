@@ -6,8 +6,12 @@ người KHÁC có quyền person.merge.approve duyệt hoặc từ chối. Khi 
 - hồ sơ sức khỏe (dị ứng, vấn đề sức khỏe) được hợp nhất;
 - hồ sơ nguồn KHÔNG bị xóa: status='merged', merged_into_id trỏ về hồ sơ giữ lại (BR-02);
 - nhật ký kiểm toán cũ giữ nguyên (bất biến), có thêm sự kiện gộp ghi rõ số bản ghi đã chuyển.
-Chặn khi cả hai cùng có đợt tiếp nhận đang hiệu lực (sẽ tạo hai kỳ chồng nhau).
+Chặn khi cả hai cùng có đợt tiếp nhận đang hiệu lực (sẽ tạo hai kỳ chồng nhau) – trừ hồ sơ tạm cấp cứu có kỳ tạm tại
+cùng cơ sở với đợt của hồ sơ giữ lại: kỳ tạm bị hủy, lượt khám gắn sang đợt đang hiệu lực.
+Chặn khi một trong hai hồ sơ đang có đợt hiệu lực tại cơ sở khác cơ sở người lập/duyệt (cơ sở đó mới có quyền gộp).
 """
+from datetime import date
+
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
 from sqlalchemy import func, or_, select, update
@@ -16,7 +20,7 @@ from sqlalchemy.orm import Session
 from ..audit import audit
 from ..db import Base, get_db
 from ..deps import active_stay, has_facility_link, person_or_404, require, require_any
-from ..models import Allergy, HealthProblem, HealthRecord, Person, PersonMergeRequest, User
+from ..models import Allergy, CustodyStay, Encounter, HealthProblem, HealthRecord, Person, PersonMergeRequest, User
 from ..notify import emit
 from ..utils import fail, to_dict, utcnow
 
@@ -47,6 +51,34 @@ def _may_request(db: Session, user: User, *ids: str) -> bool:
     return False
 
 
+def _active_elsewhere(db: Session, facility_id: str | None, *people: Person) -> CustodyStay | None:
+    """Đợt tiếp nhận còn hiệu lực của một trong hai hồ sơ tại cơ sở KHÁC cơ sở người lập/duyệt: cơ sở đó đang quản lý
+    người này, không để cơ sở khác gộp mất hồ sơ mà họ không hề biết."""
+    for p in people:
+        st = active_stay(db, p.id)
+        if st and st.facility_id != facility_id:
+            return st
+    return None
+
+
+def _provisional_duplicate(db: Session, src: Person, tgt: Person) -> tuple[CustodyStay, CustodyStay] | None:
+    """Cả hai cùng có đợt hiệu lực – chỉ cho gộp khi đợt của hồ sơ nguồn là KỲ TẠM (cấp cứu) tại CÙNG cơ sở với đợt của
+    hồ sơ giữ lại (hồ sơ tạm của người đang quản lý). Trả (kỳ tạm, đợt giữ lại) hoặc None nếu bị chặn/không áp dụng."""
+    s_st, t_st = active_stay(db, src.id), active_stay(db, tgt.id)
+    if s_st and t_st and s_st.provisional and s_st.facility_id == t_st.facility_id:
+        return s_st, t_st
+    return None
+
+
+def _check_mergeable(db: Session, src: Person, tgt: Person, facility_id: str | None, status: int) -> None:
+    st = _active_elsewhere(db, facility_id, src, tgt)
+    if st:
+        fail(status, "ACTIVE_ELSEWHERE", "Một hồ sơ đang được cơ sở khác quản lý – chỉ cơ sở đó được đề nghị/duyệt gộp",
+             person_id=st.person_id, facility_id=st.facility_id)
+    if active_stay(db, src.id) and active_stay(db, tgt.id) and not _provisional_duplicate(db, src, tgt):
+        fail(409, "BOTH_ACTIVE", "Cả hai hồ sơ cùng có đợt tiếp nhận đang hiệu lực – cần xử lý đợt tiếp nhận trước khi gộp")
+
+
 class MergeIn(BaseModel):
     source_id: str
     target_id: str
@@ -65,8 +97,7 @@ def request_merge(body: MergeIn, request: Request, user: User = Depends(require(
             PersonMergeRequest.status == "pending",
             or_(PersonMergeRequest.source_id.in_((src.id, tgt.id)), PersonMergeRequest.target_id.in_((src.id, tgt.id)))).limit(1)).first():
         fail(409, "MERGE_PENDING", "Một trong hai hồ sơ đang có đề nghị gộp chưa xử lý")
-    if active_stay(db, src.id) and active_stay(db, tgt.id):
-        fail(409, "BOTH_ACTIVE", "Cả hai hồ sơ cùng có đợt tiếp nhận đang hiệu lực – cần xử lý đợt tiếp nhận trước khi gộp")
+    _check_mergeable(db, src, tgt, user.facility_id, 403)
     m = PersonMergeRequest(source_id=src.id, target_id=tgt.id, reason=body.reason.strip(), requested_by=user.id)
     db.add(m)
     audit(db, user, "merge_requested", "PersonMergeRequest", m.id, person_id=tgt.id, request=request,
@@ -94,13 +125,20 @@ class DecideIn(BaseModel):
     note: str | None = None
 
 
-def _merge(db: Session, m: PersonMergeRequest) -> dict:
+def _merge(db: Session, m: PersonMergeRequest, facility_id: str | None) -> dict:
     src, tgt = db.get(Person, m.source_id), db.get(Person, m.target_id)
     if src.status == "merged" or tgt.status == "merged":
         fail(409, "ALREADY_MERGED", "Một trong hai hồ sơ đã được gộp trước đó")
-    if active_stay(db, src.id) and active_stay(db, tgt.id):
-        fail(409, "BOTH_ACTIVE", "Cả hai hồ sơ cùng có đợt tiếp nhận đang hiệu lực – không thể gộp")
+    _check_mergeable(db, src, tgt, facility_id, 409)      # tình trạng có thể đã đổi từ lúc lập đề nghị
     moved: dict[str, int] = {}
+    dup = _provisional_duplicate(db, src, tgt)
+    if dup:
+        # hồ sơ tạm cấp cứu của người đang quản lý: dữ liệu khám gắn sang đợt đang hiệu lực, kỳ tạm được hủy (giữ lịch sử)
+        prov, keep = dup
+        moved["encounter_restayed"] = db.execute(update(Encounter).where(Encounter.stay_id == prov.id)
+                                                 .values(stay_id=keep.id)).rowcount or 0
+        prov.status, prov.end_date = "voided", date.today()
+        prov.void_reason = f"Kỳ tạm cấp cứu trùng đợt tiếp nhận đang hiệu lực – đã gộp hồ sơ vào {tgt.id}"
     # 1) hồ sơ sức khỏe: hợp nhất (mỗi người 1 hồ sơ)
     srec = db.scalars(select(HealthRecord).where(HealthRecord.person_id == src.id)).first()
     trec = db.scalars(select(HealthRecord).where(HealthRecord.person_id == tgt.id)).first()
@@ -155,7 +193,7 @@ def decide_merge(mid: str, body: DecideIn, request: Request, user: User = Depend
         fail(422, "NOTE_REQUIRED", "Từ chối cần nêu lý do")
     m.decided_by, m.decided_at, m.decision_note = user.id, utcnow(), body.note
     if body.approve:
-        m.moved = _merge(db, m)
+        m.moved = _merge(db, m, user.facility_id)
         m.status = "approved"
         audit(db, user, "persons_merged", "PersonMergeRequest", m.id, person_id=m.target_id, request=request,
               reason=f"{m.source_id} -> {m.target_id}; đã chuyển: {m.moved}")

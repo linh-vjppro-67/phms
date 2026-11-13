@@ -12,7 +12,7 @@ cd backend
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m app.seed                       # tạo 2 cơ sở, tài khoản mẫu, danh mục
 .venv/bin/uvicorn app.main:app --reload            # API http://localhost:8000  (docs: /docs)
-.venv/bin/python -m pytest -q                      # 114 test (UAT, BR, bảo mật, luồng, MFA/SSO, sao lưu…)
+.venv/bin/python -m pytest -q                      # 182 test (UAT, BR, bảo mật, luồng, MFA/SSO, sao lưu, hồi quy kiểm thử thực tế…)
 PHMS_TEST_DB_URL=postgresql+psycopg://user@host/db .venv/bin/python -m pytest -q   # cùng bộ test trên PostgreSQL
 ```
 Tài khoản mẫu (mật khẩu `Phms@2026dev`): `admin`; cơ sở F01: `officer1`, `nurse1`, `doctor1`, `pharm1`, `approver1`, `manager1`; cơ sở F02: `officer2`, `nurse2`, `doctor2`, `pharm2`, `approver2`, `manager2`.
@@ -31,6 +31,7 @@ BASE=http://localhost:8000 npm run e2e:a11y    # accessibility WCAG 2.1 A/AA (ax
 BASE=… USERS=25 MINUTES=60 npm run e2e:soak    # chạy dài: theo dõi suy giảm hiệu năng, rò rỉ bộ nhớ, chuỗi nhật ký
 BASE=http://localhost:8000 npm run e2e         # smoke 13 tài khoản + các bài trên dữ liệu demo MỚI (app.demo --reset)
 BASE=http://localhost:8000 npm run e2e:responsive   # điện thoại / máy tính bảng
+# Node ≥ 17 phân giải "localhost" thành ::1 (IPv6) trong khi uvicorn mặc định nghe 127.0.0.1 → dùng BASE=http://127.0.0.1:8000
 BROWSER=firefox BASE=… node e2e/flow-intake.mjs     # đa trình duyệt: chromium (mặc định) | firefox | webkit
 BASE=… USERS=100 DURATION=30 npm run e2e:load      # kiểm thử tải (dùng CSDL thử, không dùng dữ liệu thật)
 ```

@@ -10,10 +10,10 @@ from datetime import date, datetime
 
 from sqlalchemy import (JSON, Boolean, Date, DateTime, Float, ForeignKey, Index, Integer, String,
                         Text, UniqueConstraint, event)
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, validates
 
 from .db import Base
-from .utils import uid, utcnow
+from .utils import clean_name, name_key, uid, utcnow
 
 
 @event.listens_for(Base, "init", propagate=True)
@@ -81,6 +81,8 @@ class Person(Base):
     __table_args__ = (UniqueConstraint("source_system", "external_id", name="uq_person_external"),)
     id: Mapped[str] = _pk()  # BR-01: person_id nội bộ bất biến
     full_name: Mapped[str] = mapped_column(String(200), index=True)
+    # khóa so khớp họ tên (không phân biệt hoa/thường, dạng Unicode, khoảng trắng, dấu) – tự cập nhật khi đổi full_name
+    name_key: Mapped[str | None] = mapped_column(String(200), nullable=True, index=True)
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     gender: Mapped[str | None] = mapped_column(String(16), nullable=True)
     source_system: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -91,6 +93,12 @@ class Person(Base):
     merged_into_id: Mapped[str | None] = mapped_column(String(36), nullable=True, index=True)  # đã gộp vào hồ sơ này (status=merged)
     created_by: Mapped[str | None] = _fk("app_user.id", nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+
+    @validates("full_name")
+    def _set_name(self, _key, value):
+        value = clean_name(value)
+        self.name_key = name_key(value)
+        return value
 
 
 class PersonMergeRequest(Base):
@@ -148,6 +156,9 @@ class Handover(Base):
     received_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     received_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     received_stay_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cancelled_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 

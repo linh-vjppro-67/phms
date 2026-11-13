@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from .. import config
 from ..audit import audit
-from ..db import get_db
+from ..db import get_db, lock_row
 from ..deps import ensure_clinical_access, require
 from ..models import Encounter, MedicalDocument, Referral, CustodyStay, User
 from ..utils import fail, to_dict, uid
@@ -53,6 +53,8 @@ async def _store(db: Session, user: User, request: Request, file: UploadFile, *,
                  referral_id, stay_id, doc_type, source, issued_date, replaces: MedicalDocument | None):
     if doc_type not in DOC_TYPES:
         fail(422, "BAD_DOC_TYPE", f"Loại tài liệu hợp lệ: {sorted(DOC_TYPES)}")
+    if issued_date and issued_date > date.today():
+        fail(422, "FUTURE_DATE", "Ngày phát hành tài liệu không được ở tương lai")
     data = await file.read(config.MAX_UPLOAD_MB * 1024 * 1024 + 1)
     if not data:
         fail(422, "EMPTY_FILE", "Tệp rỗng")
@@ -75,7 +77,11 @@ async def _store(db: Session, user: User, request: Request, file: UploadFile, *,
     for o in (enc, ref, stay):
         if o and o.person_id != pid:
             fail(422, "LINK_MISMATCH", "Các đối tượng liên kết thuộc người khác nhau")
-    ensure_clinical_access(db, user, pid, request)
+    ensure_clinical_access(db, user, pid, request, write=True)
+    if replaces:   # khóa bản cũ rồi kiểm tra lại: hai yêu cầu thay thế đồng thời không tạo hai phiên bản mới
+        replaces = lock_row(db, MedicalDocument, replaces.id)
+        if replaces.status != "valid":
+            fail(409, "NOT_VALID", "Chỉ thay thế được tài liệu đang hợp lệ")
     key = uid()
     with open(_path(key), "wb") as f:
         f.write(_fernet().encrypt(data))
@@ -131,7 +137,10 @@ def invalidate(doc_id: str, body: InvalidIn, request: Request, user: User = Depe
     d = db.get(MedicalDocument, doc_id)
     if not d:
         fail(404, "NOT_FOUND", "Không tìm thấy tài liệu")
-    ensure_clinical_access(db, user, d.person_id, request)
+    ensure_clinical_access(db, user, d.person_id, request, write=True)
+    d = lock_row(db, MedicalDocument, doc_id)
+    if d.status != "valid":   # đã vô hiệu/đã bị thay thế: giữ nguyên trạng thái và lý do cũ
+        fail(409, "NOT_VALID", "Chỉ đánh dấu không hợp lệ được tài liệu đang hợp lệ")
     d.status, d.invalid_reason = "invalid", body.reason
     audit(db, user, "document_invalidated", "MedicalDocument", d.id, person_id=d.person_id, reason=body.reason,
           request=request)

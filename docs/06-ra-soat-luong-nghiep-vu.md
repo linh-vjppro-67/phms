@@ -35,6 +35,19 @@ Chuỗi nhật ký đứt khi ghi đồng thời; trang Báo cáo sập khi chuy
 | Bảo mật HTTP | `Content-Security-Policy`, `Permissions-Policy`, COOP/CORP; **HSTS** khi HTTPS (hoặc production); `/docs` & `/openapi.json` **tắt ở production**; production **từ chối khởi động** nếu secret mặc định |
 | Hạ tầng | Kiểm chứng PostgreSQL 16 (toàn bộ test + E2E); khóa tư vấn khi khởi tạo schema nhiều worker; sao lưu/phục hồi (`python -m app.backup`); bộ lập lịch chạy riêng (`python -m app.scheduler_cli`); soak; accessibility |
 
+## B2. Kiểm thử thực tế theo sơ đồ luồng (đợt 4) – đã sửa
+Kiểm thử hộp đen qua API theo sơ đồ "Luồng quản lý sức khỏe phạm nhân" (01–04, A–E, quy trình thuốc, kiểm soát xuyên suốt). Test hồi quy: `tests/test_fix_identity.py`, `test_fix_medication.py`, `test_fix_clinical.py`, `test_fix_controls.py`; lỗi chạy đua kiểm chứng bằng yêu cầu song song trên máy chủ thật (không kiểm được trong pytest vì SQLite bộ nhớ một kết nối).
+| Luồng | Lỗi | Đã sửa |
+|---|---|---|
+| Kiểm soát (ABAC) | Cơ sở cũ sau chuyển trại và người dùng break-glass vẫn **ghi** được dữ liệu lâm sàng | `ensure_clinical_access(write=True)`: chỉ cơ sở có đợt tiếp nhận **đang hiệu lực** được ghi; cơ sở cũ và break-glass chỉ đọc. Người không tồn tại → 404 (trước: 500) |
+| Chạy đua | Tiếp nhận song song tạo 2 đợt ở 2 trại; cấp phát song song vượt số kê (10 → 70); 2 phiếu bàn giao cùng lúc; 2 lượt khám hoàn tất cùng một lịch | `db.lock_row()` khóa dòng cha trước khi kiểm tra rồi ghi (PostgreSQL `FOR UPDATE`; SQLite giành khóa ghi) |
+| 01 Tiếp nhận | Kiểm tra trùng/tìm kiếm không nhận tên tiếng Việt có chữ hoa có dấu (SQLite `lower()` chỉ ASCII); tên rỗng; mã nguồn khác hoa/thường | Cột `Person.name_key` (bỏ dấu, đ→d, chuẩn NFC, gộp khoảng trắng; tự nâng cấp + điền lại); chuẩn hóa mã; đối soát danh tính chỉ cơ sở đang quản lý, nhật ký ghi giá trị cũ→mới; gộp hồ sơ không được đụng người đang ở trại khác |
+| 04 Chuyển trại | Hủy đợt khi đang bàn giao rồi xác nhận làm "sống lại" đợt; phiếu "kết thúc" chỉ định được trại khác đọc tóm tắt; điều trị đang mở bị bỏ lơ | Ràng buộc trạng thái đợt/phiếu; thêm `POST /handovers/{id}/cancel`; xác nhận chuyển trại chuyển đơn thuốc, kế hoạch theo dõi, lịch hẹn sang trại nhận, đóng lượt khám/chỉ định dở ở trại gửi; tiếp nhận ở trại đã có đợt tạm (cấp cứu) thì dùng lại đợt tạm |
+| Thuốc | Sửa đơn làm mất số đã cấp (cấp lại cả liệu trình); `Infinity` lưu được rồi mọi lần đọc lỗi 500; ghi nhận dùng thuốc trên đơn đã dừng / vượt số đã cấp; dị ứng mới không được kiểm lại | Đếm cấp phát theo cả chuỗi phiên bản; chặn số không hữu hạn, idempotency chỉ commit khi phản hồi tuần tự hóa được; kiểm tra trạng thái/số lượng/mốc thời gian khi dùng thuốc; dị ứng mới nặng/đã xác nhận phải xác nhận kèm ghi chú khi cấp phát/dùng thuốc (giao diện Cấp phát có hộp thoại) |
+| A/B/C/E | Đợt đã khóa vẫn đổi số liệu; đợt có hạn quá khứ; không cảnh báo chỉ số bất thường; người phụ trách không tồn tại → 500; chuyển viện khẩn đã duyệt bị gắn "đi tắt"; một người ở 2 bệnh viện | Khóa lịch/đợt; kiểm tra ngày; cảnh báo `abnormal_result` cho sinh hiệu ngoài ngưỡng; kiểm tra người phụ trách (422); chỉ một chuyển viện đang mở/người |
+| D Cấp cứu | Đóng sự kiện khi lượt khám bị hủy; mốc can thiệp/ngày theo dõi không hợp lệ; trại gửi tạo đợt tạm cho người đang chuyển trại | 409/422 tương ứng; `TRANSFER_IN_PROGRESS`; xem sự kiện có nhật ký |
+| Quản trị/xác thực | Tự đổi vai trò của chính mình; cơ sở không tồn tại → 500; `limit=-1` bỏ giới hạn; token thiếu `exp`/`sub`; sai mật khẩu cũ không tính khóa | Chặn tự sửa; kiểm tra vai trò↔cơ sở; giới hạn `limit`; bắt buộc `exp`/`sub`; tính vào ngưỡng khóa tài khoản |
+
 ## C. Còn lệch / chưa làm (cần quyết định)
 | Mục | Hiện trạng | Gợi ý |
 |---|---|---|
@@ -47,3 +60,7 @@ Chuỗi nhật ký đứt khi ghi đồng thời; trang Báo cáo sập khi chuy
 | Container | `deploy/Dockerfile`, `docker-compose.yml` chưa build thử (Docker daemon không chạy trong môi trường kiểm thử) | Build & thử trước khi dùng |
 | Soak nhiều giờ | Mới chạy 12 phút (xem 02); script hỗ trợ chạy hàng giờ (`MINUTES=…`) | Chạy qua đêm trên môi trường staging |
 | Ngoài phạm vi Core | Tích hợp QLPN/FHIR, chữ ký số, offline, kho dược | Theo tài liệu thiết kế |
+| Phân vai theo sơ đồ (đợt 4) | Bác sĩ/điều dưỡng có quyền cấp phát thuốc và khởi tạo chuyển trại; người phê duyệt làm được bước bàn giao/ghi kết quả chuyển viện; điều dưỡng không gắn được tài liệu bàn giao chuyển viện. Sơ đồ giao các bước này cho Dược / Cán bộ / Điều dưỡng | Quyết định trước khi sửa `permissions.py` |
+| Khám ban đầu B1–B3 (đợt 4) | Hoàn tất được khi thiếu dị ứng/sinh hiệu/chẩn đoán (cảnh báo không chặn – chủ ý) | Quyết định có chặn cứng hay không |
+| Cảnh báo kết quả XN bất thường (đợt 4) | Kết quả XN chỉ có văn bản tự do, không có cờ bất thường → chỉ cảnh báo sinh hiệu | Thêm trường đánh giá kết quả |
+| Thu hồi break-glass (đợt 4) | Chỉ hết hạn tự động, chưa có API thu hồi | Thêm nếu cần |

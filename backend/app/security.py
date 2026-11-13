@@ -92,7 +92,9 @@ def totp_uri(secret: str, username: str) -> str:
 
 
 def decode_token(token: str) -> dict | None:
+    """Token hợp lệ phải có hạn dùng (exp) và chủ thể (sub); thiếu -> coi như không hợp lệ (401)."""
     try:
-        return jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"])
+        data = jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"], options={"require": ["exp", "sub"]})
     except jwt.PyJWTError:
         return None
+    return data if isinstance(data.get("sub"), str) else None

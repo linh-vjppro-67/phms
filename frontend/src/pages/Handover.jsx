@@ -19,7 +19,7 @@ export default function Handover() {
   const { data: facs } = useLoad(() => api("GET", "/facilities"), []);
   const { data: stays } = useLoad(() => api("GET", "/stays?status=active"), [], m?.t !== "new");
   const fn = (id) => facs?.find((f) => f.id === id)?.name || "—";
-  const canSummary = has("handover.summary"), canConfirm = has("handover.confirm");
+  const canSummary = has("handover.summary"), canConfirm = has("handover.confirm"), canCancel = has("handover.initiate");
 
   return (
     <>
@@ -34,7 +34,7 @@ export default function Handover() {
           <Card key={h.id} title={<>{h.person_name} <Badge tone={h.kind === "transfer" ? "info" : "neutral"}>{h.kind === "transfer" ? "Chuyển trại" : "Kết thúc quản lý"}</Badge> <Badge tone={h.direction === "out" ? "warn" : "ok"}>{h.direction === "out" ? "Chuyển đi" : "Tiếp nhận đến"}</Badge></>}
             actions={h.status === "confirmed" && h.kind === "transfer" && !h.received_at ? <Badge tone="warn">Chờ cơ sở nhận tiếp nhận</Badge> : <Status d="handover" v={h.status} />}>
             <p className="sm muted" style={{ marginTop: 0 }}>{fn(h.from_facility_id)} {h.to_facility_id ? `→ ${fn(h.to_facility_id)}` : "→ ra khỏi diện quản lý"} · khởi tạo {fmtDT(h.recorded_at)} · Lý do: {h.reason}</p>
-            <Stepper steps={hasReceipt ? ["Khởi tạo", "Tóm tắt y tế", "Xác nhận bàn giao", "Cơ sở nhận tiếp nhận"] : ["Khởi tạo", "Tóm tắt y tế", "Xác nhận bàn giao"]} current={cur} />
+            {h.status !== "cancelled" && <Stepper steps={hasReceipt ? ["Khởi tạo", "Tóm tắt y tế", "Xác nhận bàn giao", "Cơ sở nhận tiếp nhận"] : ["Khởi tạo", "Tóm tắt y tế", "Xác nhận bàn giao"]} current={cur} />}
             {h.open_items && <div style={{ marginBottom: 10 }}><b className="sm">Điều trị đang mở: </b><OpenItems items={h.open_items} /></div>}
             {h.summary ? <div className="banner info" style={{ whiteSpace: "pre-line" }}>{h.summary}</div>
               : h.has_summary ? <Banner tone="ok">Bộ phận y tế đã lập tóm tắt bàn giao (nội dung chỉ hiển thị cho nhân viên y tế).</Banner>
@@ -43,8 +43,10 @@ export default function Handover() {
               <div className="row">
                 {canSummary && <button className="btn" onClick={() => setM({ t: "summary", h })}>{h.summary ? "Sửa tóm tắt y tế" : "Soạn tóm tắt y tế"}</button>}
                 {canConfirm && <button className="btn primary" onClick={() => setM({ t: "confirm", h })}>Xác nhận bàn giao</button>}
+                {canCancel && <button className="btn danger" onClick={() => setM({ t: "cancel", h })}>Hủy phiếu</button>}
               </div>
             )}
+            {h.status === "cancelled" && <Banner tone="warn">Phiếu đã hủy lúc {fmtDT(h.cancelled_at)}{h.cancel_reason ? ` · Lý do: ${h.cancel_reason}` : ""}</Banner>}
             {h.received_at && <Banner tone="ok">Cơ sở nhận đã tiếp nhận lúc {fmtDT(h.received_at)} (biên nhận hoàn tất).</Banner>}
             {h.status === "confirmed" && h.kind === "transfer" && !h.received_at && h.direction === "in" && <Banner tone="warn">Cần tiếp nhận: tạo đợt tiếp nhận mới cho người này ở tab “Tiếp nhận & Hồ sơ” – hệ thống tự lập biên nhận.</Banner>}
             {h.status === "confirmed" && h.kind === "transfer" && !h.received_at && h.direction === "out" && <p className="sm muted">Đã bàn giao, đang chờ cơ sở nhận tiếp nhận.</p>}
@@ -71,10 +73,19 @@ export default function Handover() {
       {m?.t === "confirm" && (
         <FormModal title={`Xác nhận bàn giao – ${m.h.person_name}`} onClose={() => setM(null)} submit="Xác nhận đã bàn giao"
           onSubmit={async (d) => { const r = await act(() => api("POST", `/handovers/${m.h.id}/confirm`, { acknowledge_open_items: !!d.ack, receiver_name: d.receiver_name }), "Đã xác nhận bàn giao"); if (r) reload(); return !!r; }}>
-          <Banner tone="info"><span className="sm">Sau khi xác nhận: đợt tiếp nhận tại đơn vị này kết thúc, lịch hẹn đang mở bị hoãn. <b>Hồ sơ sức khỏe được giữ nguyên.</b></span></Banner>
+          <Banner tone="info"><span className="sm">{m.h.kind === "transfer"
+            ? <>Sau khi xác nhận: đợt tiếp nhận tại đơn vị này kết thúc; đơn thuốc, kế hoạch theo dõi và lịch hẹn đang mở chuyển sang cơ sở đích; lượt khám dở dang tại đây được đóng. </>
+            : <>Sau khi xác nhận: đợt tiếp nhận tại đơn vị này kết thúc, lịch hẹn đang mở bị hoãn. </>}<b>Hồ sơ sức khỏe được giữ nguyên.</b></span></Banner>
           {m.h.open_items ? <OpenItems items={m.h.open_items} /> : <p className="muted sm" style={{ margin: 0 }}>Cán bộ quản lý không xem được chi tiết điều trị; bộ phận y tế đã lập tóm tắt bàn giao.</p>}
           {(!m.h.open_items || Object.values(m.h.open_items).some((v) => v > 0)) && <label className="chk mt"><input type="checkbox" name="ack" /> Tôi xác nhận các điều trị/lịch đang mở (nếu có) đã được bàn giao</label>}
           <Field label="Người/đơn vị nhận bàn giao"><input name="receiver_name" /></Field>
+        </FormModal>
+      )}
+      {m?.t === "cancel" && (
+        <FormModal title={`Hủy phiếu bàn giao – ${m.h.person_name}`} danger onClose={() => setM(null)} submit="Hủy phiếu"
+          onSubmit={async (d) => { const r = await act(() => api("POST", `/handovers/${m.h.id}/cancel`, d), "Đã hủy phiếu bàn giao"); if (r) reload(); return !!r; }}>
+          <Banner tone="info"><span className="sm">Dùng khi phiếu lập nhầm (sai hình thức/cơ sở đích). Đợt tiếp nhận giữ nguyên, có thể lập phiếu mới.</span></Banner>
+          <Field label="Lý do hủy" required><textarea name="reason" required minLength={5} /></Field>
         </FormModal>
       )}
     </>

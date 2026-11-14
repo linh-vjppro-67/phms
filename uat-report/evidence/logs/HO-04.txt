@@ -1,0 +1,49 @@
+# HO-04 – Chuyển trại trọn vẹn liên cơ sở (UAT-08): đợt tiếp nhận cũ 'transferred', cơ sở nhận tạo kỳ mới → biên nhận; bác sĩ trại nhận thấy toàn bộ lịch sử; MỘT hồ sơ sức khỏe
+Trạng thái: PASS   Thời gian chạy: 43 ms
+Kết quả mong đợi: stay F01=transferred; handover.received_at có giá trị; doctor2 đọc được health-summary kèm lịch sử khám trại cũ; health_record vẫn 1
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT BG Liên Cơ Sở 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1qs1r1r"}
+    → 201 {"id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","full_name":"UAT BG Liên Cơ Sở 1qgkmd1","name_key":"uat bg lien co so 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qs1r1r","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:46.52884
+- officer1 POST /api/persons/79f3527b-ce02-4b27-ab71-6b7fdca2a366/stays
+    yêu cầu: {}
+    → 201 {"id":"69d2c0df-d766-4fac-9ef4-fa81e721ce75","person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:02:46.530808","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"913a9734-2f07-45b0-8110-52b687e85e4d","person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","stay_id":"69d2c0df-d766-4fac-9ef4-fa81e721ce75","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/913a9734-2f07-45b0-8110-52b687e85e4d/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"913a9734-2f07-45b0-8110-52b687e85e4d","person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","stay_id":"69d2c0df-d766-4fac-9ef4-fa81e721ce75","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/79f3527b-ce02-4b27-ab71-6b7fdca2a366/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/913a9734-2f07-45b0-8110-52b687e85e4d/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"913a9734-2f07-45b0-8110-52b687e85e4d","person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","stay_id":"69d2c0df-d766-4fac-9ef4-fa81e721ce75","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- officer1 POST /api/stays/69d2c0df-d766-4fac-9ef4-fa81e721ce75/handover
+    yêu cầu: {"kind":"transfer","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","reason":"Điều chuyển theo quyết định UAT"}
+    → 201 {"id":"f7d8bd31-2e61-4f34-bd56-910164a35206","stay_id":"69d2c0df-d766-4fac-9ef4-fa81e721ce75","person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","kind":"transfer","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","status":"pending","reason":"Điều chuyển theo quyết định UAT","summary":null,"document_ids":null,"open_items":null,"initiat
+- nurse1 PUT /api/handovers/f7d8bd31-2e61-4f34-bd56-910164a35206/summary
+    yêu cầu: {"summary":"Sức khỏe ổn định, đã khám ban đầu, không dị ứng"}
+    → 200 {"id":"f7d8bd31-2e61-4f34-bd56-910164a35206","stay_id":"69d2c0df-d766-4fac-9ef4-fa81e721ce75","person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","kind":"transfer","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","status":"pending","reason":"Điều chuyển theo quyết định UAT","summary":"Sức khỏe ổn định, đã khám ban đầu, không dị ứng","
+- officer1 POST /api/handovers/f7d8bd31-2e61-4f34-bd56-910164a35206/confirm
+    yêu cầu: {"acknowledge_open_items":true}
+    → 200 {"id":"f7d8bd31-2e61-4f34-bd56-910164a35206","stay_id":"69d2c0df-d766-4fac-9ef4-fa81e721ce75","person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","kind":"transfer","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","status":"confirmed","reason":"Điều chuyển theo quyết định UAT","summary":null,"document_ids":null,"open_items":null,"initi
+- SQL
+    yêu cầu: "select status s from custody_stay where id='69d2c0df-d766-4fac-9ef4-fa81e721ce75'"
+    → - [{"s":"transferred"}]
+- SQL
+    yêu cầu: "select id from health_record where person_id='79f3527b-ce02-4b27-ab71-6b7fdca2a366'"
+    → - [{"id":"b6c25b12-6c6b-4907-9566-4b8dd66c79cc"}]
+- officer2 POST /api/persons/79f3527b-ce02-4b27-ab71-6b7fdca2a366/stays
+    yêu cầu: {}
+    → 201 {"id":"d3e82415-5030-433c-902d-6ddb4a6e126a","person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"26ae5e42-4825-4f17-84f9-5e601ff4273b","recorded_at":"2026-11-13T14:02:46.558314","hea
+- SQL
+    yêu cầu: "select received_at, received_stay_id from handover where id='f7d8bd31-2e61-4f34-bd56-910164a35206'"
+    → - [{"received_at":"2026-11-13 14:02:46.558889","received_stay_id":"d3e82415-5030-433c-902d-6ddb4a6e126a"}]
+- doctor2 GET /api/persons/79f3527b-ce02-4b27-ab71-6b7fdca2a366/health-summary
+    → 200 {"person":{"id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","full_name":"UAT BG Liên Cơ Sở 1qgkmd1","name_key":"uat bg lien co so 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qs1r1r","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:0
+- SQL
+    yêu cầu: "select id from health_record where person_id='79f3527b-ce02-4b27-ab71-6b7fdca2a366'"
+    → - [{"id":"b6c25b12-6c6b-4907-9566-4b8dd66c79cc"}]

@@ -12,13 +12,13 @@ cd backend
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
 .venv/bin/python -m app.seed                       # tạo 2 cơ sở, tài khoản mẫu, danh mục
 .venv/bin/uvicorn app.main:app --reload            # API http://localhost:8000  (docs: /docs)
-.venv/bin/python -m pytest -q                      # 114 test (UAT, BR, bảo mật, luồng, MFA/SSO, sao lưu…)
+.venv/bin/python -m pytest -q                      # 141 test (UAT, BR, bảo mật, luồng, MFA/SSO, sao lưu…)
 PHMS_TEST_DB_URL=postgresql+psycopg://user@host/db .venv/bin/python -m pytest -q   # cùng bộ test trên PostgreSQL
 ```
 Tài khoản mẫu (mật khẩu `Phms@2026dev`): `admin`; cơ sở F01: `officer1`, `nurse1`, `doctor1`, `pharm1`, `approver1`, `manager1`; cơ sở F02: `officer2`, `nurse2`, `doctor2`, `pharm2`, `approver2`, `manager2`.
 
 Dữ liệu demo (hư cấu, ~44 hồ sơ ở 2 trại, đi qua đúng API nghiệp vụ nên mọi quy tắc đều được áp dụng):
-`.venv/bin/python -m app.demo` (chạy sau `app.seed`; DB đã có hồ sơ thì từ chối; `--reset` để **xóa hết** và tạo lại). Kịch bản chi tiết ở [docs/03-kich-ban-du-lieu-demo.md](docs/03-kich-ban-du-lieu-demo.md); hướng dẫn test từng luồng cho QC/người dùng ở [docs/04-huong-dan-test-QC-va-nguoi-dung.md](docs/04-huong-dan-test-QC-va-nguoi-dung.md); kết quả rà soát luồng ở [docs/06-ra-soat-luong-nghiep-vu.md](docs/06-ra-soat-luong-nghiep-vu.md). CSDL cũ được **tự nâng cấp lược đồ** khi khởi động.
+Bộ gọn **10 người** (mỗi người một luồng): `.venv/bin/python -m app.demo_small --reset`. Bộ đầy đủ: `.venv/bin/python -m app.demo` (chạy sau `app.seed`; DB đã có hồ sơ thì từ chối; `--reset` để **xóa hết** và tạo lại). Kịch bản chi tiết ở [docs/03-kich-ban-du-lieu-demo.md](docs/03-kich-ban-du-lieu-demo.md); hướng dẫn test từng luồng cho QC/người dùng ở [docs/04-huong-dan-test-QC-va-nguoi-dung.md](docs/04-huong-dan-test-QC-va-nguoi-dung.md); kết quả rà soát luồng ở [docs/06-ra-soat-luong-nghiep-vu.md](docs/06-ra-soat-luong-nghiep-vu.md). CSDL cũ được **tự nâng cấp lược đồ** khi khởi động.
 
 Giao diện:
 ```bash
@@ -63,6 +63,7 @@ docs/                01-BA-truy-vet-yeu-cau.md · 02-QC-bao-cao-kiem-thu.md
 | `PHMS_ENV` | `dev` | `production`: kiểm tra cấu hình an toàn, tắt `/docs`, HSTS |
 | `PHMS_MFA_REQUIRED_ROLES` | (rỗng) | vai trò bắt buộc MFA, vd `sysadmin,approver` |
 | `PHMS_OIDC_*`, `PHMS_PASSWORD_LOGIN_DISABLED` | (tắt) | SSO OIDC – xem docs/07 |
+| `PHMS_NURSE_CAN_DISPENSE` | 0 | cho điều dưỡng cấp phát thuốc (cơ sở không có dược sĩ) |
 | `PHMS_DB_POOL` / `PHMS_DB_OVERFLOW` | 10 / 10 | cỡ pool PostgreSQL mỗi worker |
 | `PHMS_TEST_DB_URL` | (SQLite bộ nhớ) | chạy pytest trên CSDL khác (PostgreSQL) |
 

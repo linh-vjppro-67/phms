@@ -93,6 +93,6 @@ def totp_uri(secret: str, username: str) -> str:
 
 def decode_token(token: str) -> dict | None:
     try:
-        return jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"])
+        return jwt.decode(token, config.SECRET_KEY, algorithms=["HS256"], options={"require": ["exp", "sub", "ver"]})
     except jwt.PyJWTError:
         return None

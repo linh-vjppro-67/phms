@@ -21,7 +21,7 @@ def run() -> dict:
                                    title=f"CẤP CỨU{': ' + ev.location if ev.location else ''}", plain=desc or "Có sự cố y tế khẩn cấp, cần có mặt xử trí.",
                                    named=f"{pn} – {desc}" if desc else pn, link_page="emergency", link_ref=ev.id, person_id=ev.person_id, dedupe=f"emg:{ev.id}")
             p = db.get(Person, ev.person_id)
-            if p and p.is_temporary and p.status != "verified":
+            if p and p.status != "verified":
                 n["emergency"] += emit(db, kind="emergency.identity", category="emergency", severity="warning", facility_id=ev.facility_id, perms=("person.write",),
                                        title="Hồ sơ tạm từ cấp cứu cần đối soát danh tính", plain="Có người cấp cứu chưa rõ danh tính, cần đối soát với nguồn dữ liệu gốc.",
                                        link_page="intake", link_ref=ev.person_id, person_id=ev.person_id, dedupe=f"emg:{ev.id}:identity")

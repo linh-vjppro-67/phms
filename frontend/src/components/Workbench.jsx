@@ -1,5 +1,5 @@
 // Bàn làm việc lượt khám (Encounter): dùng cho Khám ban đầu (chế độ wizard) và Khám chữa bệnh.
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { api } from "../api";
 import { statusLabel } from "../labels";
 import { usePatient } from "../patient.jsx";
@@ -41,13 +41,9 @@ function Overview({ e, open, reload }) {
           {e.cancel_reason && <><dt>Lý do hủy</dt><dd>{e.cancel_reason}</dd></>}
         </dl>
         {canEdit ? (
-          <Form keep onSubmit={async (d) => { const r = await act(() => api("PATCH", `/encounters/${e.id}`, { ...d, expected_version: e.version }), "Đã lưu"); if (r) reload(); return r; }}>
-            <Field label="Lý do đến khám / triệu chứng chính"><textarea name="reason" defaultValue={e.reason || ""} /></Field>
-            <Field label="Tóm tắt khám & hướng xử trí"><textarea name="summary" defaultValue={e.summary || ""} style={{ minHeight: 110 }} /></Field>
-            <button className="btn primary">Lưu</button>
-          </Form>
+          <EncounterNotes e={e} reload={reload} />
         ) : (
-          <dl className="kv"><dt>Lý do khám</dt><dd>{e.reason || "—"}</dd><dt>Tóm tắt</dt><dd style={{ whiteSpace: "pre-line" }}>{e.summary || "—"}</dd></dl>
+          <dl className="kv"><dt>Lý do khám</dt><dd>{e.reason || "—"}</dd>{e.nursing_assessment && <><dt>Đánh giá ban đầu</dt><dd style={{ whiteSpace: "pre-line" }}>{e.nursing_assessment}</dd></>}<dt>Kết luận</dt><dd style={{ whiteSpace: "pre-line" }}>{e.summary || "—"}</dd></dl>
         )}
       </Card>
       {(e.addenda.length > 0 || (e.status === "completed" && has("encounter.complete"))) && (
@@ -75,6 +71,38 @@ function Checklist({ e }) {
   ];
   return <Card title="Kiểm tra trước khi hoàn tất">{items.map(([ok, t]) => <div key={t} className="chk"><Badge tone={ok ? "ok" : "warn"}>{ok ? "✓" : "!"}</Badge> {t}</div>)}
     <p className="muted sm">Mục cảnh báo (!) không chặn nghiệp vụ, trừ khi còn chỉ định chờ kết quả.</p></Card>;
+}
+
+/** Lý do khám + tóm tắt: lưu bằng nút Lưu HOẶC tự lưu khi rời khỏi ô (tránh mất chữ khi bấm "Tiếp tục" mà quên Lưu). */
+function EncounterNotes({ e, reload }) {
+  const act = useAct();
+  const { has } = useAuth();
+  const examiner = has("encounter.examine");
+  const form = useRef(null);
+  const [dirty, setDirty] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const inflight = useRef(false);        // chặn lưu chồng (rời ô rồi bấm Lưu liền) – tránh xung đột phiên bản
+  const save = async (silent) => {
+    if (inflight.current) return;
+    const f = form.current.elements;
+    const body = { reason: f.reason.value.trim(), nursing_assessment: f.nursing_assessment.value.trim(), expected_version: e.version };
+    if (examiner) body.summary = f.summary.value.trim();            // kết luận khám chỉ người có quyền khám ghi
+    if (body.reason === (e.reason || "") && body.nursing_assessment === (e.nursing_assessment || "") && (!examiner || body.summary === (e.summary || ""))) { setDirty(false); return; }
+    inflight.current = true; setBusy(true);
+    const r = await act(() => api("PATCH", `/encounters/${e.id}`, body), silent ? "Đã tự lưu" : "Đã lưu");
+    inflight.current = false; setBusy(false);
+    if (r) { setDirty(false); reload(); }
+  };
+  return (
+    <form ref={form} onSubmit={(ev) => { ev.preventDefault(); save(false); }} onBlur={(ev) => { if (dirty && ev.target.tagName === "TEXTAREA" && !busy) save(true); }}>
+      <Field label="Lý do đến khám / triệu chứng chính"><textarea name="reason" defaultValue={e.reason || ""} onChange={() => setDirty(true)} /></Field>
+      <Field label="Đánh giá ban đầu (điều dưỡng/ghi nhận ban đầu)"><textarea name="nursing_assessment" defaultValue={e.nursing_assessment || ""} onChange={() => setDirty(true)} placeholder="Tri giác, tình trạng chung, than phiền của người bệnh…" /></Field>
+      {examiner ? <Field label="Kết luận khám & hướng xử trí (bác sĩ/y sĩ)"><textarea name="summary" defaultValue={e.summary || ""} onChange={() => setDirty(true)} style={{ minHeight: 110 }} /></Field>
+        : e.summary ? <dl className="kv"><dt>Kết luận khám</dt><dd style={{ whiteSpace: "pre-line" }}>{e.summary}</dd></dl> : null}
+      <div className="row"><button className="btn primary" disabled={busy}>{busy ? "Đang lưu…" : "Lưu"}</button>
+        {dirty && !busy && <span className="badge warn">● Chưa lưu – sẽ tự lưu khi bạn rời khỏi ô</span>}</div>
+    </form>
+  );
 }
 
 export default function Workbench({ id, wizard, onChanged }) {
@@ -105,18 +133,18 @@ export default function Workbench({ id, wizard, onChanged }) {
         <div><div style={{ fontSize: 18, fontWeight: 700 }}>{e.person_name}</div><div className="muted sm">{e.person_external_id} · bắt đầu {fmtDT(e.occurred_at)}</div></div>
         <Status d="encType" v={e.type} />{e.status === "cancelled" ? <Status d="enc" v="cancelled" /> : <Status d="enc" v={e.status} />}
         <div className="right row">
-          {open && e.status === "draft" && has("encounter.write") && <button className="btn primary" onClick={() => to("in_progress")}>Bắt đầu khám</button>}
-          {open && e.status !== "draft" && has("encounter.write") && e.status !== "awaiting_results" && <button className="btn" onClick={() => to("awaiting_results")}>Chờ kết quả</button>}
-          {open && e.status !== "draft" && has("encounter.write") && e.status !== "in_treatment" && <button className="btn" onClick={() => to("in_treatment")}>Chuyển điều trị</button>}
+          {open && e.status === "draft" && has("encounter.examine") && <button className="btn primary" onClick={() => to("in_progress")}>Bắt đầu khám</button>}
+          {open && e.status !== "draft" && has("encounter.examine") && e.status !== "awaiting_results" && <button className="btn" onClick={() => to("awaiting_results")}>Chờ kết quả</button>}
+          {open && e.status !== "draft" && has("encounter.examine") && e.status !== "in_treatment" && <button className="btn" onClick={() => to("in_treatment")}>Chuyển điều trị</button>}
           {open && e.status !== "draft" && has("encounter.complete") && !wizard && <button className="btn primary" onClick={() => to("completed")}>Hoàn tất khám</button>}
-          {open && has("encounter.write") && <button className="btn" onClick={() => to("cancelled")}>Hủy lượt khám</button>}
+          {open && (has("encounter.examine") || (has("encounter.write") && e.status === "draft")) && <button className="btn" onClick={() => to("cancelled")}>Hủy lượt khám</button>}
         </div>
       </div>
       {e.status !== "cancelled" && <Stepper steps={FLOW} current={flowIndex(e.status) + (e.status === "completed" ? 1 : 0)} />}
       {e.allergy_status === "recorded" && e.allergies.length > 0
         ? <Banner tone="bad"><b>DỊ ỨNG:</b> {e.allergies.map((a) => `${a.substance}${a.reaction ? ` (${a.reaction})` : ""}`).join("; ")}</Banner>
         : e.allergy_status === "unknown" && open && <Banner tone="warn">Chưa ghi nhận thông tin dị ứng – hãy hỏi và ghi nhận trước khi kê đơn.</Banner>}
-      {e.status === "draft" && <Banner tone="info">Lượt khám đang ở trạng thái nháp. Bấm “Bắt đầu khám” để ghi nhận.</Banner>}
+      {e.status === "draft" && <Banner tone="info">{has("encounter.examine") ? "Lượt khám đang ở trạng thái nháp. Bấm “Bắt đầu khám” để ghi nhận." : "Yêu cầu khám đang chờ bác sĩ/y sĩ. Bạn có thể đo sinh hiệu và ghi đánh giá ban đầu."}</Banner>}
     </Card>
   );
 

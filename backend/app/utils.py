@@ -6,6 +6,15 @@ from fastapi import HTTPException
 from sqlalchemy import inspect as sa_inspect
 
 
+def name_key(s: str | None) -> str:
+    """Khóa so khớp tên: bỏ dấu tiếng Việt, đ→d, chữ thường, gộp khoảng trắng. Dùng để phát hiện trùng và tìm kiếm không phân biệt dấu/hoa/thường."""
+    import re
+    import unicodedata
+    t = unicodedata.normalize("NFD", (s or "").replace("đ", "d").replace("Đ", "D"))
+    t = "".join(c for c in t if unicodedata.category(c) != "Mn")
+    return re.sub(r"\s+", " ", t).strip().lower()
+
+
 def uid() -> str:
     return str(uuid.uuid4())
 

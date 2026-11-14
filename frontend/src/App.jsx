@@ -62,6 +62,19 @@ const needGate = (u) => (u.must_change_password ? "password_change" : u.mfa_requ
 
 const route = () => { const [page, param] = location.hash.replace(/^#\/?/, "").split("/"); return { page: page || "dashboard", param: param || null }; };
 
+/** Đồng hồ thanh trên: giờ:phút:giây + thứ, ngày theo múi giờ của máy đang dùng. */
+function Clock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => { const t = setInterval(() => setNow(new Date()), 1000); return () => clearInterval(t); }, []);
+  const time = now.toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false });
+  const date = now.toLocaleDateString("vi-VN", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
+  return (
+    <time className="clock" dateTime={now.toISOString()} title={`${date} ${time}`}>
+      <b aria-hidden="true">{time}</b><small aria-hidden="true">{date}</small>
+    </time>
+  );
+}
+
 function PatientChip() {
   const { patient, summary, activeStay, bgUntil, select, clear } = usePatient();
   const [open, setOpen] = useState(false);
@@ -150,6 +163,7 @@ export default function App() {
               <button className="btn menu-btn" onClick={() => setMenu(!menu)} aria-label="Menu"><Icon n="menu" /></button>
               {(has("person.read") || has("clinical.read")) && <PatientChip />}
               <div className="grow" />
+              <Clock />
               <ThemeToggle />
               <NotificationBell />
               <button className="who" onClick={() => setAcct(true)} aria-label={`Tài khoản: ${user.full_name}`} title="Tài khoản của tôi – đổi mật khẩu, xác thực 2 lớp"><b>{user.full_name}</b><small>{ROLE_LABEL[user.role] || user.role}</small></button>

@@ -1,0 +1,18 @@
+# ENC-09 – BR-07: 'chưa ghi nhận dị ứng' ≠ 'đã xác nhận không dị ứng'; hồ sơ trống không suy ra 'không có'
+Trạng thái: PASS   Thời gian chạy: 12 ms
+Kết quả mong đợi: allergy_status: unknown (có notice) → none_confirmed sau xác nhận
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Dị Ứng Trạng Thái 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1qprxaz"}
+    → 201 {"id":"5c667e54-4a64-442c-87b4-54f171c70b92","full_name":"UAT Dị Ứng Trạng Thái 1qgkmd1","name_key":"uat di ung trang thai 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qprxaz","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:
+- officer1 POST /api/persons/5c667e54-4a64-442c-87b4-54f171c70b92/stays
+    yêu cầu: {}
+    → 201 {"id":"ce9bee26-c344-472a-a9a8-e740c28c5ea8","person_id":"5c667e54-4a64-442c-87b4-54f171c70b92","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:02:43.584458","hea
+- doctor1 GET /api/persons/5c667e54-4a64-442c-87b4-54f171c70b92/health-summary
+    → 200 {"person":{"id":"5c667e54-4a64-442c-87b4-54f171c70b92","full_name":"UAT Dị Ứng Trạng Thái 1qgkmd1","name_key":"uat di ung trang thai 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qprxaz","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11
+- doctor1 POST /api/persons/5c667e54-4a64-442c-87b4-54f171c70b92/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 GET /api/persons/5c667e54-4a64-442c-87b4-54f171c70b92/health-summary
+    → 200 {"person":{"id":"5c667e54-4a64-442c-87b4-54f171c70b92","full_name":"UAT Dị Ứng Trạng Thái 1qgkmd1","name_key":"uat di ung trang thai 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qprxaz","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11

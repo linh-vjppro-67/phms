@@ -1,0 +1,26 @@
+# RBAC-08 – Báo cáo & nhật ký kiểm toán chỉ dành cho người có quyền (nurse/doctor/pharm/officer/approver bị 403)
+Trạng thái: PASS   Thời gian chạy: 12 ms
+Kết quả mong đợi: 403 cho /reports/* và /audit
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- nurse1 GET /api/reports/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (report.read)"}}
+- nurse1 GET /api/audit
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (audit.read)"}}
+- doctor1 GET /api/reports/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (report.read)"}}
+- doctor1 GET /api/audit
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (audit.read)"}}
+- pharm1 GET /api/reports/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (report.read)"}}
+- pharm1 GET /api/audit
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (audit.read)"}}
+- officer1 GET /api/reports/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (report.read)"}}
+- officer1 GET /api/audit
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (audit.read)"}}
+- approver1 GET /api/reports/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (report.read)"}}
+- approver1 GET /api/audit
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (audit.read)"}}

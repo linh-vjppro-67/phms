@@ -3,19 +3,19 @@ from datetime import date
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .. import config
 from ..audit import audit
 from ..idempotency import run_idempotent
-from ..db import get_db
+from ..db import get_db, lock_row
 from ..notify import emit, person_name
-from ..deps import active_grant, active_stay, current_user, ensure_clinical_access, grant_break_glass, has_facility_link, person_or_404, require
-from ..models import (Alert, Appointment, ClinicalOrder, CustodyStay, Encounter, Facility, Handover,
+from ..deps import identity_scope_clause, ensure_identity_visible, active_grant, active_stay, current_user, ensure_clinical_access, grant_break_glass, has_facility_link, person_or_404, require
+from ..models import (Alert, Appointment, CarePlan, ClinicalOrder, CustodyStay, Encounter, Facility, Handover,
                       HealthRecord, MedicationOrder, Person, Referral, User)
 from ..permissions import perms_of
-from ..utils import fail, to_dict, utcnow
+from ..utils import fail, name_key, to_dict, utcnow
 
 router = APIRouter()
 
@@ -51,7 +51,7 @@ def create_person(body: PersonIn, request: Request, user: User = Depends(require
         cands = []
         if body.date_of_birth:
             cands = list(db.scalars(select(Person).where(
-                func.lower(Person.full_name) == body.full_name.strip().lower(), Person.date_of_birth == body.date_of_birth,
+                Person.name_key == name_key(body.full_name), Person.date_of_birth == body.date_of_birth,
                 Person.status != "merged")))
         if cands and not body.confirm_distinct:
             # Không tự tạo trùng và cũng không tự gộp: buộc người dùng xem ứng viên rồi xác nhận rõ ràng
@@ -76,8 +76,11 @@ def search_persons(q: str | None = None, external_id: str | None = None, status:
                    limit: int = 50, request: Request = None, user: User = Depends(require("person.read")),
                    db: Session = Depends(get_db)):
     stmt = select(Person).where(Person.status != "merged").order_by(Person.full_name).limit(max(1, min(limit, 200)))
-    if q:
-        stmt = stmt.where(Person.full_name.ilike(f"%{q}%"))
+    scope = identity_scope_clause(user)       # REQ-02: chỉ vai trò quản lý danh tính mới tra cứu liên cơ sở
+    if scope is not None:
+        stmt = stmt.where(scope)
+    if q:   # không phân biệt dấu/hoa/thường/khoảng trắng; cũng tìm theo mã nguồn
+        stmt = stmt.where(or_(Person.name_key.like(f"%{name_key(q)}%"), Person.external_id.ilike(f"%{q.strip()}%")))
     if external_id:
         stmt = stmt.where(Person.external_id == external_id)
     if status:
@@ -95,8 +98,10 @@ def search_persons(q: str | None = None, external_id: str | None = None, status:
 
 
 @router.get("/persons/{person_id}", tags=["identity"])
-def get_person(person_id: str, _: User = Depends(require("person.read")), db: Session = Depends(get_db)):
-    return to_dict(person_or_404(db, person_id, allow_merged=True))
+def get_person(person_id: str, request: Request, user: User = Depends(require("person.read")), db: Session = Depends(get_db)):
+    p = person_or_404(db, person_id, allow_merged=True)
+    ensure_identity_visible(db, user, p.id, request)
+    return to_dict(p)
 
 
 class VerifyIn(BaseModel):
@@ -113,6 +118,10 @@ def verify_person(person_id: str, body: VerifyIn, request: Request, user: User =
                   db: Session = Depends(get_db)):
     """Đối soát danh tính (thay cho auto-merge). Hồ sơ tạm (cấp cứu) được cập nhật danh tính thật tại đây."""
     p = person_or_404(db, person_id)
+    creator = db.get(User, p.created_by) if p.created_by else None
+    if not (has_facility_link(db, p.id, user.facility_id) or (creator and creator.facility_id == user.facility_id)):
+        fail(403, "FACILITY_SCOPE", "Chỉ cơ sở đang quản lý (hoặc đã tiếp nhận) người này mới được đối soát danh tính")
+    before = {"họ tên": p.full_name, "ngày sinh": str(p.date_of_birth or ""), "nguồn": f"{p.source_system or ''}/{p.external_id or ''}"}
     if body.external_id and body.source_system:
         ex = db.scalars(select(Person).where(Person.source_system == body.source_system,
                                              Person.external_id == body.external_id, Person.id != p.id)).first()
@@ -127,7 +136,10 @@ def verify_person(person_id: str, body: VerifyIn, request: Request, user: User =
     if not (p.external_id and p.source_system):
         fail(422, "IDENTITY_INCOMPLETE", "Cần mã nguồn + source_system để xác minh")
     p.status, p.is_temporary, p.duplicate_candidates = "verified", False, None
-    audit(db, user, "person_verified", "Person", p.id, person_id=p.id, reason=body.note, request=request)
+    after = {"họ tên": p.full_name, "ngày sinh": str(p.date_of_birth or ""), "nguồn": f"{p.source_system or ''}/{p.external_id or ''}"}
+    changes = "; ".join(f"{k}: '{before[k]}' → '{after[k]}'" for k in before if before[k] != after[k])
+    audit(db, user, "person_verified", "Person", p.id, person_id=p.id,
+          reason=(body.note + (f" | thay đổi: {changes}" if changes else " | không đổi thông tin định danh"))[:900], request=request)
     db.commit()
     return to_dict(p)
 
@@ -178,7 +190,18 @@ def create_stay(person_id: str, body: StayIn, request: Request, user: User = Dep
 
 def _create_stay(person_id: str, body: StayIn, request: Request, user: User, db: Session):
     p = person_or_404(db, person_id)
+    p = lock_row(db, Person, p.id)         # hai người cùng tiếp nhận một người: tuần tự hóa, không tạo trùng đợt/hồ sơ sức khỏe
     cur = active_stay(db, p.id)
+    if cur and cur.provisional and cur.facility_id == user.facility_id:
+        # đợt TẠM do cấp cứu: sau khi đối soát danh tính thì tiếp nhận chính thức = nhận lại đợt tạm đó (không tạo đợt thứ hai)
+        if p.status != "verified":
+            fail(409, "IDENTITY_NOT_VERIFIED", "Cần đối soát danh tính trước khi tiếp nhận chính thức")
+        cur.provisional = False
+        if body.source_ref:
+            cur.source_ref = body.source_ref
+        audit(db, user, "stay_adopted", "CustodyStay", cur.id, person_id=p.id, reason="Tiếp nhận chính thức đợt tạm của cấp cứu", request=request)
+        rec = get_or_create_record(db, p.id)
+        return 201, {**to_dict(cur), "health_record_id": rec.id}
     if cur:
         fail(409, "ACTIVE_STAY_EXISTS", "Người này đang trong một đợt tiếp nhận – cần chuyển trại/kết thúc trước",
              stay_id=cur.id, facility_id=cur.facility_id)
@@ -267,6 +290,7 @@ def initiate_handover(stay_id: str, body: HandoverIn, request: Request,
     s = db.get(CustodyStay, stay_id)
     if not s or s.facility_id != user.facility_id:
         fail(404, "NOT_FOUND", "Không tìm thấy đợt tiếp nhận tại cơ sở của bạn")
+    s = lock_row(db, CustodyStay, s.id)    # chống tạo hai phiếu bàn giao cùng lúc cho một đợt
     if s.status not in ("received", "managed"):
         fail(409, "STAY_NOT_ACTIVE", "Đợt tiếp nhận không còn hiệu lực")
     if body.kind == "transfer":
@@ -332,6 +356,7 @@ def confirm_handover(handover_id: str, body: ConfirmIn, request: Request,
     h = db.get(Handover, handover_id)
     if not h or h.from_facility_id != user.facility_id:
         fail(404, "NOT_FOUND", "Không tìm thấy phiếu bàn giao")
+    h = lock_row(db, Handover, h.id)       # hai người cùng bấm xác nhận: chỉ một người thực hiện
     if h.status != "pending":
         fail(409, "HANDOVER_CLOSED", "Phiếu bàn giao đã đóng")
     if not h.summary:
@@ -343,16 +368,59 @@ def confirm_handover(handover_id: str, body: ConfirmIn, request: Request,
     s.status = "transferred" if h.kind == "transfer" else "ended"
     s.end_date = date.today()
     h.status, h.confirmed_by, h.confirmed_at, h.open_items = "confirmed", user.id, utcnow(), items
-    # lịch đang mở tại đơn vị cũ -> hoãn, đơn vị mới sẽ tạo lại (BR-05: HealthRecord không bị ảnh hưởng)
-    for a in db.scalars(select(Appointment).where(Appointment.person_id == h.person_id,
-                                                   Appointment.facility_id == h.from_facility_id,
-                                                   Appointment.status.in_(("scheduled", "due")))):
-        a.status, a.status_reason = "postponed", "Chuyển trại/kết thúc quản lý"
+    handed = {"đơn thuốc": 0, "kế hoạch theo dõi": 0, "lịch hẹn": 0, "đơn nháp bị hủy": 0}
+    open_appts = db.scalars(select(Appointment).where(Appointment.person_id == h.person_id, Appointment.facility_id == h.from_facility_id,
+                                                      Appointment.status.in_(("scheduled", "due")))).all()
+    if h.kind == "transfer" and h.to_facility_id:
+        # BÀN GIAO sang cơ sở nhận: đơn thuốc còn hiệu lực, kế hoạch theo dõi và lịch đang mở chuyển theo người (BR-05: hồ sơ sức khỏe giữ nguyên)
+        to = h.to_facility_id
+        for o in db.scalars(select(MedicationOrder).where(MedicationOrder.person_id == h.person_id, MedicationOrder.facility_id == h.from_facility_id,
+                                                          MedicationOrder.status.in_(("draft", "confirmed", "active")))):
+            if o.status == "draft":
+                o.status, o.stop_reason = "cancelled", "Chuyển trại – đơn nháp chưa xác nhận bị hủy"
+                handed["đơn nháp bị hủy"] += 1
+            else:
+                o.facility_id = to
+                handed["đơn thuốc"] += 1
+        for cp in db.scalars(select(CarePlan).where(CarePlan.person_id == h.person_id, CarePlan.facility_id == h.from_facility_id, CarePlan.status == "active")):
+            cp.facility_id, cp.responsible_user_id = to, None        # cơ sở nhận chỉ định người phụ trách mới
+            handed["kế hoạch theo dõi"] += 1
+        for a in open_appts:
+            a.facility_id, a.assignee_id = to, None
+            a.note = ((a.note + " · ") if a.note else "") + "Chuyển từ cơ sở cũ"
+            handed["lịch hẹn"] += 1
+    else:
+        # kết thúc quản lý: lịch đang mở bị hoãn
+        for a in open_appts:
+            a.status, a.status_reason = "postponed", "Kết thúc quản lý"
     audit(db, user, "handover_confirmed", "Handover", h.id, person_id=h.person_id,
-          reason=body.receiver_name, request=request)
+          reason=(f"{body.receiver_name or ''} | đã bàn giao: " + ", ".join(f"{v} {k}" for k, v in handed.items() if v))[:500], request=request)
     if h.kind == "transfer" and h.to_facility_id:
         emit(db, kind="handover.incoming", category="handover", severity="warning", facility_id=h.to_facility_id, actor=user, perms=("stay.write",),
              title="Có người được chuyển đến – cần xác nhận tiếp nhận mới", plain="Một phiếu chuyển trại đến cơ sở của bạn đã được bàn giao.",
              named=f"{person_name(db, h.person_id)} được chuyển đến, cần xác nhận tiếp nhận mới.", link_page="intake", link_ref=h.person_id, person_id=h.person_id, dedupe=f"ho:{h.id}:incoming")
+    db.commit()
+    return _handover_out(h, user)
+
+
+class CancelIn(BaseModel):
+    reason: str = Field(min_length=5)
+
+
+@router.post("/handovers/{handover_id}/cancel", tags=["handover"])
+def cancel_handover(handover_id: str, body: CancelIn, request: Request, user: User = Depends(require("handover.initiate")),
+                    db: Session = Depends(get_db)):
+    """Hủy phiếu bàn giao còn chờ (lập nhầm, thay đổi quyết định). Phiếu đã xác nhận không hủy được."""
+    h = db.get(Handover, handover_id)
+    if not h or h.from_facility_id != user.facility_id:
+        fail(404, "NOT_FOUND", "Không tìm thấy phiếu bàn giao")
+    h = lock_row(db, Handover, h.id)
+    if h.status != "pending":
+        fail(409, "HANDOVER_CLOSED", "Chỉ hủy được phiếu đang chờ xác nhận")
+    h.status, h.cancel_reason, h.cancelled_by, h.cancelled_at = "cancelled", body.reason.strip(), user.id, utcnow()
+    audit(db, user, "handover_cancelled", "Handover", h.id, person_id=h.person_id, reason=body.reason.strip(), request=request)
+    emit(db, kind="handover.cancelled", category="handover", facility_id=h.from_facility_id, actor=user, perms=("handover.summary",),
+         title="Phiếu bàn giao đã bị hủy", plain="Một phiếu bàn giao đang chờ đã được hủy, không cần soạn tóm tắt.",
+         named=f"{person_name(db, h.person_id)}: phiếu bàn giao đã bị hủy ({body.reason.strip()[:80]}).", link_page="handover", link_ref=h.id, person_id=h.person_id, dedupe=f"ho:{h.id}:cancel")
     db.commit()
     return _handover_out(h, user)

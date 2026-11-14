@@ -1,0 +1,6 @@
+# NAV-officer – Menu của Cán bộ tiếp nhận chỉ gồm các phân hệ được phép (đối chiếu 04-§2)
+Trạng thái: PASS   Thời gian chạy: 247 ms
+Kết quả mong đợi: Thấy: Bảng điều khiển, Tiếp nhận & Hồ sơ, Chuyển trại. KHÔNG thấy: Khám ban đầu, Khám chữa bệnh, Cấp phát, Hồ sơ sức khỏe, Tài liệu y tế, Báo cáo, Quản trị, Cấp cứu, Chuyển viện
+Kết quả thực tế: Menu: Bảng điều khiển | Tiếp nhận & Hồ sơM01 | Chuyển trại & Bàn giaoWF-07
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)

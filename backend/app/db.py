@@ -1,7 +1,8 @@
 import os
+import threading
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import DeclarativeBase, sessionmaker
+from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 from sqlalchemy.pool import StaticPool
 
 from . import config
@@ -46,3 +47,36 @@ def get_db():
         yield db
     finally:
         db.close()
+
+
+# ---------------------------------------------------------------- khóa hàng (chống tranh chấp kiểu "kiểm tra rồi ghi")
+# Dùng Lock thường (không phải RLock): FastAPI chạy phần chuẩn bị/xử lý/dọn dẹp của một yêu cầu ở các luồng khác nhau nên khóa có thể được nhả từ luồng khác.
+_STRIPES = [threading.Lock() for _ in range(256)]      # SQLite (một tiến trình): khóa theo băm khóa, số khóa cố định nên không rò bộ nhớ
+
+
+def lock_row(db: Session, model, pk: str):
+    """Tuần tự hóa mọi thao tác "đọc điều kiện → ghi" trên CÙNG một hàng (cấp phát ≤ số kê, một phiếu bàn giao/một đợt, hoàn tất lịch hẹn…).
+    PostgreSQL: SELECT … FOR UPDATE (giữ đến hết giao dịch). SQLite: khóa trong tiến trình (giữ đến hết giao dịch) + bỏ ảnh chụp đọc cũ rồi đọc lại.
+    Gọi TRƯỚC khi đọc điều kiện và trước mọi thao tác ghi trong giao dịch; trả về hàng đã làm mới (hoặc None nếu không có)."""
+    if db.get_bind().dialect.name == "postgresql":
+        return db.get(model, pk, with_for_update=True, populate_existing=True)
+    idx = hash((model.__tablename__, pk)) % len(_STRIPES)
+    held: set = db.info.setdefault("row_stripes", set())
+    if idx not in held:                                  # phiên này đã giữ khóa này rồi (hai hàng cùng ô băm) -> không tự khóa chính mình
+        if not _STRIPES[idx].acquire(timeout=30):
+            from .utils import fail
+            fail(503, "BUSY", "Hệ thống đang bận xử lý cùng dữ liệu, vui lòng thử lại sau ít giây")
+        held.add(idx)
+    db.info["_refreshing"] = True
+    try:
+        db.rollback()      # bỏ ảnh chụp đọc cũ để thấy dữ liệu người khác vừa ghi xong (SQLite WAL cố định ảnh chụp ở lần đọc đầu)
+    finally:
+        db.info["_refreshing"] = False
+    return db.get(model, pk, populate_existing=True)
+
+
+@event.listens_for(Session, "after_transaction_end")
+def _release_row_locks(session, transaction):
+    if transaction.parent is None and not session.info.get("_refreshing"):
+        for idx in session.info.pop("row_stripes", set()):
+            _STRIPES[idx].release()

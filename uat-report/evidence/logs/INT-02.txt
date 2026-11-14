@@ -1,0 +1,12 @@
+# INT-02 – Trùng mã nguồn (source_system + external_id) → không tạo hồ sơ mới (BR-01)
+Trạng thái: PASS   Thời gian chạy: 6 ms
+Kết quả mong đợi: HTTP 409/422, không có bản ghi mới; DB có đúng 1 person với mã đó
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Tên Khác Hoàn Toàn 1qgkmd1","source_system":"QLPN","external_id":"UAT-1qgmcbn","confirm_distinct":true}
+    → 409 {"error":{"code":"PERSON_EXISTS","message":"Đã tồn tại hồ sơ cùng mã nguồn","existing_person_id":"8f533006-a3de-4a0f-82a6-e4d19200bed8"}}
+- SQL
+    yêu cầu: "select count(*) n from person where external_id='UAT-1qgmcbn'"
+    → - [{"n":1}]

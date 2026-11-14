@@ -35,6 +35,8 @@ Chuỗi nhật ký đứt khi ghi đồng thời; trang Báo cáo sập khi chuy
 | Bảo mật HTTP | `Content-Security-Policy`, `Permissions-Policy`, COOP/CORP; **HSTS** khi HTTPS (hoặc production); `/docs` & `/openapi.json` **tắt ở production**; production **từ chối khởi động** nếu secret mặc định |
 | Hạ tầng | Kiểm chứng PostgreSQL 16 (toàn bộ test + E2E); khóa tư vấn khi khởi tạo schema nhiều worker; sao lưu/phục hồi (`python -m app.backup`); bộ lập lịch chạy riêng (`python -m app.scheduler_cli`); soak; accessibility |
 
+**Phạm vi chuyên môn (rà soát theo nguyên tắc luật khám chữa bệnh):** điều dưỡng làm tiếp đón, ghi nhận, đo sinh hiệu, chăm sóc, thực hiện y lệnh; **bắt đầu/kết luận khám, chẩn đoán, chỉ định, kê đơn** chỉ bác sĩ/**y sĩ** (vai trò mới `medical_assistant`, hiện quyền bằng bác sĩ – cần khách xác nhận phạm vi); **cấp phát thuốc** là việc của dược (cấu hình `PHMS_NURSE_CAN_DISPENSE` cho nơi không có dược sĩ). Có thêm ô *Đánh giá ban đầu* của điều dưỡng tách khỏi *Kết luận khám*. Căn cứ pháp lý cụ thể cần pháp chế/khách hàng xác nhận.
+
 ## C. Còn lệch / chưa làm (cần quyết định)
 | Mục | Hiện trạng | Gợi ý |
 |---|---|---|

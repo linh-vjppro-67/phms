@@ -98,8 +98,9 @@ await T.step("C7 hai người cùng sửa một lượt khám: người lưu sau
   const nurse = await T.login("nurse1");
   await openEncounter(nurse, pConc.full_name, { view: "Đang thực hiện" });
   await openEncounter(doc.use(), pConc.full_name, { view: "Đang thực hiện" });
-  await doc.fill('.drawer textarea[name="summary"]', "Bác sĩ ghi trước"); await doc.click('.drawer button:has-text("Lưu")'); await toast(doc, "Đã lưu");
-  await nurse.use().fill('.drawer textarea[name="summary"]', "Điều dưỡng ghi sau"); await nurse.click('.drawer button:has-text("Lưu")');
+  await doc.fill('.drawer textarea[name="summary"]', "Bác sĩ ghi trước"); await doc.click(".drawer button:has-text(\"Lưu\")"); await toast(doc, "lưu");
+  if (await nurse.use().$('.drawer textarea[name="summary"]')) throw new Error("điều dưỡng không được thấy ô kết luận khám");
+  await nurse.fill('.drawer textarea[name="nursing_assessment"]', "Điều dưỡng ghi sau"); await nurse.click('.drawer button:has-text("Lưu")');
   await toast(nurse, "Dữ liệu đã được người khác thay đổi");
   doc.use(); await closeDrawer(doc);
 });
@@ -133,7 +134,7 @@ await T.step("D3 điều dưỡng chỉ XEM đơn: không có nút kê/xác nh�
   const nurse = await T.login("nurse1");
   await nav(nurse, "Chỉ định & Kê đơn");
   await nurse.waitForSelector("tbody tr");
-  for (const b of ["Xác nhận", "Điều chỉnh", "Dừng"]) if (await nurse.$(`tbody button:has-text("${b}")`)) throw new Error(`điều dưỡng không được thấy nút “${b}”`);
+  for (const b of ["Xác nhận", "Điều chỉnh", "Dừng", "Xóa nháp"]) if (await nurse.$(`tbody button:has-text("${b}")`)) throw new Error(`điều dưỡng không được thấy nút “${b}”`);
   if (await nurse.$('button:has-text("+ Kê đơn mới")')) throw new Error("điều dưỡng không được thấy nút kê đơn mới");
 });
 await T.step("D4 bác sĩ xác nhận đơn nháp ở tab Kê đơn (Ibuprofen); dừng đơn nháp có cảnh báo (hủy)", async () => {
@@ -141,9 +142,10 @@ await T.step("D4 bác sĩ xác nhận đơn nháp ở tab Kê đơn (Ibuprofen);
   await doc.waitForSelector('tbody tr:has-text("Ibuprofen")');
   await doc.click('tbody tr:has-text("Ibuprofen") button:has-text("Xác nhận")'); await toast(doc, "Đã xác nhận đơn thuốc");
   await seg(doc, "Chờ xác nhận");
-  await doc.click('tbody tr:has-text("Amoxicillin") button:has-text("Dừng")'); await modalOpen(doc, "Dừng/kết thúc đơn");
-  await doc.selectOption('.modal [name="outcome"]', "cancelled"); await doc.fill('.modal [name="reason"]', "Nhập trùng đơn, hủy bản nháp");
-  await modalSubmit(doc, "Xác nhận"); await toast(doc, "Đã cập nhật đơn");
+  if (await doc.$('tbody tr:has-text("Amoxicillin") button:has-text("Dừng")')) throw new Error("đơn NHÁP không được có nút 'Dừng' (chưa có hiệu lực, chỉ hủy nháp)");
+  await doc.click('tbody tr:has-text("Amoxicillin") button:has-text("Xóa nháp")'); await modalOpen(doc, "Xóa đơn nháp");
+  if (await doc.$('.modal [name="reason"]')) throw new Error("xóa đơn nháp không được bắt nhập lý do");
+  await doc.click('.modal-bg footer button:has-text("Xóa")'); await toast(doc, "Đã xóa đơn nháp");
 });
 await T.step("D5 đơn đã xác nhận KHÔNG sửa trực tiếp: Điều chỉnh → bản v2 nháp → xác nhận → bản cũ 'đã thay thế' (UAT-10)", async () => {
   await seg(doc, "Đang hiệu lực");
@@ -189,11 +191,15 @@ await T.step("D8 hủy lượt khám kéo theo hủy đơn/chỉ định; đơn 
 const pharm = await T.login("pharm1");
 const openOrder = async (page, personName, drug, view) => {
   await nav(page, "Cấp phát thuốc"); if (view) await seg(page, view);
-  await page.click(`tbody tr:has-text("${personName}"):has-text("${drug}")`); await page.waitForSelector(".drawer");
+  await page.fill('input[aria-label="Tìm đơn thuốc"]', personName);                                  // danh sách gom theo người: tìm theo tên
+  await page.click(`.ogroup:has-text("${personName}") tbody tr:has-text("${drug}")`); await page.waitForSelector(".drawer");
 };
 await T.step("E1 hàng đợi: cấp 10/14 → 'một phần'; KHÔNG tự thành 'đã dùng'; cấp nốt 4 → 'đủ' và rời hàng đợi (UAT-03)", async () => {
   await nav(pharm, "Cấp phát thuốc");
-  await pharm.waitForSelector(`tbody tr:has-text("${pPharm.full_name}"):has-text("Omeprazole")`);
+  await pharm.fill('input[aria-label="Tìm đơn thuốc"]', pPharm.full_name);
+  await pharm.waitForSelector(`.ogroup:has-text("${pPharm.full_name}") tbody tr:has-text("Omeprazole")`);
+  await mustContain(pharm, ".ogroup", "đợt kê", "Còn thiếu");                                       // nhóm theo người + đợt kê
+  await pharm.fill('input[aria-label="Tìm đơn thuốc"]', "");
   if (await pharm.$(`tbody tr:has-text("Ibuprofen")`)) throw new Error("đơn nháp/đã kết thúc không được vào hàng đợi");
   await openOrder(pharm, pPharm.full_name, "Omeprazole");
   await pharm.click('.drawer button:has-text("Cấp thuốc")'); await modalOpen(pharm, "Cấp thuốc");

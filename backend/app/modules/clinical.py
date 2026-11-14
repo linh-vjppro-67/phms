@@ -8,8 +8,8 @@ from sqlalchemy.orm import Session
 
 from .. import config
 from ..audit import audit
-from ..db import get_db
-from ..deps import active_stay, ensure_clinical_access, person_or_404, require
+from ..db import get_db, lock_row
+from ..deps import ensure_clinical_write, active_stay, ensure_clinical_access, person_or_404, require
 from ..idempotency import idempotent, run_idempotent
 from ..notify import emit, person_name
 from ..models import (DispenseEvent, Allergy, Appointment, ClinicalOrder, CustodyStay, Diagnosis, Encounter, EncounterAddendum,
@@ -35,7 +35,7 @@ def load_encounter(db: Session, user: User, enc_id: str, request: Request, write
     e = db.get(Encounter, enc_id)
     if not e:
         fail(404, "ENCOUNTER_NOT_FOUND", "Không tìm thấy lượt khám")
-    ensure_clinical_access(db, user, e.person_id, request)
+    (ensure_clinical_write if write else ensure_clinical_access)(db, user, e.person_id, request)
     if write and e.facility_id != user.facility_id:
         fail(403, "FACILITY_SCOPE", "Chỉ ghi dữ liệu lượt khám thuộc cơ sở của bạn")
     return e
@@ -63,6 +63,8 @@ def health_summary(person_id: str, request: Request, user: User = Depends(requir
             "allergy_status": rec.allergy_status if rec else "unknown",
             "allergies": [to_dict(a) for a in db.scalars(select(Allergy).where(
                 Allergy.record_id == (rec.id if rec else ""), Allergy.active.is_(True)))],
+            # lịch sử: dị ứng đã gỡ vì ghi nhầm (không xóa vật lý – BR-02), kèm lý do/người/thời điểm
+            "allergies_retracted": _retracted_allergies(db, rec),
             "problems": [to_dict(x) for x in db.scalars(select(HealthProblem).where(
                 HealthProblem.person_id == p.id).order_by(HealthProblem.effective_from.desc()))],
             "active_medications": [to_dict(m) for m in db.scalars(select(MedicationOrder).where(
@@ -82,6 +84,14 @@ def health_summary(person_id: str, request: Request, user: User = Depends(requir
     return out
 
 
+def _retracted_allergies(db: Session, rec) -> list[dict]:
+    if not rec:
+        return []
+    rows = db.scalars(select(Allergy).where(Allergy.record_id == rec.id, Allergy.active.is_(False)).order_by(Allergy.inactive_at.desc())).all()
+    names = {u.id: u.username for u in db.scalars(select(User).where(User.id.in_([a.inactive_by for a in rows if a.inactive_by])))} if rows else {}
+    return [{**to_dict(a), "inactive_by_name": names.get(a.inactive_by)} for a in rows]
+
+
 class AllergyIn(BaseModel):
     substance: str = Field(min_length=2)
     reaction: str | None = None
@@ -95,7 +105,7 @@ class AllergyIn(BaseModel):
 def add_allergy(person_id: str, body: AllergyIn, request: Request, user: User = Depends(require("encounter.write")),
                 db: Session = Depends(get_db)):
     person_or_404(db, person_id)
-    ensure_clinical_access(db, user, person_id, request)
+    ensure_clinical_write(db, user, person_id, request)
     rec = get_or_create_record(db, person_id)
     a = Allergy(record_id=rec.id, recorded_by=user.id, **body.model_dump())
     rec.allergy_status = "recorded"
@@ -119,7 +129,7 @@ def retract_allergy(allergy_id: str, body: RetractIn, request: Request, user: Us
         fail(404, "NOT_FOUND", "Không tìm thấy dị ứng")
     if not a.active:
         fail(409, "ALREADY_RETRACTED", "Dị ứng này đã được gỡ trước đó")
-    ensure_clinical_access(db, user, rec.person_id, request)
+    ensure_clinical_write(db, user, rec.person_id, request)
     if a.confirmed and "diagnosis.write" not in perms_of(user):
         fail(403, "FORBIDDEN", "Dị ứng đã xác nhận chỉ bác sĩ được gỡ")
     a.active, a.inactive_reason, a.inactive_by, a.inactive_at = False, body.reason.strip(), user.id, utcnow()
@@ -134,7 +144,7 @@ def retract_allergy(allergy_id: str, body: RetractIn, request: Request, user: Us
 @router.post("/persons/{person_id}/allergy-status/none-confirmed", tags=["clinical"])
 def confirm_no_allergy(person_id: str, request: Request, user: User = Depends(require("diagnosis.write")),
                        db: Session = Depends(get_db)):
-    ensure_clinical_access(db, user, person_id, request)
+    ensure_clinical_write(db, user, person_id, request)
     rec = get_or_create_record(db, person_id)
     has = db.scalars(select(Allergy.id).where(Allergy.record_id == rec.id, Allergy.active.is_(True))).first()
     if has:
@@ -174,6 +184,11 @@ def create_encounter(body: EncounterIn, request: Request, user: User = Depends(r
         if body.type == "emergency" and (now - occ) > timedelta(minutes=config.LATE_ENTRY_MIN) \
                 and not body.late_entry_reason:
             fail(422, "LATE_ENTRY_REASON", "Ghi nhận muộn cần nêu lý do (late_entry_reason)")
+        if body.type == "initial":
+            # DEF-02: hai yêu cầu đồng thời cùng thấy "chưa có khám ban đầu" -> tuần tự hóa theo đợt tiếp nhận rồi kiểm tra lại
+            stay = lock_row(db, CustodyStay, stay.id)
+            if not stay or stay.status not in ("received", "managed"):
+                fail(409, "NO_ACTIVE_STAY", "Người này không có đợt tiếp nhận đang hiệu lực tại cơ sở của bạn")
         if body.type == "initial" and db.scalars(select(Encounter.id).where(
                 Encounter.stay_id == stay.id, Encounter.type == "initial",
                 Encounter.status != "cancelled")).first():
@@ -229,6 +244,7 @@ def get_encounter(enc_id: str, request: Request, user: User = Depends(require("c
 class EncounterPatch(BaseModel):
     reason: str | None = None
     summary: str | None = None
+    nursing_assessment: str | None = None
     expected_version: int | None = None
 
 
@@ -238,7 +254,9 @@ def patch_encounter(enc_id: str, body: EncounterPatch, request: Request,
     e = load_encounter(db, user, enc_id, request, write=True)
     require_editable(e)
     bump_version(e, body.expected_version)
-    for k in ("reason", "summary"):
+    if body.summary is not None and body.summary != (e.summary or "") and "encounter.examine" not in perms_of(user):
+        fail(403, "EXAMINE_REQUIRED", "Kết luận khám & hướng xử trí do bác sĩ/y sĩ ghi. Điều dưỡng ghi vào 'Đánh giá ban đầu'.")
+    for k in ("reason", "summary", "nursing_assessment"):
         if getattr(body, k) is not None:
             setattr(e, k, getattr(body, k))
     audit(db, user, "encounter_updated", "Encounter", e.id, person_id=e.person_id, request=request)
@@ -256,9 +274,15 @@ class TransitionIn(BaseModel):
 def transition_encounter(enc_id: str, body: TransitionIn, request: Request,
                          user: User = Depends(require("encounter.write")), db: Session = Depends(get_db)):
     e = load_encounter(db, user, enc_id, request, write=True)
+    if body.to == "completed" and e.appointment_id:
+        lock_row(db, Appointment, e.appointment_id)       # hai lượt khám cùng hoàn tất một lịch hẹn: tuần tự hóa
+        e = db.get(Encounter, enc_id)
     if body.to not in ENC_TRANS.get(e.status, set()):
         fail(409, "BAD_TRANSITION", f"Không thể chuyển '{e.status}' -> '{body.to}'")
     perms = perms_of(user)
+    # bắt đầu/điều hành quá trình khám là việc của người có quyền khám; điều dưỡng chỉ được hủy yêu cầu khám còn ở trạng thái nháp
+    if "encounter.examine" not in perms and not (e.status == "draft" and body.to == "cancelled"):
+        fail(403, "EXAMINE_REQUIRED", "Chỉ bác sĩ/y sĩ được bắt đầu hoặc điều hành lượt khám. Điều dưỡng ghi nhận thông tin và đo sinh hiệu.")
     if body.to == "completed":
         if "encounter.complete" not in perms:
             fail(403, "FORBIDDEN", "Chỉ bác sĩ/y sĩ có thẩm quyền được hoàn tất lượt khám")

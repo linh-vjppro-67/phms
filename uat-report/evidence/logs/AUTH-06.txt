@@ -1,0 +1,14 @@
+# AUTH-06 – Gọi API không token / token giả mạo / token bị sửa → 401, không lộ dữ liệu
+Trạng thái: PASS   Thời gian chạy: 4 ms
+Kết quả mong đợi: HTTP 401 cho mọi API nghiệp vụ
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- anon GET /api/persons
+    → 401 {"error":{"code":"UNAUTHENTICATED","message":"Chưa đăng nhập"}}
+- anon GET /api/persons
+    → 401 {"error":{"code":"INVALID_TOKEN","message":"Phiên đăng nhập không hợp lệ hoặc đã hết hạn"}}
+- anon GET /api/persons
+    → 401 {"error":{"code":"INVALID_TOKEN","message":"Phiên đăng nhập không hợp lệ hoặc đã hết hạn"}}
+- anon GET /api/audit
+    → 401 {"error":{"code":"UNAUTHENTICATED","message":"Chưa đăng nhập"}}

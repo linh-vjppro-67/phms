@@ -1,6 +1,6 @@
 // E2E đầy đủ: tính năng mức production – đổi/đặt lại mật khẩu, MFA, gộp hồ sơ có duyệt, ưu tiên khám,
 // tài liệu bàn giao chuyển viện, sửa kế hoạch theo dõi, CSP. KHÔNG đụng tài khoản mẫu: mọi tài khoản dùng ở đây do bài này tự tạo.
-import { BASE, PASS, api, dialogOk, managedPerson, modalGone, modalOpen, modalSubmit, mustContain, mustNotContain, nav, newPerson, ok, pickInModal, pickPatient, start, startEncounter, toast, totp, uniq, uploadDoc } from "./lib.mjs";
+import { BASE, PASS, api, dialogOk, facilityId, managedPerson, modalGone, modalOpen, modalSubmit, mustContain, mustNotContain, nav, newPerson, ok, pickInModal, pickPatient, start, startEncounter, toast, totp, uniq, uploadDoc } from "./lib.mjs";
 
 const T = await start("Bảo mật & tính năng production");
 const U = uniq();
@@ -254,11 +254,107 @@ await T.step("S15 gỡ dị ứng ghi nhầm: bắt buộc lý do, hết cảnh 
   await d.fill('.modal [name="v"]', "Nhập nhầm từ hồ sơ người khác"); await dialogOk(d); await toast(d, "Đã gỡ dị ứng");
   await d.waitForFunction((n) => !document.body.innerText.includes(n), `thuốc trừ sâu ${U}`);
   await mustContain(d, "body", `Penicillin ${U}`);                                                            // dị ứng khác còn nguyên
+  await d.fill('input[name="substance"]', "Hải sản");                                                           // gõ mà chưa bấm Thêm -> cảnh báo chưa lưu
+  await d.waitForSelector('.badge:has-text("CHƯA được lưu")');
   const log = JSON.stringify(await ok("admin", "GET", "/audit?limit=100"));
   if (!log.includes("allergy_retracted") || !log.includes("Nhập nhầm từ hồ sơ người khác")) throw new Error("phải còn nhật ký gỡ dị ứng kèm lý do");
   const nurse = await T.login("nurse1"); await pickPatient(nurse, pAl.full_name); await nav(nurse, "Hồ sơ sức khỏe"); await tab(nurse, "Dị ứng & vấn đề sức khỏe");
   await nurse.waitForSelector(`tbody tr:has-text("Penicillin ${U}")`);
   if (await nurse.$(`tbody tr:has-text("Penicillin ${U}") button:has-text("Gỡ")`)) throw new Error("điều dưỡng không được thấy nút gỡ dị ứng đã xác nhận");
+});
+
+// ================================================================= tự lưu tóm tắt khám
+const pNote = await managedPerson(nm("Tự Lưu Ghi Chú")); const eNote = await startEncounter(pNote.id);
+await T.step("S16 tóm tắt khám: rời khỏi ô là TỰ LƯU (không mất chữ khi quên bấm Lưu); có nhãn 'Chưa lưu'; nút Lưu vẫn dùng được", async () => {
+  const d = await T.login("doctor1"); await nav(d, "Khám chữa bệnh");
+  await d.click(`tbody tr:has-text("${pNote.full_name}")`); await d.waitForSelector(".drawer");
+  await d.fill('.drawer [name="summary"]', "Khám ổn, hẹn tái khám sau 2 tuần");
+  await d.waitForSelector('.drawer .badge:has-text("Chưa lưu")');
+  await d.click('.drawer [name="reason"]');                                                       // chuyển focus sang ô khác = rời khỏi ô tóm tắt
+  await toast(d, "Đã tự lưu");
+  const got = (await ok("doctor1", "GET", `/encounters/${eNote.id}`)).summary;
+  if (got !== "Khám ổn, hẹn tái khám sau 2 tuần") throw new Error(`máy chủ phải có nội dung tự lưu, thấy "${got}"`);
+  await d.fill('.drawer [name="reason"]', "Đau đầu nhẹ"); await d.click('.drawer button:has-text("Lưu")');
+  await d.waitForSelector('.drawer .badge:has-text("Chưa lưu")', { state: "detached" });
+  if ((await ok("doctor1", "GET", `/encounters/${eNote.id}`)).reason !== "Đau đầu nhẹ") throw new Error("nút Lưu phải lưu được lý do khám");
+});
+
+// ================================================================= danh mục thuốc trong form kê đơn
+const pRx = await managedPerson(nm("Kê Thuốc Danh Mục")); const eRx = await startEncounter(pRx.id);
+await T.step("S17 form kê đơn: danh mục thuốc thiết yếu (≥250), chọn thuốc → tự điền hàm lượng + đường dùng, hiện nhóm điều trị", async () => {
+  const d = await T.login("doctor1"); await nav(d, "Khám chữa bệnh");
+  await d.click(`tbody tr:has-text("${pRx.full_name}")`); await d.waitForSelector(".drawer");
+  await d.click('.drawer button[role="tab"]:has-text("Đơn thuốc")'); await d.click('.drawer button:has-text("+ Kê đơn")'); await modalOpen(d, "Kê đơn thuốc");
+  const form = d.locator(".modal");
+  let n = 0; for (let i = 0; i < 30 && n < 250; i++) { n = await form.locator("datalist#drugs option").count(); if (n < 250) await d.waitForTimeout(200); }
+  if (n < 250) throw new Error(`danh mục thuốc quá ít (${n})`);
+  await form.locator('input[name="drug_name"]').fill("Diclofenac 50mg");
+  if ((await form.locator('input[name="strength"]').inputValue()) !== "50mg") throw new Error("hàm lượng phải tự điền 50mg");
+  await mustContain(d, ".modal", "Nhóm: Giảm đau, hạ sốt");
+  await form.locator('input[name="drug_name"]').fill("Insulin NPH (tác dụng trung bình) 100IU/ml");
+  if ((await form.locator('select[name="route"]').inputValue()) !== "tiêm dưới da") throw new Error("đường dùng mặc định phải là tiêm dưới da");
+  await form.locator('input[name="drug_name"]').fill("Paracetamol 500mg"); await modalSubmit(d, "Tạo đơn nháp"); await toast(d, "Đã tạo đơn nháp");
+});
+
+// ================================================================= đồng hồ thanh trên
+await T.step("S18 thanh trên có đồng hồ giờ:phút:giây + thứ, ngày; chạy theo thời gian thực", async () => {
+  const d = await T.login("nurse1");
+  const t1 = (await d.textContent(".top .clock b")).trim(), day = (await d.textContent(".top .clock small")).trim();
+  if (!/^\d{2}:\d{2}:\d{2}$/.test(t1)) throw new Error(`giờ phải dạng hh:mm:ss, thấy "${t1}"`);
+  if (!/\d{2}\/\d{2}\/\d{4}/.test(day)) throw new Error(`phải có ngày dd/mm/yyyy, thấy "${day}"`);
+  await d.waitForTimeout(2200);
+  if ((await d.textContent(".top .clock b")).trim() === t1) throw new Error("đồng hồ phải chạy");
+});
+
+// ================================================================= phạm vi điều dưỡng trên giao diện
+const pNurse = await managedPerson(nm("Phạm Vi Điều Dưỡng UI"));
+await T.step("S19 điều dưỡng: tạo 'yêu cầu khám' (nháp), đo sinh hiệu, ghi đánh giá ban đầu; KHÔNG có nút bắt đầu khám, ô kết luận, hàng đợi cấp phát", async () => {
+  const n = await T.login("nurse1"); await nav(n, "Khám chữa bệnh");
+  await n.click('button:has-text("+ Lượt khám mới")'); await modalOpen(n, "Lượt khám mới");
+  await n.click('.modal button:has-text("Chọn người…")'); await pickInModal(n, pNurse.full_name);
+  await n.fill('.modal [name="reason"]', "Đau đầu 2 ngày");
+  await modalSubmit(n, "Tạo yêu cầu khám"); await n.waitForSelector(".drawer");
+  await mustContain(n, ".drawer", "Nháp", "chờ bác sĩ/y sĩ");
+  if (await n.$('.drawer button:has-text("Bắt đầu khám")')) throw new Error("điều dưỡng không được thấy nút Bắt đầu khám");
+  if (await n.$('.drawer textarea[name="summary"]')) throw new Error("điều dưỡng không được thấy ô kết luận khám");
+  await n.fill('.drawer textarea[name="nursing_assessment"]', "Tỉnh, tiếp xúc tốt; mạch 80, huyết áp 120/80"); await n.click('.drawer button:has-text("Lưu")'); await toast(n, "lưu");
+  const enc = (await ok("doctor1", "GET", `/persons/${pNurse.id}/encounters`)).find((x) => x.reason === "Đau đầu 2 ngày");
+  if (!enc || enc.status !== "draft") throw new Error("yêu cầu khám phải ở trạng thái nháp");
+  await n.keyboard.press("Escape");
+  await nav(n, "Cấp phát thuốc");
+  if (await n.$('.seg button:has-text("Hàng đợi cấp phát")')) throw new Error("điều dưỡng không được thấy hàng đợi cấp phát");
+  const doc = await T.login("doctor1"); await nav(doc, "Khám chữa bệnh"); await doc.click(`tbody tr:has-text("${pNurse.full_name}")`); await doc.waitForSelector(".drawer");
+  await doc.click('.drawer button:has-text("Bắt đầu khám")'); await doc.waitForSelector('.drawer textarea[name="summary"]');                  // bác sĩ: bắt đầu khám + thấy ô kết luận
+  if (!(await doc.inputValue('.drawer textarea[name="nursing_assessment"]')).includes("Tỉnh, tiếp xúc tốt")) throw new Error("bác sĩ phải thấy đánh giá ban đầu của điều dưỡng");
+});
+
+// ================================================================= chẩn đoán -> vấn đề sức khỏe
+const pDx = await managedPerson(nm("Chẩn Đoán Sang Vấn Đề")); const eDx = await startEncounter(pDx.id);
+await ok("doctor1", "POST", `/encounters/${eDx.id}/diagnoses`, { text: "Tăng huyết áp vô căn", code: "I10", kind: "final" });
+await ok("doctor1", "POST", `/encounters/${eDx.id}/diagnoses`, { text: "Viêm họng cấp", kind: "preliminary" });
+await T.step("S20 chẩn đoán CHÍNH THỨC có nút '+ Vấn đề sức khỏe' (sao chép tên + mã ICD); chẩn đoán sơ bộ thì không; bấm lần hai báo đã có", async () => {
+  const d = await T.login("doctor1"); await nav(d, "Khám chữa bệnh");
+  await d.click(`tbody tr:has-text("${pDx.full_name}")`); await d.waitForSelector(".drawer");
+  await d.click('.drawer button[role="tab"]:has-text("Chẩn đoán")');
+  if (await d.$('.drawer tbody tr:has-text("Viêm họng cấp") button:has-text("Vấn đề sức khỏe")')) throw new Error("chẩn đoán sơ bộ không có nút thêm vấn đề sức khỏe");
+  await d.click('.drawer tbody tr:has-text("Tăng huyết áp vô căn") button:has-text("Vấn đề sức khỏe")'); await toast(d, "Đã thêm vào vấn đề sức khỏe");
+  const pr = (await ok("doctor1", "GET", `/persons/${pDx.id}/health-summary`)).clinical.problems;
+  if (!pr.some((x) => x.name === "Tăng huyết áp vô căn" && x.code === "I10" && x.status === "active")) throw new Error("vấn đề phải được tạo kèm mã I10");
+  await d.click('.drawer tbody tr:has-text("Tăng huyết áp vô căn") button:has-text("Vấn đề sức khỏe")'); await toast(d, "đã có trong danh sách");
+});
+
+// ================================================================= hủy phiếu bàn giao + quyền ghi sau chuyển trại
+const pHo = await managedPerson(nm("Hủy Phiếu Bàn Giao"));
+const hoNew = await ok("officer1", "POST", `/stays/${pHo.stay.id}/handover`, { kind: "transfer", to_facility_id: await facilityId("F02"), reason: "Điều chuyển (E2E)" });
+await T.step("S21 cán bộ HỦY phiếu bàn giao còn chờ (bắt buộc lý do) → phiếu 'Đã hủy', người bệnh ở lại; lập lại phiếu mới được", async () => {
+  const o = await T.login("officer1"); await nav(o, "Chuyển trại & Bàn giao");
+  await o.waitForSelector(`.card:has-text("${pHo.full_name}") button:has-text("Hủy phiếu")`);
+  await o.click(`.card:has-text("${pHo.full_name}") button:has-text("Hủy phiếu")`); await modalOpen(o, "Hủy phiếu bàn giao");
+  await o.fill('.modal [name="reason"]', "Quyết định điều chuyển bị thay đổi"); await modalSubmit(o, "Hủy phiếu"); await toast(o, "Đã hủy phiếu bàn giao");
+  const h = await ok("officer1", "GET", `/handovers/${hoNew.id}`);
+  if (h.status !== "cancelled") throw new Error("phiếu phải ở trạng thái cancelled");
+  const again = await api("officer1", "POST", `/stays/${pHo.stay.id}/handover`, { kind: "transfer", to_facility_id: await facilityId("F02"), reason: "Lập lại" });
+  if (again.status !== 201) throw new Error(`hủy xong phải lập lại được, nhận ${again.status}`);
 });
 
 // ================================================================= chống bấm lặp từ giao diện + CSP

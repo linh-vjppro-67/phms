@@ -1,0 +1,35 @@
+# EXP-07 – Người đã kết thúc quản lý (mãn hạn/ended): không tạo lượt khám mới khi chưa tái tiếp nhận
+Trạng thái: PASS   Thời gian chạy: 22 ms
+Kết quả mong đợi: POST /encounters bị chặn (409/403/422) cho người không có đợt tiếp nhận hoạt động
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đã Ra Trại 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1u0zwnb"}
+    → 201 {"id":"2474c08c-039d-4a29-904b-d00f2d9308c1","full_name":"UAT Đã Ra Trại 1qgkmd1","name_key":"uat da ra trai 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1u0zwnb","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:18.093308"}
+- officer1 POST /api/persons/2474c08c-039d-4a29-904b-d00f2d9308c1/stays
+    yêu cầu: {}
+    → 201 {"id":"1e34f19c-cd18-4f77-b5ab-bdb9afd69a8a","person_id":"2474c08c-039d-4a29-904b-d00f2d9308c1","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:18.095405","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"2474c08c-039d-4a29-904b-d00f2d9308c1","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"1e86d0fe-02ef-40b1-987d-c0e14818cae0","person_id":"2474c08c-039d-4a29-904b-d00f2d9308c1","stay_id":"1e34f19c-cd18-4f77-b5ab-bdb9afd69a8a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/1e86d0fe-02ef-40b1-987d-c0e14818cae0/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"1e86d0fe-02ef-40b1-987d-c0e14818cae0","person_id":"2474c08c-039d-4a29-904b-d00f2d9308c1","stay_id":"1e34f19c-cd18-4f77-b5ab-bdb9afd69a8a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/2474c08c-039d-4a29-904b-d00f2d9308c1/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/1e86d0fe-02ef-40b1-987d-c0e14818cae0/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"1e86d0fe-02ef-40b1-987d-c0e14818cae0","person_id":"2474c08c-039d-4a29-904b-d00f2d9308c1","stay_id":"1e34f19c-cd18-4f77-b5ab-bdb9afd69a8a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- officer1 POST /api/stays/1e34f19c-cd18-4f77-b5ab-bdb9afd69a8a/handover
+    yêu cầu: {"kind":"release","reason":"Mãn hạn"}
+    → 201 {"id":"00fd5d02-4d48-424d-9cde-8935f8f25b03","stay_id":"1e34f19c-cd18-4f77-b5ab-bdb9afd69a8a","person_id":"2474c08c-039d-4a29-904b-d00f2d9308c1","kind":"release","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":null,"status":"pending","reason":"Mãn hạn","summary":null,"document_ids":null,"open_items":null,"initiated_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","summary_by":
+- nurse1 PUT /api/handovers/00fd5d02-4d48-424d-9cde-8935f8f25b03/summary
+    yêu cầu: {"summary":"Sức khỏe bình thường khi ra trại"}
+    → 200 {"id":"00fd5d02-4d48-424d-9cde-8935f8f25b03","stay_id":"1e34f19c-cd18-4f77-b5ab-bdb9afd69a8a","person_id":"2474c08c-039d-4a29-904b-d00f2d9308c1","kind":"release","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":null,"status":"pending","reason":"Mãn hạn","summary":"Sức khỏe bình thường khi ra trại","document_ids":null,"open_items":{"open_encounters":0,"open_clinical_orders
+- officer1 POST /api/handovers/00fd5d02-4d48-424d-9cde-8935f8f25b03/confirm
+    yêu cầu: {"acknowledge_open_items":true}
+    → 200 {"id":"00fd5d02-4d48-424d-9cde-8935f8f25b03","stay_id":"1e34f19c-cd18-4f77-b5ab-bdb9afd69a8a","person_id":"2474c08c-039d-4a29-904b-d00f2d9308c1","kind":"release","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":null,"status":"confirmed","reason":"Mãn hạn","summary":null,"document_ids":null,"open_items":null,"initiated_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","summary_by
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"2474c08c-039d-4a29-904b-d00f2d9308c1","type":"ad_hoc","reason":"Khám người đã ra trại"}
+    → 409 {"error":{"code":"NO_ACTIVE_STAY","message":"Người này không có đợt tiếp nhận đang hiệu lực tại cơ sở của bạn"}}

@@ -1,0 +1,15 @@
+# INT-03 – Trùng họ tên + ngày sinh: API báo nghi trùng, KHÔNG tự gộp; chỉ tạo khi xác nhận 'người khác' → hồ sơ chờ đối soát
+Trạng thái: PASS   Thời gian chạy: 7 ms
+Kết quả mong đợi: Lần 1: 409 DUPLICATE_SUSPECTED + ứng viên; lần 2 (confirm_distinct): 201, status pending_verification, duplicate_candidates
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Trùng Tên 1qgkmd1","date_of_birth":"1990-02-02","source_system":"QLPN","external_id":"UAT-D1-1qgkmd1"}
+    → 201 {"id":"a1559347-bea2-40e0-a4b9-0655f21f1fea","full_name":"UAT Trùng Tên 1qgkmd1","name_key":"uat trung ten 1qgkmd1","date_of_birth":"1990-02-02","gender":null,"source_system":"QLPN","external_id":"UAT-D1-1qgkmd1","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:41.571249"}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Trùng Tên 1qgkmd1","date_of_birth":"1990-02-02","source_system":"QLPN","external_id":"UAT-D2-1qgkmd1"}
+    → 409 {"error":{"code":"DUPLICATE_SUSPECTED","message":"Đã có hồ sơ cùng họ tên và ngày sinh – kiểm tra trước khi tạo mới","candidates":[{"id":"a1559347-bea2-40e0-a4b9-0655f21f1fea","full_name":"UAT Trùng Tên 1qgkmd1","date_of_birth":"1990-02-02","source_system":"QLPN","external_id":"UAT-D1-1qgkmd1","status":"verified"}]}}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Trùng Tên 1qgkmd1","date_of_birth":"1990-02-02","confirm_distinct":true}
+    → 201 {"id":"72ef855b-7853-4110-b0f4-fa3bb6b3f54e","full_name":"UAT Trùng Tên 1qgkmd1","name_key":"uat trung ten 1qgkmd1","date_of_birth":"1990-02-02","gender":null,"source_system":null,"external_id":null,"status":"pending_verification","duplicate_candidates":["a1559347-bea2-40e0-a4b9-0655f21f1fea"],"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_a

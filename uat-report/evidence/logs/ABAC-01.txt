@@ -1,0 +1,17 @@
+# ABAC-01 – Cách ly cơ sở: bác sĩ Trại 2 không mở được hồ sơ/lượt khám/đơn thuốc/tài liệu của người Trại 1; sự kiện bị ghi nhật ký access_denied
+Trạng thái: PASS   Thời gian chạy: 10 ms
+Kết quả mong đợi: 403 FACILITY_SCOPE; audit có access_denied
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- doctor2 GET /api/persons/8f533006-a3de-4a0f-82a6-e4d19200bed8/health-summary
+    → 403 {"error":{"code":"FACILITY_SCOPE","message":"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn","break_glass_allowed":true}}
+- doctor2 GET /api/encounters/5d110be7-dd0f-4024-a1cb-0b7be94d0ce7
+    → 403 {"error":{"code":"FACILITY_SCOPE","message":"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn","break_glass_allowed":true}}
+- doctor2 POST /api/encounters/5d110be7-dd0f-4024-a1cb-0b7be94d0ce7/observations
+    yêu cầu: {"type":"Mạch","value":"80","unit":"l/p"}
+    → 403 {"error":{"code":"FACILITY_SCOPE","message":"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn","break_glass_allowed":true}}
+- nurse2 GET /api/persons/8f533006-a3de-4a0f-82a6-e4d19200bed8/medication-orders
+    → 403 {"error":{"code":"FACILITY_SCOPE","message":"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn","break_glass_allowed":true}}
+- admin GET /api/audit?action=access_denied&limit=50
+    → 200 [{"seq":1244,"id":"8e2de239-2d07-4e43-ad15-fc4463c27f60","actor_id":"012e9725-40f7-4324-81ae-0b9dbff9b154","actor_name":"nurse2","action":"access_denied","object_type":"Person","object_id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","person_id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","result":"denied","reason":"ngoài phạm vi cơ sở","source_ip":"127.0.0.1","at":"2026-11-13T14:02:37.832068","prev_hash":"f

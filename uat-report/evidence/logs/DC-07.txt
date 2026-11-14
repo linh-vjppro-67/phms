@@ -1,0 +1,9 @@
+# DC-07 – Không có lượt khám/sinh hiệu có thời điểm xảy ra ở tương lai so với thời điểm ghi (BR-03)
+Trạng thái: PASS   Thời gian chạy: 3 ms
+Kết quả mong đợi: occurred_at ≤ recorded_at + 5 phút
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- SQL
+    yêu cầu: "select id from observation where julianday(occurred_at) > julianday(recorded_at) + 5.0/1440"
+    → - []

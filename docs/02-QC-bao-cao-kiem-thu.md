@@ -1,6 +1,6 @@
 # 02 – QC: Kế hoạch & báo cáo kiểm thử
 
-**Backend API** (pytest, SQLite in-memory, mỗi test DB mới): **114/114 đạt (SQLite và PostgreSQL 16)** (`python -m pytest -q`, ~7s) – gồm UAT-01…12, BR-01…07, bảo mật, luồng, thông báo, rà soát luồng, đồng thời nhật ký, hồi quy QC đợt 2.
+**Backend API** (pytest, SQLite in-memory, mỗi test DB mới): **141 đạt trên PostgreSQL 16 (139 + 2 bài đồng thời bỏ qua trên SQLite bộ nhớ)** (`python -m pytest -q`, ~7s) – gồm UAT-01…12, BR-01…07, bảo mật, luồng, thông báo, rà soát luồng, đồng thời nhật ký, hồi quy QC đợt 2.
 
 **Giao diện React** (Playwright/Chromium, `frontend/e2e`) – thao tác thật trên trình duyệt, nhiều vai trò cùng lúc:
 
@@ -119,6 +119,23 @@
 
 **Điều chưa kiểm chứng / còn lại (trung thực):** SSO với IdP thật · build container (`deploy/Dockerfile`, compose chưa chạy vì Docker daemon không có) · soak **nhiều giờ** (mới 12 phút; script chạy được hàng giờ) · pentest/rà soát pháp lý · đọc màn hình thật (mới kiểm bằng axe + bàn phím) · mã khôi phục MFA.
 **Lưu ý quy trình:** ở đợt 2 QC từng chạy nhầm lên `phms.db`; đợt này mọi lần chạy đều dùng CSDL riêng và đã xác nhận `phms.db` còn seed-only.
+
+## QC đợt 4 – kiểm thử hộp đen theo sơ đồ luồng (đối chiếu một bản mô tả ~40 lỗi do bên khác cung cấp)
+**Cách làm:** không tin mô tả; thử từng giả thuyết lỗi bằng API thật (bộ thử tạm) và bằng máy chủ nhiều luồng cho các lỗi tranh chấp đồng thời, rồi chỉ sửa những ý **tái hiện được**. Kết quả: 16/22 nhóm ý đúng, 3 sai/đã có, 3 đúng một phần, 1 chưa thử.
+
+**Đã sửa (có test hồi quy `tests/test_blackbox_fixes.py`, 17 bài):**
+| Nhóm | Lỗi → sửa |
+|---|---|
+| Quyền ghi | Cơ sở cũ sau chuyển trại và **break-glass vẫn ghi được dị ứng/vấn đề sức khỏe** (trái với "chỉ đọc") → ghi lâm sàng cần đợt tiếp nhận hiệu lực tại cơ sở của người ghi; break-glass bị 403 `BREAKGLASS_READ_ONLY` |
+| Tranh chấp đồng thời | Cấp phát vượt số kê (1/8 vòng cấp 60/30), nhiều phiếu bàn giao/một đợt (3/8 vòng), tạo người/đợt đồng thời trả 500 → `lock_row` (PostgreSQL `FOR UPDATE`; SQLite khóa trong tiến trình), xử lý `IntegrityError` thành 409. **Kết quả trên máy chủ thật: 0/8 vòng sai dữ liệu, 0 lỗi 500** |
+| Tiếp nhận | Trùng tên không phát hiện khi khác dấu/hoa/khoảng trắng; tìm kiếm cũng vậy → `Person.name_key` (tự cập nhật, hồ sơ cũ tự backfill); đối soát của **cơ sở khác** đổi được tên → chỉ cơ sở đang quản lý; nhật ký ghi cũ→mới; gộp hồ sơ vào người đang ở cơ sở khác bị chặn (`ACTIVE_ELSEWHERE`) |
+| Chuyển trại | Không có hủy phiếu → `POST /handovers/{id}/cancel` + nút *Hủy phiếu*; xác nhận chuyển trại **không chuyển** đơn thuốc, kế hoạch, lịch sang cơ sở nhận → nay chuyển theo (đơn nháp bị hủy); kỳ tạm của cấp cứu không nhận lại được → tiếp nhận chính thức *nhận lại* kỳ tạm sau khi đối soát |
+| Thuốc | Tổng đã cấp không cộng dồn qua bản điều chỉnh (bản mới "đã cấp 0") → cộng dồn theo chuỗi bản; `Infinity`/`1e999` gây 500 **và lưu đơn làm hỏng danh sách** → từ chối 422, mã hóa phản hồi trước khi commit; ghi nhận dùng thuốc trên đơn nháp/đã dừng → chặn |
+| Lịch / quản trị / xác thực | Ngày hẹn/đợt khám/kế hoạch ở quá khứ hoặc xa vô lý → kiểm tra; hoàn tất hai lần một lịch hẹn → chỉ sinh một lịch kế; admin tự hạ quyền/khóa mình hoặc khóa quản trị viên cuối → chặn; JWT thiếu `exp`/`sub`/`ver` → 401 (trước đó thiếu `sub` gây 500); `limit` nhật ký âm → trả toàn bộ → chặn |
+
+**Cố ý KHÔNG làm:** *một người chỉ một chuyển viện đang mở* (quyết định nghiệp vụ: có thể cần nhiều chuyên khoa) và *cảnh báo sinh hiệu bất thường* (tính năng mới, chưa có yêu cầu). Ý *người không tồn tại → 500* không tái hiện (đã trả 404/403) và *cảnh báo dị ứng mới khi xác nhận đơn* đã có sẵn.
+**Kết quả:** pytest 139 (SQLite, 2 bài đồng thời bỏ qua vì SQLite bộ nhớ chung một kết nối) · **141 trên PostgreSQL** (gồm 2 bài tranh chấp thật) · toàn bộ E2E luồng + bảo mật + responsive + accessibility + 5 bài demo đạt · tải 30 người dùng p95 213 ms, 0 lỗi.
+**Sửa lỗi trong chính bản sửa:** lần đầu khóa SQLite bị nhả ngay do rollback của chính nó, rồi `RLock` hỏng vì FastAPI chạy một yêu cầu ở nhiều luồng → đổi sang khóa thường theo dõi theo phiên; chỉ kiểm chứng đúng khi chạy máy chủ nhiều luồng thật (test đơn luồng không bắt được).
 
 ## Rủi ro / khoảng trống kiểm thử còn lại
 | Mức | Nội dung |

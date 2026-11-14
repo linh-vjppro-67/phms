@@ -1,0 +1,41 @@
+# EXP-25b – 3 người cùng xác nhận MỘT phiếu bàn giao: chỉ 1 thành công, đợt tiếp nhận chuyển 'transferred' đúng một lần
+Trạng thái: PASS   Thời gian chạy: 30 ms
+Kết quả mong đợi: Đúng 1 HTTP 2xx; 1 audit handover_confirmed
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời BG 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1u1pi7r"}
+    → 201 {"id":"38823c96-0645-46ce-b689-f6cea25132cd","full_name":"UAT Đồng Thời BG 1qgkmd1","name_key":"uat dong thoi bg 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1u1pi7r","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:19.015828"
+- officer1 POST /api/persons/38823c96-0645-46ce-b689-f6cea25132cd/stays
+    yêu cầu: {}
+    → 201 {"id":"31e9d391-d2d8-42ea-acb3-ec6abe1bc2fa","person_id":"38823c96-0645-46ce-b689-f6cea25132cd","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:19.018069","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"38823c96-0645-46ce-b689-f6cea25132cd","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"6cb6c358-e5fe-4c7e-9518-eae66f53aa59","person_id":"38823c96-0645-46ce-b689-f6cea25132cd","stay_id":"31e9d391-d2d8-42ea-acb3-ec6abe1bc2fa","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/6cb6c358-e5fe-4c7e-9518-eae66f53aa59/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"6cb6c358-e5fe-4c7e-9518-eae66f53aa59","person_id":"38823c96-0645-46ce-b689-f6cea25132cd","stay_id":"31e9d391-d2d8-42ea-acb3-ec6abe1bc2fa","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/38823c96-0645-46ce-b689-f6cea25132cd/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/6cb6c358-e5fe-4c7e-9518-eae66f53aa59/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"6cb6c358-e5fe-4c7e-9518-eae66f53aa59","person_id":"38823c96-0645-46ce-b689-f6cea25132cd","stay_id":"31e9d391-d2d8-42ea-acb3-ec6abe1bc2fa","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- officer1 POST /api/stays/31e9d391-d2d8-42ea-acb3-ec6abe1bc2fa/handover
+    yêu cầu: {"kind":"transfer","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","reason":"Song song"}
+    → 201 {"id":"51026323-b349-485e-82ec-910cf33a36d7","stay_id":"31e9d391-d2d8-42ea-acb3-ec6abe1bc2fa","person_id":"38823c96-0645-46ce-b689-f6cea25132cd","kind":"transfer","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","status":"pending","reason":"Song song","summary":null,"document_ids":null,"open_items":null,"initiated_by":"61c9f71c-e4e3-
+- nurse1 PUT /api/handovers/51026323-b349-485e-82ec-910cf33a36d7/summary
+    yêu cầu: {"summary":"Tóm tắt y tế song song đủ dài"}
+    → 200 {"id":"51026323-b349-485e-82ec-910cf33a36d7","stay_id":"31e9d391-d2d8-42ea-acb3-ec6abe1bc2fa","person_id":"38823c96-0645-46ce-b689-f6cea25132cd","kind":"transfer","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","status":"pending","reason":"Song song","summary":"Tóm tắt y tế song song đủ dài","document_ids":null,"open_items":{"open_e
+- officer1 POST /api/handovers/51026323-b349-485e-82ec-910cf33a36d7/confirm
+    yêu cầu: {"acknowledge_open_items":true}
+    → 200 {"id":"51026323-b349-485e-82ec-910cf33a36d7","stay_id":"31e9d391-d2d8-42ea-acb3-ec6abe1bc2fa","person_id":"38823c96-0645-46ce-b689-f6cea25132cd","kind":"transfer","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","status":"confirmed","reason":"Song song","summary":null,"document_ids":null,"open_items":null,"initiated_by":"61c9f71c-e4e
+- officer1 POST /api/handovers/51026323-b349-485e-82ec-910cf33a36d7/confirm
+    yêu cầu: {"acknowledge_open_items":true}
+    → 409 {"error":{"code":"HANDOVER_CLOSED","message":"Phiếu bàn giao đã đóng"}}
+- officer1 POST /api/handovers/51026323-b349-485e-82ec-910cf33a36d7/confirm
+    yêu cầu: {"acknowledge_open_items":true}
+    → 409 {"error":{"code":"HANDOVER_CLOSED","message":"Phiếu bàn giao đã đóng"}}
+- SQL
+    yêu cầu: "select count(*) n from audit_event where object_id='51026323-b349-485e-82ec-910cf33a36d7' and action='handover_confirmed'"
+    → - [{"n":1}]

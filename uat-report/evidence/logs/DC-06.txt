@@ -1,0 +1,12 @@
+# DC-06 – Lượt khám đã hoàn tất không còn chỉ định XN chờ kết quả / đơn thuốc nháp
+Trạng thái: PASS   Thời gian chạy: 6 ms
+Kết quả mong đợi: 0 dòng
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- SQL
+    yêu cầu: "select o.id from clinical_order o join encounter e on e.id=o.encounter_id where e.status='completed' and o.status in ('ordered','pending')"
+    → - []
+- SQL
+    yêu cầu: "select m.id from medication_order m join encounter e on e.id=m.encounter_id where e.status='completed' and m.status='draft'"
+    → - []

@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.exc import TimeoutError as SATimeoutError
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
@@ -34,6 +34,7 @@ async def _scheduler_loop():
 @contextlib.asynccontextmanager
 async def lifespan(_: FastAPI):
     ensure_schema(engine)
+    _check_no_sample_accounts()
     task = asyncio.create_task(_scheduler_loop()) if config.SCHEDULER_ENABLED else None
     yield
     if task:
@@ -51,8 +52,31 @@ def _check_production_config():
         problems.append("PHMS_DOC_KEY phải được đặt riêng và khác PHMS_SECRET (tách khóa ký phiên khỏi khóa mã hóa tài liệu)")
     if config.PBKDF2_ITER < 100_000:
         problems.append("PHMS_PBKDF2_ITER quá thấp")
+    if config.DATABASE_URL.startswith("sqlite") and os.getenv("PHMS_ALLOW_SQLITE") != "1":
+        problems.append("production phải dùng PostgreSQL (PHMS_DB_URL=postgresql+psycopg://…): SQLite không an toàn khi chạy nhiều worker/nhiều máy. "
+                        "Chỉ điểm triển khai nhỏ, MỘT worker, mới được đặt PHMS_ALLOW_SQLITE=1")
+    if config.DOC_ENC_KEY == config.DEV_SECRET:
+        problems.append("PHMS_DOC_KEY không được dùng khóa mặc định")
     if problems:
         raise RuntimeError("Cấu hình production không an toàn: " + "; ".join(problems))
+
+
+def _check_no_sample_accounts():
+    """Production: từ chối chạy nếu còn tài khoản mẫu với mật khẩu mặc định đã công khai (dùng `python -m app.bootstrap` thay vì seed).
+    Môi trường đào tạo/thử nghiệm có chủ đích mới được đặt PHMS_ALLOW_SAMPLE_ACCOUNTS=1."""
+    if not config.IS_PROD or os.getenv("PHMS_ALLOW_SAMPLE_ACCOUNTS") == "1":
+        return
+    from sqlalchemy import select
+    from .models import User
+    from .security import verify_password
+    from .seed import DEFAULT_PASSWORD, USERS
+    names = {u[0] for u in USERS}
+    with SessionLocal() as db:
+        bad = [u.username for u in db.scalars(select(User).where(User.username.in_(names)))
+               if verify_password(DEFAULT_PASSWORD, u.password_hash)]
+    if bad:
+        raise RuntimeError("Cấu hình production không an toàn: còn tài khoản mẫu dùng mật khẩu mặc định công khai (" + ", ".join(sorted(bad)) +
+                           "). Đặt lại mật khẩu hoặc vô hiệu hóa các tài khoản này; khởi tạo hệ thống mới bằng `python -m app.bootstrap`.")
 
 
 _check_production_config()
@@ -102,6 +126,13 @@ async def validation_exc(_: Request, exc: RequestValidationError):
                         status_code=422)
 
 
+@app.exception_handler(IntegrityError)
+async def integrity_conflict(_: Request, exc: IntegrityError):
+    """Hai người cùng tạo một dữ liệu duy nhất (cùng mã, cùng đợt…): trả 409 dễ hiểu thay vì lỗi 500; dữ liệu không bị nhân đôi nhờ ràng buộc CSDL."""
+    log.warning("integrity conflict: %s", str(exc.orig)[:160])
+    return JSONResponse({"error": {"code": "CONFLICT", "message": "Dữ liệu này vừa được người khác tạo hoặc thay đổi – hãy tải lại rồi thử lại"}}, status_code=409)
+
+
 @app.exception_handler(SATimeoutError)
 async def pool_timeout(_: Request, exc: SATimeoutError):
     return JSONResponse({"error": {"code": "BUSY", "message": "Hệ thống đang quá tải, vui lòng thử lại sau ít giây"}},
@@ -142,6 +173,19 @@ async def security_headers(request: Request, call_next):
 @app.get("/api/health", tags=["ops"])
 def health():
     return {"status": "ok"}
+
+
+@app.get("/api/health/ready", tags=["ops"])
+def ready():
+    """Sẵn sàng phục vụ: kiểm tra kết nối CSDL (dùng cho load balancer/giám sát). Không lộ chi tiết lỗi."""
+    from sqlalchemy import text
+    try:
+        with SessionLocal() as db:
+            db.execute(text("SELECT 1"))
+    except Exception:  # noqa: BLE001
+        log.exception("readiness check failed")
+        return JSONResponse({"status": "unavailable"}, status_code=503)
+    return {"status": "ready"}
 
 
 if os.path.isdir(FRONTEND):

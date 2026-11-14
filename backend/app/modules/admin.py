@@ -3,7 +3,7 @@ from datetime import timedelta
 
 from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from .. import config
@@ -165,6 +165,13 @@ def patch_user(user_id: str, body: UserPatch, request: Request, actor: User = De
     u = db.get(User, user_id)
     if not u:
         fail(404, "NOT_FOUND", "Không tìm thấy người dùng")
+    demoting = (body.role is not None and body.role != u.role) or body.active is False
+    if u.id == actor.id and demoting:
+        fail(409, "SELF_CHANGE", "Không tự đổi vai trò hoặc tự khóa tài khoản của chính mình – nhờ một quản trị viên khác")
+    if u.role == "sysadmin" and u.active and (body.active is False or (body.role is not None and body.role != "sysadmin")):
+        others = db.scalar(select(func.count()).select_from(User).where(User.role == "sysadmin", User.active.is_(True), User.id != u.id))
+        if not others:
+            fail(409, "LAST_ADMIN", "Đây là quản trị viên hoạt động cuối cùng – không thể hạ quyền hoặc khóa")
     if body.role is not None:
         if body.role not in ROLES:
             fail(422, "BAD_ROLE", "Vai trò không hợp lệ")
@@ -328,7 +335,7 @@ def upsert_catalog(body: CatalogIn, request: Request, actor: User = Depends(requ
 @router.get("/audit", tags=["audit"])
 def list_audit(person_id: str | None = None, actor: str | None = None, action: str | None = None,
                limit: int = 100, user: User = Depends(require("audit.read")), db: Session = Depends(get_db)):
-    q = select(AuditEvent).order_by(AuditEvent.seq.desc()).limit(min(limit, 500))
+    q = select(AuditEvent).order_by(AuditEvent.seq.desc()).limit(max(1, min(limit, 500)))
     if person_id:
         q = q.where(AuditEvent.person_id == person_id)
     if actor:

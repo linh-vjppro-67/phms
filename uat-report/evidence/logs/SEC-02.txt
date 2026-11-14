@@ -1,0 +1,22 @@
+# SEC-02 – Chèn SQL qua ô tìm kiếm và tham số: không lỗi 500, không rò dữ liệu
+Trạng thái: PASS   Thời gian chạy: 16 ms
+Kết quả mong đợi: HTTP 200 danh sách rỗng/đúng; bảng person còn nguyên
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- SQL
+    yêu cầu: "select count(*) n from person"
+    → - [{"n":110}]
+- officer1 GET /api/persons?q='%20OR%20'1'%3D'1
+    → 200 []
+- officer1 GET /api/persons?q='%3B%20DROP%20TABLE%20person%3B%20--
+    → 200 []
+- officer1 GET /api/persons?q=%25'%20UNION%20SELECT%20*%20FROM%20app_user%20--
+    → 200 []
+- officer1 GET /api/persons?q=%22%20OR%201%3D1%20%23
+    → 200 []
+- admin GET /api/audit?action=x'%20OR%20'1'%3D'1
+    → 200 []
+- SQL
+    yêu cầu: "select count(*) n from person"
+    → - [{"n":110}]

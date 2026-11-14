@@ -76,9 +76,11 @@ def create_event(body: EmergencyIn, request: Request, user: User = Depends(requi
     emit(db, kind="emergency.created", category="emergency", severity="critical", facility_id=user.facility_id, actor=user, perms=("emergency.write",),
          title=f"CẤP CỨU{': ' + body.location if body.location else ''}", plain=desc or "Có sự cố y tế khẩn cấp, cần có mặt xử trí.",
          named=f"{pn} – {desc}" if desc else pn, link_page="emergency", link_ref=ev.id, person_id=person, dedupe=f"emg:{ev.id}")
-    if not body.person_id:
+    pr = db.get(Person, person)
+    if pr and pr.status != "verified":        # hồ sơ tạm HOẶC hồ sơ có sẵn nhưng chưa đối soát: cán bộ tiếp nhận phải biết để đối soát kịp
         emit(db, kind="emergency.identity", category="emergency", severity="warning", facility_id=user.facility_id, actor=user, perms=("person.write",),
-             title="Hồ sơ tạm từ cấp cứu cần đối soát danh tính", plain="Có người cấp cứu chưa rõ danh tính, cần đối soát với nguồn dữ liệu gốc.",
+             title="Cấp cứu: người bệnh cần đối soát danh tính" if body.person_id else "Hồ sơ tạm từ cấp cứu cần đối soát danh tính",
+             plain="Có người cấp cứu chưa được đối soát danh tính, cần đối soát với nguồn dữ liệu gốc để bác sĩ đóng được sự kiện.",
              link_page="intake", link_ref=person, person_id=person, dedupe=f"emg:{ev.id}:identity")
     return to_dict(ev)
 
@@ -136,6 +138,11 @@ def close_event(eid: str, body: CloseIn, request: Request, user: User = Depends(
     if p and p.status != "verified":
         problems.append("Danh tính chưa được đối soát (bắt buộc)")
     if problems:
+        if p and p.status != "verified":      # bác sĩ đang chờ đóng nhưng thiếu đối soát -> nhắc cán bộ tiếp nhận (một lần/sự kiện)
+            emit(db, kind="emergency.identity_blocking", category="emergency", severity="warning", facility_id=user.facility_id, actor=user, perms=("person.write",),
+                 title="Cấp cứu đang chờ đối soát danh tính để đóng sự kiện", plain="Bác sĩ chưa đóng được sự kiện cấp cứu vì người bệnh chưa được đối soát danh tính.",
+                 link_page="intake", link_ref=ev.person_id, person_id=ev.person_id, dedupe=f"emg:{ev.id}:identity_blocking")
+            db.commit()                      # giữ thông báo dù yêu cầu này trả lỗi
         fail(409, "INCOMPLETE_RECORD", "Chưa đủ điều kiện đóng sự kiện cấp cứu", problems=problems)
     ev.status, ev.closing_note, ev.closed_by = "closed", body.note, user.id
     if body.follow_up_date:

@@ -1,0 +1,15 @@
+# RBAC-07 – Quản lý y tế xem báo cáo nhưng không đọc bệnh án / không tạo đơn thuốc
+Trạng thái: PASS   Thời gian chạy: 7 ms
+Kết quả mong đợi: Báo cáo 200; health-summary, encounters, kê đơn → 403
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- manager1 GET /api/reports/encounters
+    → 200 {"report":"encounters","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","date_from":"2026-10-14","date_to":"2026-11-13","generated_at":"2026-11-13T14:02:37.785495","data":{"by_type":{"ad_hoc":{"encounter_count":16,"distinct_person_count":15},"emergency":{"encounter_count":5,"distinct_person_count":5},"initial":{"encounter_count":15,"distinct_person_count":15},"periodic":{"encounter_count":21,"
+- manager1 GET /api/persons/8f533006-a3de-4a0f-82a6-e4d19200bed8/health-summary
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (person.read)"}}
+- manager1 GET /api/encounters/5d110be7-dd0f-4024-a1cb-0b7be94d0ce7
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- manager1 POST /api/encounters/5d110be7-dd0f-4024-a1cb-0b7be94d0ce7/medication-orders
+    yêu cầu: {"drug_name":"X","dose":"1","route":"u","frequency":"1","start_date":"2026-11-13","duration_days":1,"quantity_prescribed":1}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (medorder.write)"}}

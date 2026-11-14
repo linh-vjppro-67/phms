@@ -4,14 +4,19 @@ Nguyên tắc: tách quyết định chuyên môn (bác sĩ) và hành chính (a
 sysadmin KHÔNG có clinical.read (không mặc định đọc bệnh án).
 """
 
+from . import config
+
+# Điều dưỡng: tiếp đón, ghi nhận thông tin, đo sinh hiệu, chăm sóc, THỰC HIỆN y lệnh (ghi nhận đã dùng thuốc).
+# KHÔNG: bắt đầu/kết luận khám, chẩn đoán, chỉ định, kê đơn (encounter.examine, diagnosis.write, order.write, medorder.*),
+# và mặc định KHÔNG cấp phát thuốc (việc của dược; bật cho cơ sở không có dược sĩ bằng PHMS_NURSE_CAN_DISPENSE=1).
 NURSE = {
-    "person.read", "clinical.read", "encounter.write", "observation.write", "dispense.write",
+    "person.read", "clinical.read", "encounter.write", "observation.write",
     "admin.write", "schedule.read", "schedule.write", "alert.handle", "handover.initiate",
     "handover.summary", "document.read", "document.write", "emergency.write",
     "referral.read", "referral.update", "breakglass", "catalog.read",
 }
 DOCTOR = NURSE | {
-    "diagnosis.write", "encounter.complete", "order.write", "medorder.write", "medorder.confirm",
+    "encounter.examine", "diagnosis.write", "encounter.complete", "order.write", "medorder.write", "medorder.confirm",
     "referral.write", "problem.write", "careplan.write", "emergency.close",
 }
 
@@ -20,6 +25,8 @@ ROLE_PERMS: dict[str, set[str]] = {
                         "handover.confirm", "catalog.read", "person.merge.request"},
     "nurse": NURSE,
     "doctor": DOCTOR,
+    # Y sĩ: khám, chẩn đoán, kê đơn trong phạm vi được giao. HIỆN quyền bằng bác sĩ; thu hẹp theo xác nhận phạm vi hành nghề của khách hàng.
+    "medical_assistant": DOCTOR,
     "pharmacist": {"person.read", "clinical.read", "dispense.write", "catalog.read"},
     "approver": {"person.read", "referral.read", "referral.approve", "referral.update",
                  "handover.confirm", "catalog.read", "person.merge.approve"},
@@ -32,4 +39,7 @@ ROLES = set(ROLE_PERMS)
 
 
 def perms_of(user) -> set[str]:
-    return ROLE_PERMS.get(user.role, set())
+    p = ROLE_PERMS.get(user.role, set())
+    if user.role == "nurse" and config.NURSE_CAN_DISPENSE:
+        return p | {"dispense.write"}
+    return p

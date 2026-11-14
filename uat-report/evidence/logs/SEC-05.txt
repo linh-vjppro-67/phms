@@ -1,0 +1,6 @@
+# SEC-05 – Cấu hình PRODUCTION (từ chối khởi động với secret mặc định, tắt /docs, HSTS luôn bật)
+Trạng thái: BLOCKED   Thời gian chạy: 1 ms
+Kết quả mong đợi: Chỉ kiểm được trên môi trường chạy PHMS_ENV=production
+Kết quả thực tế: Staging chạy PHMS_ENV=dev nên /docs mở (HTTP 200) – đúng với dev. Cấu hình production CHƯA kiểm trong phiên UAT này (cần môi trường production-like với PHMS_SECRET/PHMS_DOC_KEY riêng, TLS).
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)

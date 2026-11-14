@@ -66,7 +66,7 @@ const jobs = [];
 for (let i = 0; i < k(0.15); i++) jobs.push(officer(i));
 for (let i = 0; i < k(0.3); i++) jobs.push(doctor());
 for (let i = 0; i < k(0.15); i++) jobs.push(viewer("doctor1", ["/dashboard", "/encounters?open_only=true&limit=100", "/medication-orders?status=active&limit=100"]));
-for (let i = 0; i < k(0.15); i++) jobs.push(viewer("nurse1", ["/notifications/poll?after_seq=0", "/appointments?limit=100", "/alerts", "/dispense-queue"]));
+for (let i = 0; i < k(0.15); i++) jobs.push(viewer("nurse1", ["/notifications/poll?after_seq=0", "/appointments?limit=100", "/alerts"]));
 for (let i = 0; i < k(0.1); i++) jobs.push(viewer("manager1", ["/reports/encounters", "/reports/checkups", "/dashboard"]));
 for (let i = 0; i < k(0.1); i++) jobs.push(viewer("admin", ["/audit?limit=50", "/users"]));
 

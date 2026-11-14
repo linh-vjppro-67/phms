@@ -1,0 +1,19 @@
+# SCH-02 – Khóa đợt: nhiệm vụ chưa khám ghi 'Không thực hiện' (không bỏ sót); khóa lần 2 bị chặn; đợt khóa không thao tác thêm (F6)
+Trạng thái: PASS   Thời gian chạy: 17 ms
+Kết quả mong đợi: Mọi appointment còn mở → not_done; lock lần 2 → 409
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- SQL
+    yêu cầu: "select count(*) n from appointment where round_id='ddf74cba-8a28-4004-8b53-3737d43d3c4e' and status in ('scheduled','due')"
+    → - [{"n":40}]
+- manager1 POST /api/checkup-rounds/ddf74cba-8a28-4004-8b53-3737d43d3c4e/lock
+    → 200 {"id":"ddf74cba-8a28-4004-8b53-3737d43d3c4e","name":"UAT Đợt Khám 1qgkmd1","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","due_date":"2026-12-13","criteria":{"min_days_since_last_periodic":null},"status":"locked","excluded":[{"person_id":"e1ddbffd-45f9-44c0-bc35-a2a8af0991f5","reason":"Đang điều trị ngoài trại (chuyển viện)"},{"person_id":"b856fce5-9dd7-4f36-b65c-ecbec7aba458","reason":"Đã c
+- SQL
+    yêu cầu: "select count(*) n from appointment where round_id='ddf74cba-8a28-4004-8b53-3737d43d3c4e' and status in ('scheduled','due')"
+    → - [{"n":0}]
+- SQL
+    yêu cầu: "select count(*) n from appointment where round_id='ddf74cba-8a28-4004-8b53-3737d43d3c4e' and status='not_done'"
+    → - [{"n":40}]
+- manager1 POST /api/checkup-rounds/ddf74cba-8a28-4004-8b53-3737d43d3c4e/lock
+    → 409 {"error":{"code":"ALREADY_LOCKED","message":"Đợt khám đã khóa"}}

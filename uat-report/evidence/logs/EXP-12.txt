@@ -1,0 +1,45 @@
+# EXP-12 – Không có API xóa (DELETE) cho hồ sơ, lượt khám, đơn thuốc, tài liệu, chuyển viện, nhật ký (BR-02, NFR-07)
+Trạng thái: PASS   Thời gian chạy: 10 ms
+Kết quả mong đợi: DELETE → 405/404 trên mọi tài nguyên
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- admin DELETE /api/persons/8f533006-a3de-4a0f-82a6-e4d19200bed8
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- doctor1 DELETE /api/persons/8f533006-a3de-4a0f-82a6-e4d19200bed8
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- admin DELETE /api/encounters/5d110be7-dd0f-4024-a1cb-0b7be94d0ce7
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- doctor1 DELETE /api/encounters/5d110be7-dd0f-4024-a1cb-0b7be94d0ce7
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- admin DELETE /api/documents/265e2ec2-feaa-42e8-95c9-8d7f03f1a490
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- doctor1 DELETE /api/documents/265e2ec2-feaa-42e8-95c9-8d7f03f1a490
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- admin DELETE /api/referrals/ad2142fc-dae4-4a90-ac54-abd102819a69
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- doctor1 DELETE /api/referrals/ad2142fc-dae4-4a90-ac54-abd102819a69
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- admin DELETE /api/medication-orders/dbbe9d51-d94f-4d59-b11a-383e7fd83846
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- doctor1 DELETE /api/medication-orders/dbbe9d51-d94f-4d59-b11a-383e7fd83846
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- admin DELETE /api/audit/x
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- doctor1 DELETE /api/audit/x
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- admin DELETE /api/allergies/x
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- doctor1 DELETE /api/allergies/x
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- admin DELETE /api/handovers/x
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- doctor1 DELETE /api/handovers/x
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- admin DELETE /api/emergency-events/x
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- doctor1 DELETE /api/emergency-events/x
+    → 405 {"error":{"code":"HTTP_405","message":"Method Not Allowed"}}
+- SQL
+    yêu cầu: "select count(*) n from person"
+    → - [{"n":125}]

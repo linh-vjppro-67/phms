@@ -1,0 +1,6 @@
+# REP-05 – Giao diện báo cáo: xem báo cáo, thẻ số liệu hiển thị, nút Xuất CSV yêu cầu nhập mục đích
+Trạng thái: PASS   Thời gian chạy: 1510 ms
+Kết quả mong đợi: Trang hiển thị số liệu; bấm Xuất CSV mở hộp thoại bắt buộc mục đích
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)

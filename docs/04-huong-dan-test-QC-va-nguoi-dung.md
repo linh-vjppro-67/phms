@@ -19,8 +19,8 @@ cd backend
 | Tài khoản | Vai trò | Thấy các tab |
 |---|---|---|
 | `officer1` / `officer2` | Cán bộ tiếp nhận (Trại 1 / 2) | Bảng điều khiển, Tiếp nhận & Hồ sơ, Chuyển trại. **Không thấy dữ liệu lâm sàng** |
-| `nurse1` / `nurse2` | Điều dưỡng | 13 tab nghiệp vụ (trừ Báo cáo, Quản trị) |
-| `doctor1` / `doctor2` | Bác sĩ | Như điều dưỡng + được chẩn đoán, kê/xác nhận đơn, hoàn tất khám, lập chuyển viện, kế hoạch theo dõi |
+| `nurse1` / `nurse2` | Điều dưỡng | Tiếp đón, tạo *yêu cầu khám* (nháp), đo sinh hiệu, ghi *đánh giá ban đầu*, ghi dị ứng khai báo, thực hiện y lệnh (ghi nhận đã dùng thuốc), bàn giao, cấp cứu ban đầu. **Không**: bắt đầu/kết luận khám, chẩn đoán, chỉ định, kê đơn, cấp phát thuốc (mặc định) |
+| `doctor1` / `doctor2` | Bác sĩ (vai trò **Y sĩ** cùng quyền, tạo ở Quản trị) | Như điều dưỡng + **bắt đầu/điều hành khám, ghi kết luận**, được chẩn đoán, kê/xác nhận đơn, hoàn tất khám, lập chuyển viện, kế hoạch theo dõi |
 | `pharm1` / `pharm2` | Nhân viên dược | Cấp phát thuốc, Kê đơn (chỉ xem), Khám chữa bệnh (xem), Hồ sơ SK |
 | `approver1` / `approver2` | Người phê duyệt/điều phối | Chuyển viện (không thấy lý do chuyên môn), Chuyển trại (xác nhận) |
 | `manager1` / `manager2` | Quản lý y tế | Khám định kỳ, Bệnh lý & Cảnh báo, Chuyển viện, Báo cáo (không thấy chi tiết người bệnh) |
@@ -86,8 +86,16 @@ Ký hiệu: **TK** = tài khoản · **✔** = kết quả mong đợi.
 | C2 *(UAT-04)* | Mở lượt khám của **Bùi Hữu Nghĩa** (Chờ kết quả: công thức máu + sốt rét) → *Hoàn tất khám* | **Lỗi “Còn chỉ định chưa có kết quả”**. Nhập kết quả cả 2 chỉ định → *Hoàn tất khám* thành công |
 | C3 *(UAT-10)* | Lượt khám đã hoàn tất: thử sửa tóm tắt / thêm sinh hiệu | Không cho (lượt đã khóa). Tab *Tổng quan* → **+ Thêm addendum** (nội dung + lý do) → hiện trong dòng thời gian, phiên bản tăng |
 | C4 | Hủy một lượt khám | Bắt buộc nhập lý do; sau đó không đổi trạng thái được nữa (xem lượt “đã hủy” của **Hồ Công Bình**) |
-| C5 | Mở **cùng một lượt khám ở 2 trình duyệt** (doctor1 và nurse1) → cả hai sửa “Tóm tắt” rồi *Lưu* | Người lưu sau nhận **“Dữ liệu đã được người khác thay đổi”** (không ghi đè âm thầm) |
+| C5 | Mở **cùng một lượt khám ở 2 trình duyệt** (doctor1 sửa “Kết luận khám”, nurse1 sửa “Đánh giá ban đầu”) rồi *Lưu* | Người lưu sau nhận **“Dữ liệu đã được người khác thay đổi”** (không ghi đè âm thầm) |
 | C6 | Xem bảng sinh hiệu | Có 2 mốc: *Thời điểm đo* và *Ghi vào hệ thống* |
+
+### C′. Phạm vi điều dưỡng – `nurse1`, `doctor1`
+| # | Các bước | ✔ Kết quả |
+|---|---|---|
+| C′1 | `nurse1` → Khám chữa bệnh → **+ Lượt khám mới** → chọn người, nhập lý do | Nút là **“Tạo yêu cầu khám”**; lượt khám ở trạng thái **Nháp**, **không có** nút *Bắt đầu khám*, **không có** ô *Kết luận khám* |
+| C′2 | `nurse1` ghi *Đánh giá ban đầu* + đo sinh hiệu → *Lưu* | Lưu được (tự lưu khi rời ô) |
+| C′3 | `doctor1` mở yêu cầu đó → **Bắt đầu khám** | Thấy đánh giá của điều dưỡng; được ghi *Kết luận khám & hướng xử trí* |
+| C′4 | `nurse1` mở tab *Cấp phát thuốc* | Chỉ có *Giám sát dùng thuốc* / ghi nhận đã dùng; **không có** *Hàng đợi cấp phát* (cơ sở không có dược sĩ: bật `PHMS_NURSE_CAN_DISPENSE=1`) |
 
 ### D. Chỉ định & Kê đơn (M05) – `doctor1`
 | # | Các bước | ✔ Kết quả |

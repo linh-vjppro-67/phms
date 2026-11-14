@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 from .. import config
 from ..audit import audit
 from ..db import get_db
-from ..deps import ensure_clinical_access, require
+from ..deps import ensure_clinical_access, ensure_not_break_glass_only, require
 from ..models import Encounter, MedicalDocument, Referral, CustodyStay, User
 from ..utils import fail, to_dict, uid
 
@@ -75,7 +75,7 @@ async def _store(db: Session, user: User, request: Request, file: UploadFile, *,
     for o in (enc, ref, stay):
         if o and o.person_id != pid:
             fail(422, "LINK_MISMATCH", "Các đối tượng liên kết thuộc người khác nhau")
-    ensure_clinical_access(db, user, pid, request)
+    ensure_not_break_glass_only(db, user, pid, request)
     key = uid()
     with open(_path(key), "wb") as f:
         f.write(_fernet().encrypt(data))
@@ -112,6 +112,7 @@ async def replace(doc_id: str, request: Request, file: UploadFile = File(...), s
     old = db.get(MedicalDocument, doc_id)
     if not old:
         fail(404, "NOT_FOUND", "Không tìm thấy tài liệu")
+    ensure_not_break_glass_only(db, user, old.person_id, request)   # kiểm quyền TRƯỚC khi lộ trạng thái tài liệu
     if old.status != "valid":
         fail(409, "NOT_VALID", "Chỉ thay thế được tài liệu đang hợp lệ")
     d = await _store(db, user, request, file, person_id=old.person_id, encounter_id=old.encounter_id,
@@ -131,7 +132,9 @@ def invalidate(doc_id: str, body: InvalidIn, request: Request, user: User = Depe
     d = db.get(MedicalDocument, doc_id)
     if not d:
         fail(404, "NOT_FOUND", "Không tìm thấy tài liệu")
-    ensure_clinical_access(db, user, d.person_id, request)
+    ensure_not_break_glass_only(db, user, d.person_id, request)
+    if d.status != "valid":
+        fail(409, "NOT_VALID", "Tài liệu đã không còn hợp lệ")
     d.status, d.invalid_reason = "invalid", body.reason
     audit(db, user, "document_invalidated", "MedicalDocument", d.id, person_id=d.person_id, reason=body.reason,
           request=request)

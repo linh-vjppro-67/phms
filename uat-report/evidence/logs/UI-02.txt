@@ -1,0 +1,18 @@
+# UI-02 – Bác sĩ thực hiện khám ban đầu 6 bước trên giao diện: dị ứng → sinh hiệu → chẩn đoán → kê đơn → hẹn tái khám → hoàn tất (B1, WF-01)
+Trạng thái: PASS   Thời gian chạy: 1738 ms
+Kết quả mong đợi: Banner 'Khám ban đầu đã hoàn tất'; đợt tiếp nhận 'Đang quản lý'; đơn thuốc 'Đang hiệu lực'; có lịch tái khám
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Khám UI 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1twrw0s"}
+    → 201 {"id":"56dd40cc-2a56-4764-8676-9f79c8272a1a","full_name":"UAT Khám UI 1qgkmd1","name_key":"uat kham ui 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1twrw0s","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:12.622256"}
+- officer1 POST /api/persons/56dd40cc-2a56-4764-8676-9f79c8272a1a/stays
+    yêu cầu: {}
+    → 201 {"id":"4de7cd81-7cda-49ec-8e6f-9feb406bc9d6","person_id":"56dd40cc-2a56-4764-8676-9f79c8272a1a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:12.625672","hea
+- SQL
+    yêu cầu: "select status s from custody_stay where id='4de7cd81-7cda-49ec-8e6f-9feb406bc9d6'"
+    → - [{"s":"managed"}]
+- SQL
+    yêu cầu: "select count(*) n from appointment where person_id='56dd40cc-2a56-4764-8676-9f79c8272a1a' and status in ('scheduled','due')"
+    → - [{"n":1}]

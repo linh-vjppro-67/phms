@@ -2,15 +2,15 @@
 from datetime import date, datetime, timedelta
 
 from fastapi import APIRouter, Depends, Request
-from pydantic import BaseModel, Field
-from sqlalchemy import func, select
+from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from .. import config
 from ..audit import audit
 from ..idempotency import idempotent
-from ..db import get_db
-from ..deps import active_stay, current_user, ensure_clinical_access, require
+from ..db import get_db, lock_row
+from ..deps import ensure_clinical_write, active_stay, current_user, ensure_clinical_access, require
 from ..notify import emit, person_name, purge
 from ..models import (MedicationOrder, Alert, Appointment, CarePlan, CheckupRound, CustodyStay, Encounter, Handover, HealthProblem,
                       Person, Referral, User)
@@ -22,6 +22,8 @@ router = APIRouter()
 
 
 def complete_appointment(db: Session, ap: Appointment, encounter_id: str | None = None):
+    if ap.status not in ("scheduled", "due"):      # đã hoàn tất/hoãn: không hoàn tất lần hai (tránh sinh trùng lịch kế tiếp)
+        return
     ap.status, ap.completed_at, ap.completed_encounter_id = "completed", utcnow(), encounter_id
     if ap.care_plan_id:
         cp = db.get(CarePlan, ap.care_plan_id)
@@ -55,8 +57,11 @@ class ProblemIn(BaseModel):
 @idempotent(201)
 def add_problem(person_id: str, body: ProblemIn, request: Request, user: User = Depends(require("problem.write")),
                 db: Session = Depends(get_db)):
-    ensure_clinical_access(db, user, person_id, request)
+    ensure_clinical_write(db, user, person_id, request)
     rec = get_or_create_record(db, person_id)
+    dup = [HealthProblem.name == body.name.strip()] + ([HealthProblem.code == body.code] if body.code else [])
+    if db.scalars(select(HealthProblem.id).where(HealthProblem.person_id == person_id, HealthProblem.status == "active", or_(*dup)).limit(1)).first():
+        fail(409, "PROBLEM_EXISTS", "Vấn đề sức khỏe này đã có trong danh sách đang theo dõi")
     p = HealthProblem(record_id=rec.id, person_id=person_id, name=body.name, code=body.code,
                       confirmation=body.confirmation, source=body.source or f"Bác sĩ {user.full_name}",
                       effective_from=body.effective_from or date.today(), confirmed_by=user.id,
@@ -76,7 +81,7 @@ def resolve_problem(problem_id: str, body: ResolveIn, request: Request, user: Us
     p = db.get(HealthProblem, problem_id)
     if not p:
         fail(404, "NOT_FOUND", "Không tìm thấy vấn đề sức khỏe")
-    ensure_clinical_access(db, user, p.person_id, request)
+    ensure_clinical_write(db, user, p.person_id, request)
     p.status, p.effective_to = "resolved", date.today()
     audit(db, user, "problem_resolved", "HealthProblem", p.id, person_id=p.person_id, reason=body.note, request=request)
     db.commit()
@@ -91,12 +96,19 @@ class CarePlanIn(BaseModel):
     start_date: date | None = None
     responsible_user_id: str | None = None
 
+    @field_validator("start_date")
+    @classmethod
+    def _start(cls, v):
+        if v is not None and not (date.today() - timedelta(days=3650) <= v <= date.today() + timedelta(days=30)):
+            raise ValueError("Ngày bắt đầu kế hoạch không hợp lệ (tối đa 10 năm trước hoặc 30 ngày tới)")
+        return v
+
 
 @router.post("/persons/{person_id}/care-plans", status_code=201, tags=["scheduling"])
 @idempotent(201)
 def create_care_plan(person_id: str, body: CarePlanIn, request: Request,
                      user: User = Depends(require("careplan.write")), db: Session = Depends(get_db)):
-    ensure_clinical_access(db, user, person_id, request)
+    ensure_clinical_write(db, user, person_id, request)
     prob = db.get(HealthProblem, body.problem_id)
     if not prob or prob.person_id != person_id or prob.status != "active":
         fail(409, "BAD_PROBLEM", "Vấn đề sức khỏe không hợp lệ hoặc không còn hiệu lực")
@@ -130,7 +142,7 @@ def patch_care_plan(plan_id: str, body: CarePlanPatch, request: Request,
     cp = db.get(CarePlan, plan_id)
     if not cp:
         fail(404, "NOT_FOUND", "Không tìm thấy kế hoạch")
-    ensure_clinical_access(db, user, cp.person_id, request)
+    ensure_clinical_write(db, user, cp.person_id, request)
     if cp.status != "active":
         fail(409, "PLAN_ENDED", "Kế hoạch đã kết thúc")
     changes = body.model_dump(exclude={"expected_version"}, exclude_none=True)
@@ -170,7 +182,7 @@ def end_care_plan(plan_id: str, body: ResolveIn, request: Request, user: User = 
     cp = db.get(CarePlan, plan_id)
     if not cp:
         fail(404, "NOT_FOUND", "Không tìm thấy kế hoạch")
-    ensure_clinical_access(db, user, cp.person_id, request)
+    ensure_clinical_write(db, user, cp.person_id, request)
     cp.status, cp.end_reason = "ended", body.note
     for a in db.scalars(select(Appointment).where(Appointment.care_plan_id == cp.id,
                                                    Appointment.status.in_(("scheduled", "due")))):
@@ -188,11 +200,18 @@ def list_care_plans(person_id: str, request: Request, user: User = Depends(requi
 
 
 # ----------------------------------------------------------------- lịch hẹn
+def _future_date(v: date | None, label: str = "Ngày hẹn") -> date | None:
+    if v is not None and not (date.today() <= v <= date.today() + timedelta(days=3650)):
+        raise ValueError(f"{label} phải từ hôm nay đến tối đa 10 năm tới")
+    return v
+
+
 class ApptIn(BaseModel):
     person_id: str
     due_date: date
     note: str | None = None
     assignee_id: str | None = None
+    _due = field_validator("due_date")(lambda v: _future_date(v))
 
 
 @router.post("/appointments", status_code=201, tags=["scheduling"])
@@ -232,6 +251,7 @@ class ApptStatusIn(BaseModel):
     to: str = Field(pattern="^(postponed|not_done)$")
     reason: str = Field(min_length=3)
     new_due_date: date | None = None
+    _nd = field_validator("new_due_date")(lambda v: _future_date(v, "Ngày hẹn mới"))
 
 
 @router.post("/appointments/{appt_id}/status", tags=["scheduling"])
@@ -240,6 +260,7 @@ def appt_status(appt_id: str, body: ApptStatusIn, request: Request, user: User =
     a = db.get(Appointment, appt_id)
     if not a or a.facility_id != user.facility_id:
         fail(404, "NOT_FOUND", "Không tìm thấy lịch hẹn")
+    a = lock_row(db, Appointment, a.id)       # hai người cùng hoãn/đóng một lịch: chỉ một người thành công
     if a.status not in ("scheduled", "due"):
         fail(409, "BAD_TRANSITION", f"Lịch đang ở trạng thái '{a.status}'")
     a.status, a.status_reason = body.to, body.reason
@@ -275,6 +296,7 @@ def _alert_for(db: Session, user: User, alert_id: str) -> Alert:
 def ack_alert(alert_id: str, request: Request, user: User = Depends(require("alert.handle")),
               db: Session = Depends(get_db)):
     a = _alert_for(db, user, alert_id)
+    a = lock_row(db, Alert, a.id)               # DEF-03: nhận cảnh báo đồng thời -> chỉ một người thành công
     if a.status != "new":
         fail(409, "BAD_TRANSITION", f"Cảnh báo đang ở trạng thái '{a.status}'")
     a.status, a.owner_id, a.acknowledged_at = "acknowledged", user.id, utcnow()
@@ -287,6 +309,7 @@ def ack_alert(alert_id: str, request: Request, user: User = Depends(require("ale
 def resolve_alert(alert_id: str, body: ResolveIn, request: Request, user: User = Depends(require("alert.handle")),
                   db: Session = Depends(get_db)):
     a = _alert_for(db, user, alert_id)
+    a = lock_row(db, Alert, a.id)
     if a.status not in ("new", "acknowledged"):
         fail(409, "BAD_TRANSITION", f"Cảnh báo đang ở trạng thái '{a.status}'")
     a.owner_id = a.owner_id or user.id  # luôn có người chịu trách nhiệm
@@ -300,6 +323,7 @@ def resolve_alert(alert_id: str, body: ResolveIn, request: Request, user: User =
 class RoundIn(BaseModel):
     name: str = Field(min_length=3)
     due_date: date
+    _due = field_validator("due_date")(lambda v: v if date.today() - timedelta(days=366) <= v <= date.today() + timedelta(days=1100) else (_ for _ in ()).throw(ValueError("Hạn của đợt khám phải trong khoảng 1 năm trước đến 3 năm tới")))
     min_days_since_last_periodic: int | None = Field(default=None, ge=0)
 
 

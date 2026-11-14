@@ -9,16 +9,17 @@ function NewEncounter({ onClose, onCreated }) {
   const act = useAct();
   const { notify } = useApp();
   const { patient: ctx } = usePatient();
+  const { has } = useAuth();
   const [p, setP] = useState(ctx ? { id: ctx.id, full_name: ctx.name } : null);
   const [pick, setPick] = useState(false);
   return (
     <>
-      <FormModal title="Lượt khám mới" onClose={onClose} submit="Tạo & bắt đầu khám"
+      <FormModal title="Lượt khám mới" onClose={onClose} submit={has("encounter.examine") ? "Tạo & bắt đầu khám" : "Tạo yêu cầu khám"}
         onSubmit={async (d) => {
           if (!p) { notify("Hãy chọn người cần khám", false); return false; }
           const e = await act(() => api("POST", "/encounters", { person_id: p.id, type: d.type, reason: d.reason, priority: d.priority || "routine", ...(d.occurred_at && { occurred_at: d.occurred_at }), ...(d.late_entry_reason && { late_entry_reason: d.late_entry_reason }) }, idem()));
           if (!e?.id) return false;
-          await act(() => api("POST", `/encounters/${e.id}/transition`, { to: "in_progress" }));
+          if (has("encounter.examine")) await act(() => api("POST", `/encounters/${e.id}/transition`, { to: "in_progress" }));   // điều dưỡng chỉ tạo yêu cầu (nháp); bác sĩ/y sĩ bắt đầu khám
           onCreated(e.id); return true;
         }}>
         <Field label="Người khám" required>

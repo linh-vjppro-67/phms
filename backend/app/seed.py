@@ -27,11 +27,7 @@ USERS = [
     ("approver2", "Người điều phối 2", "approver", "F02"),
     ("manager2", "Quản lý y tế 2", "manager", "F02"),
 ]
-DRUGS = [("PARA500", "Paracetamol 500mg"), ("AMOX500", "Amoxicillin 500mg"), ("MET850", "Metformin 850mg"),
-         ("AMLO5", "Amlodipine 5mg"), ("OMEP20", "Omeprazole 20mg"), ("LOSA50", "Losartan 50mg"),
-         ("RIFA150", "Rifampicin 150mg"), ("INH100", "Isoniazid 100mg"), ("CETI10", "Cetirizine 10mg"),
-         ("IBU400", "Ibuprofen 400mg"), ("METRO250", "Metronidazole 250mg"), ("CIPRO500", "Ciprofloxacin 500mg"),
-         ("GLIC30", "Gliclazide 30mg"), ("ORS", "Oresol gói")]
+DRUGS: list = []   # thuốc nạp từ app/drug_data.py qua catalog_import (kèm nhóm/dạng/đường dùng)
 ICD = ICD_VN   # danh mục ICD-10 thường gặp ở Việt Nam (app/catalog_data.py)
 UNITS = [("mmHg", "mmHg"), ("bpm", "lần/phút"), ("C", "°C"), ("kg", "kg"), ("mmol/L", "mmol/L")]
 
@@ -50,14 +46,19 @@ def seed(db: Session) -> None:
         if not db.scalars(select(User).where(User.username == username)).first():
             db.add(User(username=username, full_name=full, role=role, facility_id=fac.get(fcode),
                         password_hash=hash_password(DEFAULT_PASSWORD)))
-    for cat, items in (("drug", DRUGS), ("icd", ICD), ("unit", UNITS)):
+    for cat, items in (("unit", UNITS),):
         for code, name in items:
             if not db.scalars(select(CatalogItem).where(CatalogItem.catalog == cat, CatalogItem.code == code)).first():
                 db.add(CatalogItem(catalog=cat, code=code, name=name))
     db.commit()
+    from .catalog_import import import_catalogs
+    import_catalogs(db)
 
 
 if __name__ == "__main__":
+    from . import config
+    if config.IS_PROD and DEFAULT_PASSWORD == "Phms@2026dev" and os.getenv("PHMS_ALLOW_SAMPLE_ACCOUNTS") != "1":
+        sys.exit("Từ chối: production không được seed tài khoản mẫu với mật khẩu mặc định. Dùng `python -m app.bootstrap` để khởi tạo hệ thống thật.")
     ensure_schema(engine)
     with SessionLocal() as s:
         seed(s)

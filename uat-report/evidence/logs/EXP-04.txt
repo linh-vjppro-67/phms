@@ -1,0 +1,35 @@
+# EXP-04 – 3 yêu cầu đồng thời tạo phiếu bàn giao cho cùng người: chỉ 1 phiếu 'chờ'
+Trạng thái: PASS   Thời gian chạy: 24 ms
+Kết quả mong đợi: Đúng 1 handover pending
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời Bàn Giao 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1u0x7yq"}
+    → 201 {"id":"b4858832-5732-482b-bd65-98ee0ce87b9b","full_name":"UAT Đồng Thời Bàn Giao 1qgkmd1","name_key":"uat dong thoi ban giao 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1u0x7yq","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:0
+- officer1 POST /api/persons/b4858832-5732-482b-bd65-98ee0ce87b9b/stays
+    yêu cầu: {}
+    → 201 {"id":"e2710cbe-0beb-445a-85cb-c61a5ddf065a","person_id":"b4858832-5732-482b-bd65-98ee0ce87b9b","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:17.999423","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"b4858832-5732-482b-bd65-98ee0ce87b9b","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"35421dc8-57c8-4cf3-93d0-a7889e1b985a","person_id":"b4858832-5732-482b-bd65-98ee0ce87b9b","stay_id":"e2710cbe-0beb-445a-85cb-c61a5ddf065a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/35421dc8-57c8-4cf3-93d0-a7889e1b985a/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"35421dc8-57c8-4cf3-93d0-a7889e1b985a","person_id":"b4858832-5732-482b-bd65-98ee0ce87b9b","stay_id":"e2710cbe-0beb-445a-85cb-c61a5ddf065a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/b4858832-5732-482b-bd65-98ee0ce87b9b/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/35421dc8-57c8-4cf3-93d0-a7889e1b985a/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"35421dc8-57c8-4cf3-93d0-a7889e1b985a","person_id":"b4858832-5732-482b-bd65-98ee0ce87b9b","stay_id":"e2710cbe-0beb-445a-85cb-c61a5ddf065a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- officer1 POST /api/stays/e2710cbe-0beb-445a-85cb-c61a5ddf065a/handover
+    yêu cầu: {"kind":"transfer","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","reason":"Song song"}
+    → 201 {"id":"b1172e1f-51a8-4a3a-a0bf-78cdd8acb7cc","stay_id":"e2710cbe-0beb-445a-85cb-c61a5ddf065a","person_id":"b4858832-5732-482b-bd65-98ee0ce87b9b","kind":"transfer","from_facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","status":"pending","reason":"Song song","summary":null,"document_ids":null,"open_items":null,"initiated_by":"61c9f71c-e4e3-
+- officer1 POST /api/stays/e2710cbe-0beb-445a-85cb-c61a5ddf065a/handover
+    yêu cầu: {"kind":"transfer","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","reason":"Song song"}
+    → 409 {"error":{"code":"HANDOVER_PENDING","message":"Đã có phiếu bàn giao đang chờ xác nhận"}}
+- officer1 POST /api/stays/e2710cbe-0beb-445a-85cb-c61a5ddf065a/handover
+    yêu cầu: {"kind":"transfer","to_facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","reason":"Song song"}
+    → 409 {"error":{"code":"HANDOVER_PENDING","message":"Đã có phiếu bàn giao đang chờ xác nhận"}}
+- SQL
+    yêu cầu: "select count(*) n from handover where stay_id='e2710cbe-0beb-445a-85cb-c61a5ddf065a' and status='pending'"
+    → - [{"n":1}]

@@ -1,0 +1,38 @@
+# EXP-14 – Cấp cứu cho người đang ở cơ sở khác bị chặn (dùng break-glass); can thiệp vào sự kiện đã đóng bị chặn
+Trạng thái: PASS   Thời gian chạy: 24 ms
+Kết quả mong đợi: ACTIVE_STAY_ELSEWHERE 409; thêm can thiệp vào sự kiện đã đóng → 409
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- nurse2 POST /api/emergency-events
+    yêu cầu: {"person_id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","description":"Cấp cứu người Trại 1 từ Trại 2"}
+    → 409 {"error":{"code":"ACTIVE_STAY_ELSEWHERE","message":"Người này đang thuộc cơ sở khác – dùng break-glass để xử trí"}}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Cấp Cứu Đóng 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1u1j710"}
+    → 201 {"id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","full_name":"UAT Cấp Cứu Đóng 1qgkmd1","name_key":"uat cap cuu dong 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1u1j710","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:18.788344"
+- officer1 POST /api/persons/c109dc46-8444-4fe3-9b32-39f8cf7fac32/stays
+    yêu cầu: {}
+    → 201 {"id":"44ea2b56-2138-4f45-bbbe-b043eccf6e2e","person_id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:18.790643","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"8af2eaf9-f513-4999-90d8-c2c91f1da376","person_id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","stay_id":"44ea2b56-2138-4f45-bbbe-b043eccf6e2e","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/8af2eaf9-f513-4999-90d8-c2c91f1da376/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"8af2eaf9-f513-4999-90d8-c2c91f1da376","person_id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","stay_id":"44ea2b56-2138-4f45-bbbe-b043eccf6e2e","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/c109dc46-8444-4fe3-9b32-39f8cf7fac32/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/8af2eaf9-f513-4999-90d8-c2c91f1da376/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"8af2eaf9-f513-4999-90d8-c2c91f1da376","person_id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","stay_id":"44ea2b56-2138-4f45-bbbe-b043eccf6e2e","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- nurse1 POST /api/emergency-events
+    yêu cầu: {"person_id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","description":"Ngất"}
+    → 201 {"id":"e29a48c5-d5d2-42e5-acc0-4f0e7bf2d93d","person_id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","encounter_id":"7c7d6638-cd6f-44d0-a5e5-1746f1198071","temp_identity":null,"location":null,"reporter":null,"description":"Ngất","status":"open","timeline":[],"late_entry_reason":null,"closing_note":null,"closed_by":null,"created_by":"450f4f32-86f9-410
+- doctor1 POST /api/encounters/7c7d6638-cd6f-44d0-a5e5-1746f1198071/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"7c7d6638-cd6f-44d0-a5e5-1746f1198071","person_id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","stay_id":"44ea2b56-2138-4f45-bbbe-b043eccf6e2e","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"emergency","status":"completed","reason":"Ngất","priority":"emergent","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e44b6f","can
+- doctor1 POST /api/emergency-events/e29a48c5-d5d2-42e5-acc0-4f0e7bf2d93d/close
+    yêu cầu: {"note":"Ổn định, đóng"}
+    → 200 {"id":"e29a48c5-d5d2-42e5-acc0-4f0e7bf2d93d","person_id":"c109dc46-8444-4fe3-9b32-39f8cf7fac32","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","encounter_id":"7c7d6638-cd6f-44d0-a5e5-1746f1198071","temp_identity":null,"location":null,"reporter":null,"description":"Ngất","status":"closed","timeline":[],"late_entry_reason":null,"closing_note":"Ổn định, đóng","closed_by":"d8d6c470-91af-49ba-857
+- nurse1 POST /api/emergency-events/e29a48c5-d5d2-42e5-acc0-4f0e7bf2d93d/interventions
+    yêu cầu: {"action":"Can thiệp sau khi đóng"}
+    → 409 {"error":{"code":"EVENT_CLOSED","message":"Sự kiện đã đóng"}}

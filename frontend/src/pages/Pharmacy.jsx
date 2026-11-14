@@ -1,7 +1,7 @@
 // M06 – Cấp phát thuốc & xác nhận sử dụng (WF-03 bước 4–5). Cấp phát ≠ sử dụng: hai sự kiện riêng.
 import { useState } from "react";
 import { api, idem } from "../api";
-import { Badge, Banner, Card, DataTable, Drawer, Empty, Field, FormModal, KV, PageHeader, Seg, Status, fmtDT, fmtDate, useAct, useAuth, useLoad } from "../ui.jsx";
+import { Badge, Banner, Card, DataTable, Drawer, Empty, Field, FormModal, KV, PageHeader, Seg, Status, fmtDT, fmtDate, useAct, useAuth, useDebounced, useLoad } from "../ui.jsx";
 
 function OrderDrawer({ id, onClose, onChanged }) {
   const { has } = useAuth();
@@ -67,9 +67,60 @@ function OrderDrawer({ id, onClose, onChanged }) {
   );
 }
 
+const PAGE = 30;
+const norm = (t) => String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/đ/g, "d").toLowerCase();
+
+/** Danh sách đơn gom theo NGƯỜI BỆNH, trong mỗi người chia theo từng ĐỢT KÊ ĐƠN (lượt khám). Có tìm kiếm, thu gọn/mở rộng, phân trang theo người. */
+function GroupedOrders({ rows, loading, onOpen, empty }) {
+  const [q, setQ] = useState("");
+  const dq = useDebounced(q);
+  const [openSet, setOpenSet] = useState({});          // person_id -> true/false (mặc định theo số lượng)
+  const [shown, setShown] = useState(PAGE);
+  if (loading && !rows) return <div className="empty">Đang tải…</div>;
+  const key = norm(dq);
+  const list = (rows || []).filter((o) => !key || norm(o.person_name).includes(key) || norm(o.drug_name).includes(key));
+  const byPerson = new Map();
+  for (const o of list) { if (!byPerson.has(o.person_id)) byPerson.set(o.person_id, { id: o.person_id, name: o.person_name, orders: [] }); byPerson.get(o.person_id).orders.push(o); }
+  const groups = [...byPerson.values()].map((g) => {
+    const enc = new Map();
+    for (const o of g.orders) { const k = o.encounter_id || o.id; if (!enc.has(k)) enc.set(k, { id: k, at: o.recorded_at, orders: [] }); const e = enc.get(k); e.orders.push(o); if (o.recorded_at < e.at) e.at = o.recorded_at; }
+    return { ...g, courses: [...enc.values()].sort((a, b) => (a.at < b.at ? 1 : -1)), missing: g.orders.reduce((t, o) => t + (o.remaining || 0), 0) };
+  }).sort((a, b) => b.missing - a.missing || a.name.localeCompare(b.name, "vi"));
+  const isOpen = (g) => openSet[g.id] ?? (key ? true : groups.length <= 5);   // ít người/đang tìm: mở sẵn; nhiều người: thu gọn
+  const setAll = (v) => setOpenSet(Object.fromEntries(groups.map((g) => [g.id, v])));
+  return (
+    <>
+      <div className="row" style={{ padding: "12px 16px", borderBottom: "1px solid var(--line)" }}>
+        <input className="search" placeholder="Tìm theo tên người bệnh hoặc tên thuốc…" aria-label="Tìm đơn thuốc" value={q} onChange={(e) => { setQ(e.target.value); setShown(PAGE); }} style={{ maxWidth: 360 }} />
+        <span className="muted sm">{groups.length} người · {list.length} đơn</span>
+        <span className="right row"><button className="btn sm" onClick={() => setAll(true)}>Mở tất cả</button><button className="btn sm" onClick={() => setAll(false)}>Thu gọn tất cả</button></span></div>
+      {!groups.length ? empty : groups.slice(0, shown).map((g) => (
+        <div key={g.id} className="ogroup">
+          <button className="ohead" aria-expanded={isOpen(g)} onClick={() => setOpenSet({ ...openSet, [g.id]: !isOpen(g) })}>
+            <span className="ocaret" aria-hidden="true">{isOpen(g) ? "▾" : "▸"}</span>
+            <b>{g.name}</b>
+            <span className="muted sm">{g.orders.length} đơn · {g.courses.length} đợt kê</span>
+            <span className="right">{g.missing > 0 ? <Badge tone="warn">Còn thiếu {g.missing}</Badge> : <Badge tone="ok">Đã cấp đủ</Badge>}</span>
+          </button>
+          {isOpen(g) && g.courses.map((c) => (
+            <div key={c.id} className="ocourse">
+              <div className="muted sm" style={{ padding: "6px 16px" }}>Đợt kê ngày <b>{fmtDate(c.at)}</b> · {c.orders.length} thuốc</div>
+              <DataTable rows={c.orders} onRow={(o) => onOpen(o.id)}
+                columns={[{ h: "Thuốc", c: (o) => <>{o.drug_name} {o.supervised && <Badge tone="info">Giám sát</Badge>}</> }, { h: "Cách dùng", c: (o) => <span className="sm">{o.dose} · {o.frequency}</span> },
+                  { h: "Kê", cls: "r", c: (o) => o.quantity_prescribed }, { h: "Đã cấp", cls: "r", c: (o) => o.dispensed_net }, { h: "Còn thiếu", cls: "r", c: (o) => <b>{o.remaining}</b> },
+                  { h: "Cấp phát", c: (o) => <Status d="dispense" v={o.dispense_status} /> }, { h: "", c: () => <button className="btn sm primary">Mở</button> }]} />
+            </div>
+          ))}
+        </div>
+      ))}
+      {groups.length > shown && <div style={{ padding: 14, textAlign: "center" }}><button className="btn" onClick={() => setShown(shown + PAGE)}>Xem thêm {Math.min(PAGE, groups.length - shown)} người ({groups.length - shown} người còn lại)</button></div>}
+    </>
+  );
+}
+
 export default function Pharmacy({ focus }) {
   const { has, refreshStats } = useAuth();
-  const [view, setView] = useState("queue");
+  const [view, setView] = useState(has("dispense.write") ? "queue" : "super");
   const [open, setOpen] = useState(focus || null);
   const queue = useLoad(() => api("GET", "/dispense-queue"), [], !has("dispense.write") || view !== "queue");
   const orders = useLoad(() => api("GET", "/medication-orders?status=confirmed,active,completed,stopped"), [view], view === "queue");
@@ -80,10 +131,7 @@ export default function Pharmacy({ focus }) {
       <PageHeader title="Cấp phát thuốc" sub="M06 · Đối chiếu đơn, ghi nhận thực cấp (đủ/một phần), hoàn trả/hủy có lý do, và xác nhận việc dùng thuốc khi cần giám sát." />
       <div style={{ marginBottom: 14 }}><Seg value={view} onChange={setView} items={[has("dispense.write") && { id: "queue", label: "Hàng đợi cấp phát" }, { id: "super", label: "Giám sát dùng thuốc" }, { id: "hist", label: "Tất cả đơn" }].filter(Boolean)} /></div>
       <Card flat>
-        <DataTable rows={rows} onRow={(o) => setOpen(o.id)} empty={<Empty title={view === "queue" ? "Không có đơn nào cần cấp phát" : "Không có dữ liệu"} />}
-          columns={[{ h: "Người bệnh", c: (o) => <b>{o.person_name}</b> }, { h: "Thuốc", c: (o) => <>{o.drug_name} {o.supervised && <Badge tone="info">Giám sát</Badge>}</> }, { h: "Cách dùng", c: (o) => <span className="sm">{o.dose} · {o.frequency}</span> },
-            { h: "Kê", cls: "r", c: (o) => o.quantity_prescribed }, { h: "Đã cấp", cls: "r", c: (o) => o.dispensed_net }, { h: "Còn thiếu", cls: "r", c: (o) => <b>{o.remaining}</b> }, { h: "Cấp phát", c: (o) => <Status d="dispense" v={o.dispense_status} /> },
-            { h: "", c: () => <button className="btn sm primary">Mở</button> }]} />
+        <GroupedOrders rows={rows} loading={view === "queue" ? queue.loading : orders.loading} onOpen={setOpen} empty={<Empty title={view === "queue" ? "Không có đơn nào cần cấp phát" : "Không có dữ liệu"} />} />
       </Card>
       {open && <OrderDrawer id={open} onClose={() => { setOpen(null); reload(); }} onChanged={reload} />}
     </>

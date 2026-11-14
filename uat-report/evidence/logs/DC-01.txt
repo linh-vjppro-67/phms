@@ -1,0 +1,9 @@
+# DC-01 – Mỗi người (không 'merged') có đúng ≤1 hồ sơ sức khỏe (nguyên tắc 'một người – một hồ sơ')
+Trạng thái: PASS   Thời gian chạy: 4 ms
+Kết quả mong đợi: Không person nào có >1 health_record
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- SQL
+    yêu cầu: "select person_id, count(*) n from health_record group by person_id having n>1"
+    → - []

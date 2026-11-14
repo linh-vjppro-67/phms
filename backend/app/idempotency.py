@@ -15,13 +15,29 @@ from .models import IdempotencyRecord
 from .utils import dumps, fail
 
 
+def _serializable(db: Session, body):
+    """Mã hóa phản hồi TRƯỚC khi commit: nếu không thể chuyển thành JSON hợp lệ (vd inf/NaN) thì hủy giao dịch, không để dữ liệu đã lưu mà client nhận 500."""
+    try:
+        enc = jsonable_encoder(body)
+        json.dumps(enc, allow_nan=False)
+        return enc
+    except (ValueError, TypeError):
+        db.rollback()
+        fail(500, "RESPONSE_NOT_SERIALIZABLE", "Không tạo được phản hồi hợp lệ cho thao tác này; dữ liệu chưa được lưu")
+
+
+def _commit_and_respond(db: Session, body, status: int):
+    enc = _serializable(db, body)
+    db.commit()
+    return JSONResponse(enc, status_code=status)
+
+
 def run_idempotent(db: Session, request: Request, user, payload, fn):
     """fn() -> (status_code, body). fn không được tự commit."""
     key = request.headers.get("Idempotency-Key")
     if not key:
         status, body = fn()
-        db.commit()
-        return JSONResponse(jsonable_encoder(body), status_code=status)
+        return _commit_and_respond(db, body, status)
     h = hashlib.sha256(dumps(payload).encode()).hexdigest()
     path = request.url.path
 
@@ -33,7 +49,7 @@ def run_idempotent(db: Session, request: Request, user, payload, fn):
     rec = existing()
     if rec is None:
         status, body = fn()
-        body = jsonable_encoder(body)
+        body = _serializable(db, body)
         db.add(IdempotencyRecord(key=key, user_id=user.id, path=path, request_hash=h,
                                  status_code=status, response_json=json.dumps(body)))
         try:

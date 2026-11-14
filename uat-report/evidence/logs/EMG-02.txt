@@ -1,0 +1,18 @@
+# EMG-02 – BR-03: ghi muộn cấp cứu – 14 phút không cần lý do; 16 phút bắt buộc lý do; thời điểm tương lai bị từ chối
+Trạng thái: PASS   Thời gian chạy: 9 ms
+Kết quả mong đợi: 14'→201; 16' không lý do→422; 16' có lý do→201; tương lai→422
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- nurse1 POST /api/emergency-events
+    yêu cầu: {"temp_identity":"Biên thời gian 1qgkmd1","occurred_at":"2026-11-13T13:48:46.651Z"}
+    → 201 {"id":"ce7f9165-5a6d-426a-a756-4727c8ad0396","person_id":"a10c622d-7471-46c4-886b-9ca8d3811df4","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","encounter_id":"32e77281-6533-45cb-b8d3-ee79fbf5447e","temp_identity":"Biên thời gian 1qgkmd1","location":null,"reporter":null,"description":null,"status":"open","timeline":[],"late_entry_reason":null,"closing_note":null,"closed_by":null,"created_by":
+- nurse1 POST /api/emergency-events
+    yêu cầu: {"temp_identity":"Biên thời gian 1qgkmd1","occurred_at":"2026-11-13T13:46:46.654Z"}
+    → 422 {"error":{"code":"LATE_ENTRY_REASON","message":"Ghi nhận muộn cần nêu lý do (late_entry_reason)"}}
+- nurse1 POST /api/emergency-events
+    yêu cầu: {"temp_identity":"Biên thời gian 1qgkmd1","occurred_at":"2026-11-13T13:46:46.655Z","late_entry_reason":"Mất điện, ghi bổ sung"}
+    → 201 {"id":"7dee3999-bc2f-4a4a-9d3b-00a2a6faf55d","person_id":"f8f119fd-2d6e-4cb6-a5c6-84ab0784bba3","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","encounter_id":"0fce3883-55b7-4183-8061-ebc4d9aae6cc","temp_identity":"Biên thời gian 1qgkmd1","location":null,"reporter":null,"description":null,"status":"open","timeline":[],"late_entry_reason":"Mất điện, ghi bổ sung","closing_note":null,"closed_by"
+- nurse1 POST /api/emergency-events
+    yêu cầu: {"temp_identity":"Biên thời gian 1qgkmd1","occurred_at":"2026-11-13T14:12:46.658Z"}
+    → 422 {"error":{"code":"FUTURE_TIME","message":"occurred_at không được ở tương lai"}}

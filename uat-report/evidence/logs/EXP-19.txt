@@ -1,0 +1,50 @@
+# EXP-19 – Tải tài liệu cho người bệnh Trại khác bị chặn; tài liệu gắn lượt khám của NGƯỜI KHÁC (lệch person_id/encounter_id) bị từ chối
+Trạng thái: PASS   Thời gian chạy: 36 ms
+Kết quả mong đợi: doctor2 upload cho người Trại 1 → 403; upload person A + encounter của B → 4xx
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Tài Liệu Chéo Cơ Sở 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1u1tmhl"}
+    → 201 {"id":"53c6dfc8-5c2f-4a56-a85e-1ef7eeb5380a","full_name":"UAT Tài Liệu Chéo Cơ Sở 1qgkmd1","name_key":"uat tai lieu cheo co so 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1u1tmhl","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14
+- officer1 POST /api/persons/53c6dfc8-5c2f-4a56-a85e-1ef7eeb5380a/stays
+    yêu cầu: {}
+    → 201 {"id":"c9e31af3-90cb-4d92-b71b-d6c599390801","person_id":"53c6dfc8-5c2f-4a56-a85e-1ef7eeb5380a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:19.166793","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"53c6dfc8-5c2f-4a56-a85e-1ef7eeb5380a","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"89983204-a780-46be-9599-1f72e96269a4","person_id":"53c6dfc8-5c2f-4a56-a85e-1ef7eeb5380a","stay_id":"c9e31af3-90cb-4d92-b71b-d6c599390801","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/89983204-a780-46be-9599-1f72e96269a4/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"89983204-a780-46be-9599-1f72e96269a4","person_id":"53c6dfc8-5c2f-4a56-a85e-1ef7eeb5380a","stay_id":"c9e31af3-90cb-4d92-b71b-d6c599390801","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/53c6dfc8-5c2f-4a56-a85e-1ef7eeb5380a/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/89983204-a780-46be-9599-1f72e96269a4/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"89983204-a780-46be-9599-1f72e96269a4","person_id":"53c6dfc8-5c2f-4a56-a85e-1ef7eeb5380a","stay_id":"c9e31af3-90cb-4d92-b71b-d6c599390801","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- doctor2 POST /api/documents (uat.pdf, 259B)
+    → 403 {"error":{"code":"FACILITY_SCOPE","message":"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn","break_glass_allowed":true}}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Tài Liệu Lệch 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1u1u2k7"}
+    → 201 {"id":"423b3734-0ad0-495b-960e-ef3ea7e614b5","full_name":"UAT Tài Liệu Lệch 1qgkmd1","name_key":"uat tai lieu lech 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1u1u2k7","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:19.17975
+- officer1 POST /api/persons/423b3734-0ad0-495b-960e-ef3ea7e614b5/stays
+    yêu cầu: {}
+    → 201 {"id":"1d8fff42-edf5-4f42-93f4-c92ff8f78862","person_id":"423b3734-0ad0-495b-960e-ef3ea7e614b5","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:19.182142","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"423b3734-0ad0-495b-960e-ef3ea7e614b5","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"30541d68-82f0-4994-bbe1-474d49163f0c","person_id":"423b3734-0ad0-495b-960e-ef3ea7e614b5","stay_id":"1d8fff42-edf5-4f42-93f4-c92ff8f78862","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/30541d68-82f0-4994-bbe1-474d49163f0c/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"30541d68-82f0-4994-bbe1-474d49163f0c","person_id":"423b3734-0ad0-495b-960e-ef3ea7e614b5","stay_id":"1d8fff42-edf5-4f42-93f4-c92ff8f78862","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/423b3734-0ad0-495b-960e-ef3ea7e614b5/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/30541d68-82f0-4994-bbe1-474d49163f0c/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"30541d68-82f0-4994-bbe1-474d49163f0c","person_id":"423b3734-0ad0-495b-960e-ef3ea7e614b5","stay_id":"1d8fff42-edf5-4f42-93f4-c92ff8f78862","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"423b3734-0ad0-495b-960e-ef3ea7e614b5","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"ab658049-07e2-4cfb-8e1c-8954928f98dd","person_id":"423b3734-0ad0-495b-960e-ef3ea7e614b5","stay_id":"1d8fff42-edf5-4f42-93f4-c92ff8f78862","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/ab658049-07e2-4cfb-8e1c-8954928f98dd/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"ab658049-07e2-4cfb-8e1c-8954928f98dd","person_id":"423b3734-0ad0-495b-960e-ef3ea7e614b5","stay_id":"1d8fff42-edf5-4f42-93f4-c92ff8f78862","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e
+- nurse1 POST /api/documents (uat.pdf, 259B)
+    → 422 {"error":{"code":"LINK_MISMATCH","message":"Các đối tượng liên kết thuộc người khác nhau"}}

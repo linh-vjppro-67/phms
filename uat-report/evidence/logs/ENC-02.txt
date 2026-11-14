@@ -1,0 +1,41 @@
+# ENC-02 – Không hoàn tất khám khi còn chỉ định xét nghiệm chưa có kết quả (UAT-04); có kết quả thì hoàn tất được
+Trạng thái: PASS   Thời gian chạy: 27 ms
+Kết quả mong đợi: Trước KQ → 4xx (mã nêu rõ chỉ định chưa có kết quả); sau KQ → 200 completed
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Chờ XN 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1qpmr34"}
+    → 201 {"id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","full_name":"UAT Chờ XN 1qgkmd1","name_key":"uat cho xn 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qpmr34","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:43.397006"}
+- officer1 POST /api/persons/cdfa6c62-ebd0-4747-8e6b-4a28df8347ba/stays
+    yêu cầu: {}
+    → 201 {"id":"5c388b19-9792-4cf6-8263-fd1aa2b129c5","person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:02:43.399546","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"92ddc371-76ee-4e5e-95f2-b57a63e395a0","person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","stay_id":"5c388b19-9792-4cf6-8263-fd1aa2b129c5","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/92ddc371-76ee-4e5e-95f2-b57a63e395a0/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"92ddc371-76ee-4e5e-95f2-b57a63e395a0","person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","stay_id":"5c388b19-9792-4cf6-8263-fd1aa2b129c5","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/cdfa6c62-ebd0-4747-8e6b-4a28df8347ba/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/92ddc371-76ee-4e5e-95f2-b57a63e395a0/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"92ddc371-76ee-4e5e-95f2-b57a63e395a0","person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","stay_id":"5c388b19-9792-4cf6-8263-fd1aa2b129c5","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"aa69282e-1e88-4450-91a8-7c0500c0342f","person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","stay_id":"5c388b19-9792-4cf6-8263-fd1aa2b129c5","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/aa69282e-1e88-4450-91a8-7c0500c0342f/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"aa69282e-1e88-4450-91a8-7c0500c0342f","person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","stay_id":"5c388b19-9792-4cf6-8263-fd1aa2b129c5","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e
+- doctor1 POST /api/encounters/aa69282e-1e88-4450-91a8-7c0500c0342f/orders
+    yêu cầu: {"kind":"lab","description":"Công thức máu"}
+    → 201 {"id":"753310f3-b58e-4536-a3c7-4a2de63f4fc5","encounter_id":"aa69282e-1e88-4450-91a8-7c0500c0342f","person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","kind":"lab","description":"Công thức máu","status":"open","result_text":null,"cancel_reason":null,"ordered_by":"d8d6c470-91af-49ba-8573-91ad39e44b6f","resulted_by":null,"occurred_at":"2026-11-13T14:02:43.415191","recorded_at":"2026-11-13T14:02:43.41
+- doctor1 POST /api/encounters/aa69282e-1e88-4450-91a8-7c0500c0342f/transition
+    yêu cầu: {"to":"completed"}
+    → 409 {"error":{"code":"OPEN_ORDERS","message":"Còn chỉ định chưa có kết quả – chuyển sang 'awaiting_results' để tiếp tục theo dõi","open_order_ids":["753310f3-b58e-4536-a3c7-4a2de63f4fc5"]}}
+- nurse1 POST /api/orders/753310f3-b58e-4536-a3c7-4a2de63f4fc5/result
+    yêu cầu: {"result_text":"WBC 7.2"}
+    → 200 {"id":"753310f3-b58e-4536-a3c7-4a2de63f4fc5","encounter_id":"aa69282e-1e88-4450-91a8-7c0500c0342f","person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","kind":"lab","description":"Công thức máu","status":"resulted","result_text":"WBC 7.2","cancel_reason":null,"ordered_by":"d8d6c470-91af-49ba-8573-91ad39e44b6f","resulted_by":"450f4f32-86f9-410c-b688-4cf08a490bda","occurred_at":"2026-11-13T14:02:43.41
+- doctor1 POST /api/encounters/aa69282e-1e88-4450-91a8-7c0500c0342f/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"aa69282e-1e88-4450-91a8-7c0500c0342f","person_id":"cdfa6c62-ebd0-4747-8e6b-4a28df8347ba","stay_id":"5c388b19-9792-4cf6-8263-fd1aa2b129c5","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"completed","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e44

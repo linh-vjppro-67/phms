@@ -1,0 +1,11 @@
+# REP-02 – Báo cáo chỉ gồm dữ liệu cơ sở của người xem; số liệu F01 ≠ F02 và đều khớp DB (L4)
+Trạng thái: PASS   Thời gian chạy: 6 ms
+Kết quả mong đợi: manager2 total_encounters = đếm DB F02
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- manager2 GET /api/reports/encounters?date_from=2025-10-09&date_to=2026-11-14
+    → 200 {"report":"encounters","facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","date_from":"2025-10-09","date_to":"2026-11-14","generated_at":"2026-11-13T14:02:47.048488","data":{"by_type":{"ad_hoc":{"encounter_count":1,"distinct_person_count":1},"initial":{"encounter_count":5,"distinct_person_count":5},"periodic":{"encounter_count":2,"distinct_person_count":2}},"total_encounters":8,"total_distinct_p
+- SQL
+    yêu cầu: "select count(*) n from encounter where facility_id='31bbfa76-f22b-4e16-a52b-d3bcb6e1078c' and status!='cancelled' and date(occurred_at) between '2025-10-09' and '2026-11-14'"
+    → - [{"n":8}]

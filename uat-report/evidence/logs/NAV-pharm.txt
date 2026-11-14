@@ -1,0 +1,6 @@
+# NAV-pharm – Menu của Dược chỉ gồm các phân hệ được phép (đối chiếu 04-§2)
+Trạng thái: FAIL   Thời gian chạy: 733 ms
+Kết quả mong đợi: Thấy: Cấp phát thuốc. KHÔNG thấy: Quản trị, Báo cáo, Tiếp nhận & Hồ sơ, Chuyển viện, Cấp cứu
+Kết quả thực tế: pharm1 thấy tab không được phép “Tiếp nhận & Hồ sơ”
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)

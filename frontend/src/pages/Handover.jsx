@@ -43,6 +43,7 @@ export default function Handover() {
               <div className="row">
                 {canSummary && <button className="btn" onClick={() => setM({ t: "summary", h })}>{h.summary ? "Sửa tóm tắt y tế" : "Soạn tóm tắt y tế"}</button>}
                 {canConfirm && <button className="btn primary" onClick={() => setM({ t: "confirm", h })}>Xác nhận bàn giao</button>}
+                {has("handover.initiate") && <button className="btn" title="Hủy phiếu lập nhầm hoặc đã đổi quyết định" onClick={() => setM({ t: "cancel", h })}>Hủy phiếu</button>}
               </div>
             )}
             {h.received_at && <Banner tone="ok">Cơ sở nhận đã tiếp nhận lúc {fmtDT(h.received_at)} (biên nhận hoàn tất).</Banner>}
@@ -66,6 +67,13 @@ export default function Handover() {
           onSubmit={async (d) => { const r = await act(() => api("PUT", `/handovers/${m.h.id}/summary`, d), "Đã lưu tóm tắt bàn giao"); if (r) reload(); return !!r; }}>
           <div style={{ marginBottom: 10 }}><b className="sm">Điều trị đang mở: </b><OpenItems items={m.h.open_items} /></div>
           <Field label="Thông tin cần tiếp tục chăm sóc" required hint="Bệnh đang theo dõi, thuốc đang dùng, lịch tái khám, dị ứng, lưu ý đặc biệt…"><textarea name="summary" required minLength={10} defaultValue={m.h.summary || ""} style={{ minHeight: 200 }} /></Field>
+        </FormModal>
+      )}
+      {m?.t === "cancel" && (
+        <FormModal title={`Hủy phiếu bàn giao – ${m.h.person_name}`} danger onClose={() => setM(null)} submit="Hủy phiếu"
+          onSubmit={async (d) => { const r = await act(() => api("POST", `/handovers/${m.h.id}/cancel`, { reason: d.reason }), "Đã hủy phiếu bàn giao"); if (r) reload(); return !!r; }}>
+          <p style={{ marginTop: 0 }}>Phiếu chưa xác nhận nên hủy được; người bệnh vẫn ở lại cơ sở. Sau đó có thể lập phiếu mới.</p>
+          <Field label="Lý do hủy" required hint="Tối thiểu 5 ký tự"><textarea name="reason" required minLength={5} /></Field>
         </FormModal>
       )}
       {m?.t === "confirm" && (

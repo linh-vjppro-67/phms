@@ -1,0 +1,6 @@
+# ABAC-03 – Gõ thẳng URL của tab bị cấm (#/record, #/exam, #/admin) → hệ thống đưa về tab được phép
+Trạng thái: PASS   Thời gian chạy: 2884 ms
+Kết quả mong đợi: Không hiển thị nội dung tab cấm; active tab = Bảng điều khiển
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)

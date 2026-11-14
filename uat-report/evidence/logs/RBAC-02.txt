@@ -1,0 +1,17 @@
+# RBAC-02 – Quản trị hệ thống không được đọc bệnh án / không tiếp nhận / không kê đơn
+Trạng thái: PASS   Thời gian chạy: 8 ms
+Kết quả mong đợi: HTTP 403 (sysadmin không có clinical.read)
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- admin GET /api/persons/8f533006-a3de-4a0f-82a6-e4d19200bed8/health-summary
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (person.read)"}}
+- admin GET /api/encounters/5d110be7-dd0f-4024-a1cb-0b7be94d0ce7
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- admin GET /api/persons
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (person.read)"}}
+- admin POST /api/persons
+    yêu cầu: {"full_name":"UAT Admin Tạo"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (person.write)"}}
+- admin GET /api/reports/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (report.read)"}}

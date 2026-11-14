@@ -1,0 +1,15 @@
+# RBAC-05 – Bác sĩ không phê duyệt/điều phối chuyển viện (tách quyết định chuyên môn – hành chính)
+Trạng thái: PASS   Thời gian chạy: 9 ms
+Kết quả mong đợi: PATCH referral to=coordinated bởi doctor → 403
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- doctor1 POST /api/encounters/5d110be7-dd0f-4024-a1cb-0b7be94d0ce7/referrals
+    yêu cầu: {"urgency":"routine","reason":"UAT kiểm tra quyền duyệt","destination":"BV X"}
+    → 201 {"id":"aa047b49-796e-4c7a-b8ae-147a22678ad8","encounter_id":"5d110be7-dd0f-4024-a1cb-0b7be94d0ce7","person_id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","urgency":"routine","reason":"UAT kiểm tra quyền duyệt","status":"draft","destination":"BV X","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortc
+- doctor1 PATCH /api/referrals/aa047b49-796e-4c7a-b8ae-147a22678ad8/status
+    yêu cầu: {"to":"pending"}
+    → 200 {"id":"aa047b49-796e-4c7a-b8ae-147a22678ad8","encounter_id":"5d110be7-dd0f-4024-a1cb-0b7be94d0ce7","person_id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","urgency":"routine","reason":"UAT kiểm tra quyền duyệt","status":"pending","destination":"BV X","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shor
+- doctor1 PATCH /api/referrals/aa047b49-796e-4c7a-b8ae-147a22678ad8/status
+    yêu cầu: {"to":"coordinated"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Bước 'pending->coordinated' cần quyền referral.approve"}}

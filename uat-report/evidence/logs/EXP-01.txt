@@ -1,0 +1,141 @@
+# EXP-01 – 6 yêu cầu ĐỒNG THỜI tạo khám ban đầu cho cùng một đợt tiếp nhận (lặp 5 lần thử): chỉ 1 thành công mỗi lần (không nhân đôi lượt khám ban đầu)
+Trạng thái: FAIL   Thời gian chạy: 247 ms
+Kết quả mong đợi: Mỗi lần thử: đúng 1 lượt khám ban đầu không hủy trong DB
+Kết quả thực tế: Số lượt khám ban đầu tạo ra mỗi lần thử: 2, 6, 6, 6, 4 (kỳ vọng luôn 1). Lượt chạy chính (run6) tình cờ đạt; các lượt chạy trước và 10 lần đo riêng cho thấy tái hiện 8/10.
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời Khám 0 1ul2nxs","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1ul2nqg"}
+    → 201 {"id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","full_name":"UAT Đồng Thời Khám 0 1ul2nxs","name_key":"uat dong thoi kham 0 1ul2nxs","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1ul2nqg","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:44
+- officer1 POST /api/persons/ed3296ce-ed7c-4c9c-991f-4b10de379ba6/stays
+    yêu cầu: {}
+    → 201 {"id":"79ebe98a-be53-463c-83f2-aeceebc90e25","person_id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:44.172594","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"1e35cc99-6eff-4237-bdbc-5b3b8d37a19b","person_id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","stay_id":"79ebe98a-be53-463c-83f2-aeceebc90e25","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"f47d5097-c4ed-4a43-90e7-d62d7709b4fa","person_id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","stay_id":"79ebe98a-be53-463c-83f2-aeceebc90e25","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","type":"initial","reason":"Khám ban đầu song song"}
+    → 409 {"error":{"code":"INITIAL_EXISTS","message":"Đợt tiếp nhận này đã có lượt khám ban đầu"}}
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","type":"initial","reason":"Khám ban đầu song song"}
+    → 409 {"error":{"code":"INITIAL_EXISTS","message":"Đợt tiếp nhận này đã có lượt khám ban đầu"}}
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","type":"initial","reason":"Khám ban đầu song song"}
+    → 409 {"error":{"code":"INITIAL_EXISTS","message":"Đợt tiếp nhận này đã có lượt khám ban đầu"}}
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"ed3296ce-ed7c-4c9c-991f-4b10de379ba6","type":"initial","reason":"Khám ban đầu song song"}
+    → 409 {"error":{"code":"INITIAL_EXISTS","message":"Đợt tiếp nhận này đã có lượt khám ban đầu"}}
+- SQL
+    yêu cầu: "select count(*) n from encounter where person_id='ed3296ce-ed7c-4c9c-991f-4b10de379ba6' and type='initial' and status!='cancelled'"
+    → - [{"n":2}]
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời Khám 1 1ul2nxs","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1ul622j"}
+    → 201 {"id":"66ae567f-3d95-49b7-8880-0642b3ee314e","full_name":"UAT Đồng Thời Khám 1 1ul2nxs","name_key":"uat dong thoi kham 1 1ul2nxs","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1ul622j","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:44
+- officer1 POST /api/persons/66ae567f-3d95-49b7-8880-0642b3ee314e/stays
+    yêu cầu: {}
+    → 201 {"id":"e9721dab-072d-4f77-8347-9e0c78668b59","person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:44.237565","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"fd79bff9-4fe8-4711-9208-b6affe21f1f9","person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","stay_id":"e9721dab-072d-4f77-8347-9e0c78668b59","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"d5311372-f392-4587-9a85-c95b30c00844","person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","stay_id":"e9721dab-072d-4f77-8347-9e0c78668b59","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"a8bc9965-4d18-4026-939a-8ca3b4ee742e","person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","stay_id":"e9721dab-072d-4f77-8347-9e0c78668b59","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"09dd4a6f-94d9-4423-ada6-d6c9a6876377","person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","stay_id":"e9721dab-072d-4f77-8347-9e0c78668b59","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"4ee8dc63-be01-43f4-9661-5fcaba02453d","person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","stay_id":"e9721dab-072d-4f77-8347-9e0c78668b59","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"5eafa882-92d6-4b54-9263-1379c32d5054","person_id":"66ae567f-3d95-49b7-8880-0642b3ee314e","stay_id":"e9721dab-072d-4f77-8347-9e0c78668b59","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- SQL
+    yêu cầu: "select count(*) n from encounter where person_id='66ae567f-3d95-49b7-8880-0642b3ee314e' and type='initial' and status!='cancelled'"
+    → - [{"n":6}]
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời Khám 2 1ul2nxs","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1ul6uis"}
+    → 201 {"id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","full_name":"UAT Đồng Thời Khám 2 1ul2nxs","name_key":"uat dong thoi kham 2 1ul2nxs","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1ul6uis","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:44
+- officer1 POST /api/persons/0d198f1b-01d5-47af-9d30-c35e4b8a726c/stays
+    yêu cầu: {}
+    → 201 {"id":"8ee3ee25-fd2b-4699-9a07-525747b0351a","person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:44.265853","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"6b3a4864-25e0-4f54-a487-a8c580adfe2a","person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","stay_id":"8ee3ee25-fd2b-4699-9a07-525747b0351a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"a639077d-9526-48f8-9b44-265b00541258","person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","stay_id":"8ee3ee25-fd2b-4699-9a07-525747b0351a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"01db94d6-a7f6-430d-b047-0d158c92b42b","person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","stay_id":"8ee3ee25-fd2b-4699-9a07-525747b0351a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"4b7f1a9f-d7d1-4433-865f-8805a2f74c2a","person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","stay_id":"8ee3ee25-fd2b-4699-9a07-525747b0351a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"9a28362f-8589-4635-800a-f1d260a4469a","person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","stay_id":"8ee3ee25-fd2b-4699-9a07-525747b0351a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"fe989016-1467-4988-b729-fa3691ec4e95","person_id":"0d198f1b-01d5-47af-9d30-c35e4b8a726c","stay_id":"8ee3ee25-fd2b-4699-9a07-525747b0351a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- SQL
+    yêu cầu: "select count(*) n from encounter where person_id='0d198f1b-01d5-47af-9d30-c35e4b8a726c' and type='initial' and status!='cancelled'"
+    → - [{"n":6}]
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời Khám 3 1ul2nxs","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1ul7ku3"}
+    → 201 {"id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","full_name":"UAT Đồng Thời Khám 3 1ul2nxs","name_key":"uat dong thoi kham 3 1ul2nxs","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1ul7ku3","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:44
+- officer1 POST /api/persons/a6a9656a-ac81-4ec3-8b1b-924f7c884314/stays
+    yêu cầu: {}
+    → 201 {"id":"89221171-1ef2-45f8-89b9-99ccd76f7ae6","person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:44.292060","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"669f93e0-25d5-4b50-a8f1-d06f9aec7f52","person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","stay_id":"89221171-1ef2-45f8-89b9-99ccd76f7ae6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"31c44f5b-3fdc-4ebf-8147-1176c22c9222","person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","stay_id":"89221171-1ef2-45f8-89b9-99ccd76f7ae6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"768f7e57-eac2-4529-889a-533b1a524e4a","person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","stay_id":"89221171-1ef2-45f8-89b9-99ccd76f7ae6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"bec30f61-d1db-456e-a887-81686ebfbfec","person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","stay_id":"89221171-1ef2-45f8-89b9-99ccd76f7ae6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"6d4fed50-2ba8-4b50-a69d-7c889517eb46","person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","stay_id":"89221171-1ef2-45f8-89b9-99ccd76f7ae6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"6f36ae78-9b0b-45e1-8cd9-44f15b3cd1ff","person_id":"a6a9656a-ac81-4ec3-8b1b-924f7c884314","stay_id":"89221171-1ef2-45f8-89b9-99ccd76f7ae6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- SQL
+    yêu cầu: "select count(*) n from encounter where person_id='a6a9656a-ac81-4ec3-8b1b-924f7c884314' and type='initial' and status!='cancelled'"
+    → - [{"n":6}]
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời Khám 4 1ul2nxs","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1ul8qkf"}
+    → 201 {"id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","full_name":"UAT Đồng Thời Khám 4 1ul2nxs","name_key":"uat dong thoi kham 4 1ul2nxs","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1ul8qkf","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:44
+- officer1 POST /api/persons/3a361fef-c143-42cd-bebd-f5bf8e6252f4/stays
+    yêu cầu: {}
+    → 201 {"id":"583436e9-6eaf-4394-8a15-f75f7316e031","person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:44.334398","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"c1418ce0-fa72-4998-9bed-b8fb41cf4599","person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","stay_id":"583436e9-6eaf-4394-8a15-f75f7316e031","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","type":"initial","reason":"Khám ban đầu song song"}
+    → 409 {"error":{"code":"INITIAL_EXISTS","message":"Đợt tiếp nhận này đã có lượt khám ban đầu"}}
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","type":"initial","reason":"Khám ban đầu song song"}
+    → 409 {"error":{"code":"INITIAL_EXISTS","message":"Đợt tiếp nhận này đã có lượt khám ban đầu"}}
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"43f5dee7-0b06-47c3-b7e1-64dd12d7d249","person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","stay_id":"583436e9-6eaf-4394-8a15-f75f7316e031","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"bf1d13ba-9baa-4de1-ad3c-c589780174b0","person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","stay_id":"583436e9-6eaf-4394-8a15-f75f7316e031","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","type":"initial","reason":"Khám ban đầu song song"}
+    → 201 {"id":"32435c5f-ec00-4f11-9311-5adb4eb2aa19","person_id":"3a361fef-c143-42cd-bebd-f5bf8e6252f4","stay_id":"583436e9-6eaf-4394-8a15-f75f7316e031","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám ban đầu song song","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_
+- SQL
+    yêu cầu: "select count(*) n from encounter where person_id='3a361fef-c143-42cd-bebd-f5bf8e6252f4' and type='initial' and status!='cancelled'"
+    → - [{"n":4}]

@@ -36,6 +36,13 @@ export function IcdPair({ icd, nameField, nameLabel, nameRequired = true }) {
   );
 }
 
+/** Cảnh báo "đã gõ nhưng chưa bấm Thêm": bọc form; onInput bật cờ, gọi done() khi lưu thành công. */
+function useUnsaved() {
+  const [dirty, setDirty] = useState(false);
+  return { dirty, props: { onInput: () => setDirty(true) }, done: () => setDirty(false),
+    badge: dirty ? <span className="badge warn" role="status">● Chưa bấm “Thêm” – nội dung này CHƯA được lưu</span> : null };
+}
+
 const ALLERGENS = ["Penicillin", "Amoxicillin", "Ampicillin", "Cephalosporin", "Sulfonamid (Cotrimoxazol)", "Aspirin", "Ibuprofen", "Diclofenac", "Paracetamol", "Tetracyclin", "Quinolon", "Macrolid",
   "Thuốc gây tê (Lidocain)", "Thuốc cản quang chứa iod", "Insulin", "Hải sản (tôm, cua)", "Cá", "Sữa", "Trứng", "Đậu phộng", "Gluten (lúa mì)", "Phấn hoa", "Bụi nhà / mạt bụi", "Lông chó mèo", "Latex (cao su)", "Nọc côn trùng (ong, kiến)", "Kim loại (Nickel)"];
 
@@ -43,6 +50,7 @@ export function AllergyBlock({ personId, summary, reload }) {
   const { has } = useAuth();
   const act = useAct();
   const { confirm, prompt } = useApp();
+  const uns = useUnsaved();
   const c = summary?.clinical;
   if (!c) return null;
   const retract = async (a) => {
@@ -55,18 +63,18 @@ export function AllergyBlock({ personId, summary, reload }) {
       {c.allergies.length ? (
         <DataTable rows={c.allergies} columns={[{ h: "Chất gây dị ứng", c: (a) => <b>{a.substance}</b> }, { h: "Phản ứng", c: (a) => a.reaction || "—" },
           { h: "Mức độ", c: (a) => a.severity || "—" }, { h: "Xác nhận", c: (a) => (a.confirmed ? <Badge tone="ok">Đã xác nhận</Badge> : <Badge>Khai báo</Badge>) },
-          { h: "", stop: true, c: (a) => has("encounter.write") && (!a.confirmed || has("diagnosis.write")) && <button className="btn sm" title="Gỡ khi khai sai/nhầm người (vẫn lưu dấu vết)" onClick={() => retract(a)}>Gỡ (ghi nhầm)</button> }]} />
+          { h: "", stop: true, c: (a) => has("encounter.write") && (!a.confirmed || has("diagnosis.write")) && <button className="btn sm" title="Gỡ khi khai sai/nhầm người (vẫn lưu dấu vết)" onClick={() => retract(a)}>Gỡ</button> }]} />
       ) : <p className="muted" style={{ marginTop: 0 }}>{c.notice}</p>}
       {has("encounter.write") && (
         <>
-          <Form className="fgrid mt" onSubmit={async (d) => { const r = await act(() => api("POST", `/persons/${personId}/allergies`, d), "Đã ghi nhận dị ứng"); if (r) reload(); return r; }}>
+          <div {...uns.props}><Form className="fgrid mt" onSubmit={async (d) => { const r = await act(() => api("POST", `/persons/${personId}/allergies`, d), "Đã ghi nhận dị ứng"); if (r) { uns.done(); reload(); } return r; }}>
             <Field label="Chất gây dị ứng" required><input name="substance" list="allergens" autoComplete="off" required placeholder="Thuốc, thức ăn, môi trường…" /></Field>
             <datalist id="allergens">{ALLERGENS.map((a) => <option key={a} value={a} />)}</datalist>
             <Field label="Phản ứng"><input name="reaction" autoComplete="off" placeholder="Phát ban, khó thở…" /></Field>
             <Field label="Mức độ"><select name="severity" defaultValue=""><option value="">—</option><option>Nhẹ</option><option>Trung bình</option><option>Nặng</option></select></Field>
             <div className="fchk"><label className="chk"><input type="checkbox" name="confirmed" /> Đã xác nhận</label></div>
             <div className="fbtn"><button className="btn primary">Thêm dị ứng</button></div>
-          </Form>
+          </Form>{uns.badge}</div>
           <p className="muted sm" style={{ margin: "0 0 4px" }}><b>Đã xác nhận</b>: tick khi dị ứng đã được kiểm chứng (kết quả thử nghiệm, bệnh án cũ, từng phản ứng rõ ràng). Bỏ trống nếu chỉ là người bệnh tự khai. Cả hai loại đều gây cảnh báo khi kê đơn; mục “đã xác nhận” được ghi rõ trong cảnh báo.</p>
         </>
       )}
@@ -84,6 +92,7 @@ export function ProblemBlock({ personId, summary, reload }) {
   const { has } = useAuth();
   const act = useAct();
   const { prompt } = useApp();
+  const uns = useUnsaved();
   const { data: icd } = useLoad(() => api("GET", "/catalogs/icd"), []);
   const c = summary?.clinical;
   if (!c) return null;
@@ -98,11 +107,11 @@ export function ProblemBlock({ personId, summary, reload }) {
               if (note && await act(() => api("POST", `/problems/${p.id}/resolve`, { note }), "Đã cập nhật")) reload();
             }}>Kết thúc</button>) }]} />
       {has("problem.write") && (
-        <Form className="fgrid mt" onSubmit={async (d) => { const r = await act(() => api("POST", `/persons/${personId}/problems`, d), "Đã ghi nhận vấn đề sức khỏe"); if (r) reload(); return r; }}>
+        <div {...uns.props}><Form className="fgrid mt" onSubmit={async (d) => { const r = await act(() => api("POST", `/persons/${personId}/problems`, d), "Đã ghi nhận vấn đề sức khỏe"); if (r) { uns.done(); reload(); } return r; }}>
           <IcdPair icd={icd} nameField="name" nameLabel="Tên vấn đề / bệnh" />
           <Field label="Mức xác nhận"><select name="confirmation" defaultValue="confirmed"><option value="confirmed">Đã xác nhận</option><option value="suspected">Nghi ngờ</option></select></Field>
           <div className="fbtn"><button className="btn primary">Thêm</button></div>
-        </Form>
+        </Form>{uns.badge}</div>
       )}
     </Card>
   );
@@ -147,7 +156,8 @@ export function DiagnosisBlock({ e, open, reload }) {
   return (
     <Card title="Chẩn đoán">
       <DataTable rows={e.diagnoses} empty={<p className="muted" style={{ margin: 0 }}>Chưa có chẩn đoán.</p>}
-        columns={[{ h: "Chẩn đoán", c: (d) => <b>{d.text}</b> }, { h: "Mã ICD", c: (d) => d.code || "—" }, { h: "Loại", c: (d) => <Badge tone={d.kind === "final" ? "ok" : "neutral"}>{d.kind === "final" ? "Chính thức" : "Sơ bộ"}</Badge> }, { h: "Ghi lúc", c: (d) => fmtDT(d.recorded_at) }]} />
+        columns={[{ h: "Chẩn đoán", c: (d) => <b>{d.text}</b> }, { h: "Mã ICD", c: (d) => d.code || "—" }, { h: "Loại", c: (d) => <Badge tone={d.kind === "final" ? "ok" : "neutral"}>{d.kind === "final" ? "Chính thức" : "Sơ bộ"}</Badge> }, { h: "Ghi lúc", c: (d) => fmtDT(d.recorded_at) },
+          { h: "", stop: true, c: (d) => has("problem.write") && d.kind === "final" && <button className="btn sm" title="Bệnh mạn tính/cần theo dõi lâu dài: thêm vào hồ sơ để các lần khám sau còn thấy và lập kế hoạch theo dõi" onClick={() => act(() => api("POST", `/persons/${e.person_id}/problems`, { name: d.text, ...(d.code && { code: d.code }), confirmation: "confirmed" }), "Đã thêm vào vấn đề sức khỏe")}>+ Vấn đề sức khỏe</button> }]} />
       {open && has("diagnosis.write") ? (
         <Form className="fgrid mt" onSubmit={async (d) => { const r = await act(() => api("POST", `/encounters/${e.id}/diagnoses`, d), "Đã ghi chẩn đoán"); if (r) reload(); return r; }}>
           <IcdPair icd={icd} nameField="text" nameLabel="Chẩn đoán" />
@@ -199,7 +209,16 @@ export function RxCreateModal({ encounterId, onClose, onDone }) {
   const act = useAct();
   const { data: drugs } = useLoad(() => api("GET", "/catalogs/drug"), []);
   const [name, setName] = useState("");
-  const code = drugs?.find((d) => d.name === name)?.code || "";
+  const item = drugs?.find((d) => d.name === name);
+  const code = item?.code || "";
+  const [strength, setStrength] = useState("");
+  const [route, setRoute] = useState("uống");
+  const pick = (v) => {                      // chọn thuốc trong danh mục → tự điền hàm lượng + đường dùng mặc định (vẫn sửa được)
+    setName(v);
+    const it = drugs?.find((d) => d.name === v);
+    if (it?.extra?.strength) setStrength(it.extra.strength);
+    if (it?.extra?.route && ROUTES.includes(it.extra.route)) setRoute(it.extra.route);
+  };
   return (
     <FormModal title="Kê đơn thuốc (nháp)" wide onClose={onClose} submit="Tạo đơn nháp"
       onSubmit={async (d) => {
@@ -207,14 +226,14 @@ export function RxCreateModal({ encounterId, onClose, onDone }) {
         if (r) onDone(r); return !!r;
       }}>
       <div className="grid2">
-        <Field label="Thuốc" required hint={code ? `Mã danh mục: ${code}` : "Chọn từ danh mục hoặc nhập tên"}>
-          <input name="drug_name" list="drugs" value={name} onChange={(e) => setName(e.target.value)} required />
+        <Field label="Thuốc" required hint={code ? `Nhóm: ${item?.extra?.group || "—"} · mã danh mục ${code}` : `Gõ tên hoạt chất để tìm trong ${drugs?.length || 0} thuốc, hoặc nhập tên khác`}>
+          <input name="drug_name" list="drugs" value={name} onChange={(e) => pick(e.target.value)} autoComplete="off" required />
         </Field>
-        <datalist id="drugs">{(drugs || []).map((d) => <option key={d.id} value={d.name}>{d.code}</option>)}</datalist>
+        <datalist id="drugs">{(drugs || []).map((d) => <option key={d.id} value={d.name} label={`${d.extra?.group || ""} · ${d.code}`} />)}</datalist>
         <input type="hidden" name="drug_code" value={code} readOnly />
-        <Field label="Hàm lượng"><input name="strength" placeholder="500mg" /></Field>
+        <Field label="Hàm lượng"><input name="strength" placeholder="500mg" value={strength} onChange={(e) => setStrength(e.target.value)} autoComplete="off" /></Field>
         <Field label="Liều mỗi lần" required><input name="dose" defaultValue="1 viên" required /></Field>
-        <Field label="Đường dùng" required><select name="route" defaultValue="uống">{ROUTES.map((r) => <option key={r}>{r}</option>)}</select></Field>
+        <Field label="Đường dùng" required><select name="route" value={route} onChange={(e) => setRoute(e.target.value)}>{ROUTES.map((r) => <option key={r}>{r}</option>)}</select></Field>
         <Field label="Tần suất" required><input name="frequency" list="freq" defaultValue="2 lần/ngày" required /></Field>
         <datalist id="freq">{["1 lần/ngày", "2 lần/ngày", "3 lần/ngày", "4 lần/ngày", "Khi cần"].map((x) => <option key={x} value={x} />)}</datalist>
         <Field label="Bắt đầu từ ngày" required><input type="date" name="start_date" defaultValue={today()} required /></Field>
@@ -230,7 +249,7 @@ export function RxCreateModal({ encounterId, onClose, onDone }) {
 /** Hook gom thao tác xác nhận / điều chỉnh / dừng đơn thuốc + modal đi kèm. */
 export function useOrderActions(reload) {
   const act = useAct();
-  const { notify } = useApp();
+  const { notify, confirm } = useApp();
   const [m, setM] = useState(null);
   const confirmOrder = async (o) => {
     try {
@@ -257,18 +276,28 @@ export function useOrderActions(reload) {
         }}>
         <Banner tone="info"><span className="sm">Đơn đã xác nhận không sửa trực tiếp. Hệ thống tạo phiên bản mới (nháp); khi xác nhận, bản cũ được thay thế.</span></Banner>
         <div className="grid2"><Field label="Liều"><input name="dose" placeholder={m.o.dose} /></Field><Field label="Tần suất"><input name="frequency" placeholder={m.o.frequency} /></Field>
-          <Field label="Số ngày"><input type="number" name="duration_days" placeholder={m.o.duration_days} /></Field><Field label="Tổng số lượng"><input type="number" step="any" name="quantity_prescribed" placeholder={m.o.quantity_prescribed} /></Field></div>
+          <Field label="Số ngày"><input type="number" name="duration_days" placeholder={m.o.duration_days} /></Field><Field label="Tổng số lượng cả liệu trình" hint={m.o.dispensed_net > 0 ? `Đã gồm ${m.o.dispensed_net} đã cấp ở bản này – chỉ cấp thêm phần còn lại` : "Tổng số lượng được phép cấp"}><input type="number" step="any" name="quantity_prescribed" placeholder={m.o.quantity_prescribed} /></Field></div>
         <Field label="Lý do điều chỉnh" required><textarea name="reason" required /></Field>
       </FormModal>
     ) : (
-      <FormModal title={`Dừng/kết thúc đơn: ${m.o.drug_name}`} danger onClose={() => setM(null)} submit="Xác nhận"
-        onSubmit={async (d) => { const r = await act(() => api("POST", `/medication-orders/${m.o.id}/stop`, d), "Đã cập nhật đơn"); if (r) reload(); return !!r; }}>
-        <Field label="Kết cục" required><select name="outcome" defaultValue="stopped"><option value="stopped">Ngừng thuốc giữa chừng</option><option value="completed">Hoàn thành liệu trình</option><option value="cancelled">Hủy (chưa cấp phát)</option></select></Field>
-        <Field label="Lý do" required><textarea name="reason" required /></Field>
-      </FormModal>
+      (
+        <FormModal title={`Dừng/kết thúc đơn: ${m.o.drug_name}`} danger onClose={() => setM(null)} submit="Xác nhận"
+          onSubmit={async (d) => { const r = await act(() => api("POST", `/medication-orders/${m.o.id}/stop`, d), "Đã cập nhật đơn"); if (r) reload(); return !!r; }}>
+          <Field label="Kết cục" required><select name="outcome" defaultValue="stopped"><option value="stopped">Ngừng thuốc giữa chừng</option><option value="completed">Hoàn thành liệu trình</option><option value="cancelled">Hủy (chưa cấp phát)</option></select></Field>
+          <Field label="Lý do" required><textarea name="reason" required /></Field>
+        </FormModal>
+      )
     )
   );
-  return { confirmOrder, reviseOrder: (o) => setM({ t: "revise", o }), stopOrder: (o) => setM({ t: "stop", o }), modals };
+  const stopOrder = async (o) => {
+    if (o.status === "draft") {       // đơn nháp chưa hoàn thành/chưa có hiệu lực: xóa luôn, không hỏi lý do
+      if (await confirm({ title: "Xóa đơn nháp", message: `Xóa đơn nháp “${o.drug_name}”?`, okLabel: "Xóa", danger: true })
+        && await act(() => api("POST", `/medication-orders/${o.id}/stop`, { outcome: "cancelled" }), "Đã xóa đơn nháp")) reload();
+      return;
+    }
+    setM({ t: "stop", o });
+  };
+  return { confirmOrder, reviseOrder: (o) => setM({ t: "revise", o }), stopOrder, modals };
 }
 
 export function RxTable({ rows, actions, showPerson, empty }) {
@@ -302,11 +331,13 @@ export function RxBlock({ e, open, reload }) {
     <Card title="Đơn thuốc" actions={open && has("medorder.write") && <button className="btn primary sm" onClick={() => setCreate(true)}>+ Kê đơn</button>}>
       <RxTable rows={rows} actions={(o) => (
         <div className="row">
-          {o.status === "draft" && has("medorder.confirm") && <button className="btn sm primary" onClick={() => oa.confirmOrder(o)}>Xác nhận</button>}
+          {o.status === "draft" && has("medorder.confirm") && <button className="btn sm primary" title="Bác sĩ chốt đơn: sau đó dược sĩ mới cấp phát được; đơn đã xác nhận không sửa trực tiếp" onClick={() => oa.confirmOrder(o)}>Xác nhận</button>}
           {["confirmed", "active"].includes(o.status) && has("medorder.write") && <button className="btn sm" onClick={() => oa.reviseOrder(o)}>Điều chỉnh</button>}
-          {["draft", "confirmed", "active"].includes(o.status) && has("medorder.write") && <button className="btn sm" onClick={() => oa.stopOrder(o)}>Dừng</button>}
+          {o.status === "draft" && has("medorder.write") && <button className="btn sm" title="Xóa đơn nháp kê nhầm (chưa có hiệu lực)" onClick={() => oa.stopOrder(o)}>Xóa nháp</button>}
+          {["confirmed", "active"].includes(o.status) && has("medorder.write") && <button className="btn sm" title="Ngừng thuốc đã có hiệu lực (ngừng giữa chừng, hoàn thành liệu trình)" onClick={() => oa.stopOrder(o)}>Dừng thuốc</button>}
         </div>)} />
       {!has("medorder.write") && <p className="muted sm mt">Chỉ bác sĩ/y sĩ được kê và xác nhận đơn. Cấp phát thực hiện ở tab “Cấp phát thuốc”.</p>}
+      {has("medorder.write") && rows?.some?.((o) => o.status === "draft") && <p className="muted sm mt"><b>Đơn nháp</b> chưa có hiệu lực. Bác sĩ bấm <b>Xác nhận</b> để chốt đơn → dược sĩ mới cấp phát được (đơn đã xác nhận không sửa trực tiếp, dùng <b>Điều chỉnh</b>). <b>Xóa nháp</b> dùng khi kê nhầm; <b>Dừng thuốc</b> chỉ dùng cho thuốc đã xác nhận/đang dùng.</p>}
       {create && <RxCreateModal encounterId={e.id} onClose={() => setCreate(false)} onDone={reload} />}
       {oa.modals}
     </Card>

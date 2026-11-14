@@ -32,6 +32,7 @@ Trình duyệt ──HTTPS──▶ Reverse proxy (nginx/Traefik: TLS, HSTS, gi�
 | `PHMS_OIDC_USER_CLAIM` | | Claim khớp với tên đăng nhập PHMS (mặc định `preferred_username`) |
 | `PHMS_PASSWORD_LOGIN_DISABLED=1` | | Chỉ cho đăng nhập SSO (trừ `sysadmin`, để còn đường vào khi IdP hỏng) |
 | `PHMS_SCHEDULER=0` | | Tắt bộ lập lịch trong worker web (khuyến nghị khi chạy nhiều worker – xem mục 4) |
+| `PHMS_NURSE_CAN_DISPENSE=1` | | Cơ sở **không có dược sĩ**: cho điều dưỡng cấp phát thuốc theo y lệnh (mặc định tắt – cấp phát là việc của dược) |
 | `PHMS_PBKDF2_ITER` | | Số vòng băm mật khẩu (mặc định 200.000; không đặt thấp hơn 100.000 ở production) |
 
 Mẫu đầy đủ: [`deploy/phms.env.example`](../deploy/phms.env.example).
@@ -44,7 +45,7 @@ CREATE DATABASE phms OWNER phms ENCODING 'UTF8';
 ```
 * Lần khởi động đầu, ứng dụng tự tạo bảng (`ensure_schema`) dưới **khóa tư vấn** nên nhiều worker khởi động cùng lúc vẫn an toàn.
 * Tạo dữ liệu nền (cơ sở, danh mục, tài khoản mẫu): `python -m app.seed` – **xem mục 5 trước khi chạy ở môi trường thật**.
-* Danh mục ICD-10 thường gặp ở Việt Nam (217 mã, tên tiếng Việt) có sẵn trong seed; nạp thêm vào CSDL đang chạy bằng `python -m app.catalog_import` (idempotent, chỉ thêm mã còn thiếu, **không** tạo tài khoản). Đây là bộ khởi đầu để chọn nhanh, **không thay thế** bộ ICD-10 đầy đủ của Bộ Y tế – nạp bộ đầy đủ ở Quản trị → Danh mục khi khách cung cấp.
+* Danh mục ICD-10 thường gặp ở Việt Nam (217 mã, tên tiếng Việt) và **292 thuốc thiết yếu** (19 nhóm điều trị, kèm hàm lượng/dạng/đường dùng; mã là mã *nội bộ PHMS*, không phải mã thuốc BHYT của Bộ Y tế – dược sĩ/hội đồng thuốc cần rà soát) có sẵn trong seed; nạp thêm vào CSDL đang chạy bằng `python -m app.catalog_import` (idempotent, chỉ thêm mã còn thiếu, **không** tạo tài khoản). Đây là bộ khởi đầu để chọn nhanh, **không thay thế** bộ ICD-10 đầy đủ của Bộ Y tế – nạp bộ đầy đủ ở Quản trị → Danh mục khi khách cung cấp.
 * Sao lưu bằng `python -m app.backup` (mục 8), không chỉ `pg_dump` thủ công, vì cần kèm tệp tài liệu.
 
 ## 4. Chạy ứng dụng

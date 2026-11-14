@@ -1,0 +1,18 @@
+# SCH-03 – Đợt khám: tên < 3 ký tự, hạn quá xa (> 3 năm) / quá cũ (> 1 năm trước) bị từ chối; điều dưỡng không tạo được đợt
+Trạng thái: PASS   Thời gian chạy: 5 ms
+Kết quả mong đợi: 422 cho dữ liệu sai; 403 cho nurse
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- manager1 POST /api/checkup-rounds
+    yêu cầu: {"name":"ab","due_date":"2026-11-23"}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"name","message":"cần tối thiểu 3 ký tự"}]}}
+- manager1 POST /api/checkup-rounds
+    yêu cầu: {"name":"Đợt xa 1qgkmd1","due_date":"2030-02-25"}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"due_date","message":"Hạn của đợt khám phải trong khoảng 1 năm trước đến 3 năm tới"}]}}
+- manager1 POST /api/checkup-rounds
+    yêu cầu: {"name":"Đợt cũ 1qgkmd1","due_date":"2025-10-09"}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"due_date","message":"Hạn của đợt khám phải trong khoảng 1 năm trước đến 3 năm tới"}]}}
+- nurse1 POST /api/checkup-rounds
+    yêu cầu: {"name":"Điều dưỡng tạo 1qgkmd1","due_date":"2026-11-23"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (checkup.manage)"}}

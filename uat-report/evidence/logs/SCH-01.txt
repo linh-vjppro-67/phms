@@ -1,0 +1,67 @@
+# SCH-01 – Tạo đợt khám định kỳ: chỉ gom người ĐANG QUẢN LÝ; người mới tiếp nhận (chưa khám ban đầu), đang chuyển viện, đang chờ chuyển trại bị loại trừ có lý do (WF-04, F5/O4)
+Trạng thái: PASS   Thời gian chạy: 64 ms
+Kết quả mong đợi: Nhiệm vụ cho người managed; người 'received' → loại trừ 'Chưa hoàn tất khám ban đầu'; người đang chuyển viện → loại trừ
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Định Kỳ Đủ Điều Kiện 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1qs6g4q"}
+    → 201 {"id":"0277e6b5-092b-4853-83d4-0ae02cdcbbe3","full_name":"UAT Định Kỳ Đủ Điều Kiện 1qgkmd1","name_key":"uat dinh ky du dieu kien 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qs6g4q","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T
+- officer1 POST /api/persons/0277e6b5-092b-4853-83d4-0ae02cdcbbe3/stays
+    yêu cầu: {}
+    → 201 {"id":"16515506-a2e0-4698-af8a-0a98bcf4d811","person_id":"0277e6b5-092b-4853-83d4-0ae02cdcbbe3","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:02:46.699948","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0277e6b5-092b-4853-83d4-0ae02cdcbbe3","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"f1b6bac5-655b-4cc5-8328-bf4694722b86","person_id":"0277e6b5-092b-4853-83d4-0ae02cdcbbe3","stay_id":"16515506-a2e0-4698-af8a-0a98bcf4d811","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/f1b6bac5-655b-4cc5-8328-bf4694722b86/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"f1b6bac5-655b-4cc5-8328-bf4694722b86","person_id":"0277e6b5-092b-4853-83d4-0ae02cdcbbe3","stay_id":"16515506-a2e0-4698-af8a-0a98bcf4d811","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/0277e6b5-092b-4853-83d4-0ae02cdcbbe3/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/f1b6bac5-655b-4cc5-8328-bf4694722b86/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"f1b6bac5-655b-4cc5-8328-bf4694722b86","person_id":"0277e6b5-092b-4853-83d4-0ae02cdcbbe3","stay_id":"16515506-a2e0-4698-af8a-0a98bcf4d811","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Định Kỳ Mới Tiếp Nhận 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1qs6sls"}
+    → 201 {"id":"f8059534-0a19-44c1-8d42-f6d5f40dff98","full_name":"UAT Định Kỳ Mới Tiếp Nhận 1qgkmd1","name_key":"uat dinh ky moi tiep nhan 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qs6sls","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-1
+- officer1 POST /api/persons/f8059534-0a19-44c1-8d42-f6d5f40dff98/stays
+    yêu cầu: {}
+    → 201 {"id":"29437983-ef08-4c77-96bb-2c59c75f2562","person_id":"f8059534-0a19-44c1-8d42-f6d5f40dff98","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:02:46.711820","hea
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Định Kỳ Đang Chuyển Viện 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1qs6xbg"}
+    → 201 {"id":"dc9ab447-63d8-471f-b473-dcd0db1706df","full_name":"UAT Định Kỳ Đang Chuyển Viện 1qgkmd1","name_key":"uat dinh ky dang chuyen vien 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qs6xbg","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"202
+- officer1 POST /api/persons/dc9ab447-63d8-471f-b473-dcd0db1706df/stays
+    yêu cầu: {}
+    → 201 {"id":"a3c3682a-2f49-4afb-a9ce-36d843170eae","person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:02:46.716367","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"e576117e-9a52-4ce3-bc38-28efd782c0f9","person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","stay_id":"a3c3682a-2f49-4afb-a9ce-36d843170eae","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/e576117e-9a52-4ce3-bc38-28efd782c0f9/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"e576117e-9a52-4ce3-bc38-28efd782c0f9","person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","stay_id":"a3c3682a-2f49-4afb-a9ce-36d843170eae","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/dc9ab447-63d8-471f-b473-dcd0db1706df/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/e576117e-9a52-4ce3-bc38-28efd782c0f9/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"e576117e-9a52-4ce3-bc38-28efd782c0f9","person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","stay_id":"a3c3682a-2f49-4afb-a9ce-36d843170eae","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"e13a7f9b-c8e7-4280-82b4-1878a23433d8","person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","stay_id":"a3c3682a-2f49-4afb-a9ce-36d843170eae","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/e13a7f9b-c8e7-4280-82b4-1878a23433d8/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"e13a7f9b-c8e7-4280-82b4-1878a23433d8","person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","stay_id":"a3c3682a-2f49-4afb-a9ce-36d843170eae","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e
+- doctor1 POST /api/encounters/e13a7f9b-c8e7-4280-82b4-1878a23433d8/referrals
+    yêu cầu: {"urgency":"emergency","reason":"Cấp cứu thử loại trừ","destination":"BV A"}
+    → 201 {"id":"1e219279-e263-4796-b453-74718a27fb59","encounter_id":"e13a7f9b-c8e7-4280-82b4-1878a23433d8","person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","urgency":"emergency","reason":"Cấp cứu thử loại trừ","status":"draft","destination":"BV A","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut
+- doctor1 PATCH /api/referrals/1e219279-e263-4796-b453-74718a27fb59/status
+    yêu cầu: {"to":"in_external_treatment"}
+    → 200 {"id":"1e219279-e263-4796-b453-74718a27fb59","encounter_id":"e13a7f9b-c8e7-4280-82b4-1878a23433d8","person_id":"dc9ab447-63d8-471f-b473-dcd0db1706df","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","urgency":"emergency","reason":"Cấp cứu thử loại trừ","status":"in_external_treatment","destination":"BV A","handover_docs":null,"left_at":"2026-11-13T14:02:46.731556","result_note":null,"post_refe
+- manager1 POST /api/checkup-rounds
+    yêu cầu: {"name":"UAT Đợt Khám 1qgkmd1","due_date":"2026-12-13"}
+    → 201 {"id":"ddf74cba-8a28-4004-8b53-3737d43d3c4e","name":"UAT Đợt Khám 1qgkmd1","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","due_date":"2026-12-13","criteria":{"min_days_since_last_periodic":null},"status":"open","excluded":[{"person_id":"e1ddbffd-45f9-44c0-bc35-a2a8af0991f5","reason":"Đang điều trị ngoài trại (chuyển viện)"},{"person_id":"b856fce5-9dd7-4f36-b65c-ecbec7aba458","reason":"Đã có 
+- SQL
+    yêu cầu: "select person_id from appointment where round_id='ddf74cba-8a28-4004-8b53-3737d43d3c4e'"
+    → - [{"person_id":"75608dcc-c02a-49ec-b75c-9b97e53c4d2d"},{"person_id":"a7d57305-af44-4ad1-addb-aa9196473f0b"},{"person_id":"89a6df19-2be4-442b-b836-09a43d6a0e33"},{"person_id":"dc0b1122-0a58-4ff3-ad51-a5acc73de8e1"},{"person_id":"ebbf0cad-47b5-4e05-bcf9-0c8e76c8f9f8"},{"person_id":"8f533006-a3de-4a0f-82a6-e4d19200bed8"},{"person_id":"f7cffa1c-c974-43bc-95fd-8946e5ef2a23"},{"person_id":"e25d5353-225e-
+- SQL
+    yêu cầu: "select excluded x from checkup_round where id='ddf74cba-8a28-4004-8b53-3737d43d3c4e'"
+    → - [{"x":"[{\"person_id\": \"e1ddbffd-45f9-44c0-bc35-a2a8af0991f5\", \"reason\": \"\\u0110ang \\u0111i\\u1ec1u tr\\u1ecb ngo\\u00e0i tr\\u1ea1i (chuy\\u1ec3n vi\\u1ec7n)\"}, {\"person_id\": \"b856fce5-9dd7-4f36-b65c-ecbec7aba458\", \"reason\": \"\\u0110\\u00e3 c\\u00f3 l\\u1ecbch kh\\u00e1m \\u0111\\u1ecbnh k\\u1ef3 kh\\u00e1c \\u0111ang m\\u1edf (tr\\u00e1nh tr\\u00f9ng l\\u1ecbch)\"}, {\"person_id\

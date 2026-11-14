@@ -1,0 +1,76 @@
+# MED-02 – Dị ứng chéo cùng nhóm: dị ứng Penicillin → cảnh báo khi kê Amoxicillin; trùng thuốc đang hiệu lực → cảnh báo
+Trạng thái: PASS   Thời gian chạy: 48 ms
+Kết quả mong đợi: Có cảnh báo 'cùng nhóm' và 'trùng đơn đang hiệu lực'
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Nhóm Thuốc 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1qptnn6"}
+    → 201 {"id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","full_name":"UAT Nhóm Thuốc 1qgkmd1","name_key":"uat nhom thuoc 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qptnn6","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:43.644470"}
+- officer1 POST /api/persons/e9b4acad-2493-43dc-9f73-b4e0ba99beef/stays
+    yêu cầu: {}
+    → 201 {"id":"6d0a4b1a-fd19-452b-9e6d-083b2ffa3c93","person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:02:43.646474","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"e5036459-3053-45fa-8f98-df1a7373b9ef","person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","stay_id":"6d0a4b1a-fd19-452b-9e6d-083b2ffa3c93","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/e5036459-3053-45fa-8f98-df1a7373b9ef/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"e5036459-3053-45fa-8f98-df1a7373b9ef","person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","stay_id":"6d0a4b1a-fd19-452b-9e6d-083b2ffa3c93","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/e9b4acad-2493-43dc-9f73-b4e0ba99beef/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/e5036459-3053-45fa-8f98-df1a7373b9ef/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"e5036459-3053-45fa-8f98-df1a7373b9ef","person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","stay_id":"6d0a4b1a-fd19-452b-9e6d-083b2ffa3c93","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- doctor1 POST /api/persons/e9b4acad-2493-43dc-9f73-b4e0ba99beef/allergies
+    yêu cầu: {"substance":"Penicillin","confirmed":true}
+    → 201 {"id":"9d61da9b-a717-437a-8489-4d359dd699b6","record_id":"28fff06d-7391-4a13-9aa9-be860d6ffe43","substance":"Penicillin","reaction":null,"severity":null,"confirmed":true,"source":null,"effective_from":null,"active":true,"inactive_reason":null,"inactive_by":null,"inactive_at":null,"recorded_by":"d8d6c470-91af-49ba-8573-91ad39e44b6f","recorded_at":"2026-11-13T14:02:43.656793"}
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"8b2fdfca-f1db-4bc7-bb14-9c7860f446be","person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","stay_id":"6d0a4b1a-fd19-452b-9e6d-083b2ffa3c93","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/8b2fdfca-f1db-4bc7-bb14-9c7860f446be/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"8b2fdfca-f1db-4bc7-bb14-9c7860f446be","person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","stay_id":"6d0a4b1a-fd19-452b-9e6d-083b2ffa3c93","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e
+- doctor1 POST /api/encounters/8b2fdfca-f1db-4bc7-bb14-9c7860f446be/medication-orders
+    yêu cầu: {"drug_name":"Amoxicillin 500mg","drug_code":"AMOX500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"6c2859d1-42d4-4dee-8cf1-dc4592a3eac3","encounter_id":"8b2fdfca-f1db-4bc7-bb14-9c7860f446be","person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"AMOX500","drug_name":"Amoxicillin 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/6c2859d1-42d4-4dee-8cf1-dc4592a3eac3/stop
+    yêu cầu: {"outcome":"cancelled"}
+    → 200 {"id":"6c2859d1-42d4-4dee-8cf1-dc4592a3eac3","encounter_id":"8b2fdfca-f1db-4bc7-bb14-9c7860f446be","person_id":"e9b4acad-2493-43dc-9f73-b4e0ba99beef","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"AMOX500","drug_name":"Amoxicillin 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30,"
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Trùng Thuốc 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1qpu921"}
+    → 201 {"id":"441bb240-235e-4802-8ee1-b2a3f942b451","full_name":"UAT Trùng Thuốc 1qgkmd1","name_key":"uat trung thuoc 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qpu921","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:43.666503"}
+- officer1 POST /api/persons/441bb240-235e-4802-8ee1-b2a3f942b451/stays
+    yêu cầu: {}
+    → 201 {"id":"ad2aa70e-631a-4753-9f11-abb9cf96b89c","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:02:43.668469","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"0d3cd0c5-5b24-4b5d-847e-b002b0f4f31b","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","stay_id":"ad2aa70e-631a-4753-9f11-abb9cf96b89c","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/0d3cd0c5-5b24-4b5d-847e-b002b0f4f31b/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"0d3cd0c5-5b24-4b5d-847e-b002b0f4f31b","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","stay_id":"ad2aa70e-631a-4753-9f11-abb9cf96b89c","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/441bb240-235e-4802-8ee1-b2a3f942b451/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/0d3cd0c5-5b24-4b5d-847e-b002b0f4f31b/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"0d3cd0c5-5b24-4b5d-847e-b002b0f4f31b","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","stay_id":"ad2aa70e-631a-4753-9f11-abb9cf96b89c","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"9c586a67-6309-40a7-bda3-fdb1a2e9bb8c","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","stay_id":"ad2aa70e-631a-4753-9f11-abb9cf96b89c","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/9c586a67-6309-40a7-bda3-fdb1a2e9bb8c/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"9c586a67-6309-40a7-bda3-fdb1a2e9bb8c","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","stay_id":"ad2aa70e-631a-4753-9f11-abb9cf96b89c","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e
+- doctor1 POST /api/encounters/9c586a67-6309-40a7-bda3-fdb1a2e9bb8c/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"d0171bb8-6275-477d-8f10-2d3652a15f2f","encounter_id":"9c586a67-6309-40a7-bda3-fdb1a2e9bb8c","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/d0171bb8-6275-477d-8f10-2d3652a15f2f/confirm
+    yêu cầu: {}
+    → 200 {"id":"d0171bb8-6275-477d-8f10-2d3652a15f2f","encounter_id":"9c586a67-6309-40a7-bda3-fdb1a2e9bb8c","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"956cee4c-37c3-4a29-a766-ebe8f8e191fd","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","stay_id":"ad2aa70e-631a-4753-9f11-abb9cf96b89c","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/956cee4c-37c3-4a29-a766-ebe8f8e191fd/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"956cee4c-37c3-4a29-a766-ebe8f8e191fd","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","stay_id":"ad2aa70e-631a-4753-9f11-abb9cf96b89c","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e
+- doctor1 POST /api/encounters/956cee4c-37c3-4a29-a766-ebe8f8e191fd/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"737a01b3-c870-4afc-95d4-e5a18f0ddd5e","encounter_id":"956cee4c-37c3-4a29-a766-ebe8f8e191fd","person_id":"441bb240-235e-4802-8ee1-b2a3f942b451","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30,"

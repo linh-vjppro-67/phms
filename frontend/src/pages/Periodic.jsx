@@ -47,7 +47,7 @@ function RoundDetail({ id, reloadList }) {
             columns={[{ h: "Người", c: (t) => <b>{t.person_name || t.person_id.slice(0, 8)}</b> }, { h: "Hạn", c: (t) => <>{fmtDate(t.due_date)} {t.overdue && <Badge tone="bad">Quá hạn</Badge>}</> }, { h: "Trạng thái", c: (t) => <><Status d="appt" v={t.status} />{t.status_reason && <div className="muted sm">{t.status_reason}</div>}</> },
               { h: "", cls: "r", c: (t) => ["scheduled", "due"].includes(t.status) && r.status !== "locked" && (
                 <div className="row" style={{ justifyContent: "flex-end" }}>
-                  {has("encounter.write") && <button className="btn sm primary" onClick={() => examine(t)}>Khám</button>}
+                  {has("encounter.examine") && <button className="btn sm primary" onClick={() => examine(t)}>Khám</button>}
                   {has("schedule.write") && <button className="btn sm" onClick={() => setM({ t, to: "postponed" })}>Hoãn</button>}
                   {has("schedule.write") && <button className="btn sm" onClick={() => setM({ t, to: "not_done" })}>Không thực hiện</button>}
                 </div>) }]} />

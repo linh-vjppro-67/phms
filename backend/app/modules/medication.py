@@ -11,8 +11,8 @@ from sqlalchemy.orm import Session
 
 from .. import config
 from ..audit import audit
-from ..db import get_db
-from ..deps import ensure_clinical_access, require
+from ..db import get_db, lock_row
+from ..deps import ensure_clinical_access, ensure_clinical_write, require
 from ..idempotency import idempotent, run_idempotent
 from ..notify import emit, person_name
 from ..models import (AdministrationEvent, Allergy, CatalogItem, DispenseEvent, Encounter, HealthRecord,
@@ -24,8 +24,19 @@ router = APIRouter()
 ACTIVE = ("confirmed", "active")
 
 
+def order_chain(db: Session, order: MedicationOrder) -> list[str]:
+    """Đơn + các bản trước của nó (điều chỉnh = bản mới tham chiếu bản cũ). Lượng đã cấp được cộng dồn qua cả chuỗi."""
+    ids, cur = [order.id], order
+    while cur.parent_order_id and cur.parent_order_id not in ids:
+        cur = db.get(MedicationOrder, cur.parent_order_id)
+        if not cur:
+            break
+        ids.append(cur.id)
+    return ids
+
+
 def dispense_totals(db: Session, order: MedicationOrder) -> dict:
-    evs = db.scalars(select(DispenseEvent).where(DispenseEvent.order_id == order.id)).all()
+    evs = db.scalars(select(DispenseEvent).where(DispenseEvent.order_id.in_(order_chain(db, order)))).all()
     net = sum(e.quantity if e.kind == "dispense" else -e.quantity for e in evs)
     status = "none" if net <= 0 else ("full" if net >= order.quantity_prescribed else "partial")
     return {"dispensed_net": net, "remaining": max(order.quantity_prescribed - net, 0), "dispense_status": status}
@@ -89,7 +100,7 @@ class OrderIn(BaseModel):
     frequency: str = Field(min_length=1)
     start_date: date
     duration_days: int = Field(gt=0, le=3650)
-    quantity_prescribed: float = Field(gt=0)
+    quantity_prescribed: float = Field(gt=0, le=1_000_000, allow_inf_nan=False)
     instructions: str | None = None
     supervised: bool = False
 
@@ -121,7 +132,7 @@ class OrderPatch(BaseModel):
     route: str | None = None
     frequency: str | None = None
     duration_days: int | None = Field(default=None, gt=0)
-    quantity_prescribed: float | None = Field(default=None, gt=0)
+    quantity_prescribed: float | None = Field(default=None, gt=0, le=1_000_000, allow_inf_nan=False)
     instructions: str | None = None
     supervised: bool | None = None
     expected_version: int | None = None
@@ -131,7 +142,7 @@ def _load_order(db: Session, user: User, order_id: str, request: Request, write:
     o = db.get(MedicationOrder, order_id)
     if not o:
         fail(404, "ORDER_NOT_FOUND", "Không tìm thấy đơn thuốc")
-    ensure_clinical_access(db, user, o.person_id, request)
+    (ensure_clinical_write if write else ensure_clinical_access)(db, user, o.person_id, request)
     if write and o.facility_id != user.facility_id:
         fail(403, "FACILITY_SCOPE", "Đơn thuộc cơ sở khác")
     return o
@@ -181,6 +192,7 @@ class ConfirmIn(BaseModel):
 def confirm_order(order_id: str, body: ConfirmIn, request: Request, user: User = Depends(require("medorder.confirm")),
                   db: Session = Depends(get_db)):
     o = _load_order(db, user, order_id, request, write=True)
+    o = lock_row(db, MedicationOrder, o.id)      # DEF-03: hai lần xác nhận đồng thời -> chỉ một lần thành công, lần sau thấy đơn không còn nháp
     if o.status != "draft":
         fail(409, "NOT_DRAFT", "Chỉ đơn nháp mới xác nhận được")
     e = db.get(Encounter, o.encounter_id)
@@ -219,6 +231,7 @@ def revise_order(order_id: str, body: ReviseIn, request: Request, user: User = D
                  db: Session = Depends(get_db)):
     """Điều chỉnh đơn đã xác nhận = tạo phiên bản mới (nháp) tham chiếu bản cũ."""
     p = _load_order(db, user, order_id, request, write=True)
+    p = lock_row(db, MedicationOrder, p.id)      # DEF-03: hai lần điều chỉnh đồng thời -> không sinh hai bản nháp v2
     if p.status not in ACTIVE:
         fail(409, "NOT_REVISABLE", "Chỉ đơn đã xác nhận/đang hiệu lực mới điều chỉnh")
     if db.scalars(select(MedicationOrder.id).where(MedicationOrder.parent_order_id == p.id,
@@ -242,15 +255,20 @@ def revise_order(order_id: str, body: ReviseIn, request: Request, user: User = D
 
 class StopIn(BaseModel):
     outcome: str = Field(pattern="^(stopped|completed|cancelled)$")
-    reason: str = Field(min_length=3)
+    reason: str | None = Field(default=None, max_length=1000)      # bắt buộc (≥3 ký tự) trừ khi xóa ĐƠN NHÁP
 
 
 @router.post("/medication-orders/{order_id}/stop", tags=["medication"])
 def stop_order(order_id: str, body: StopIn, request: Request, user: User = Depends(require("medorder.write")),
                db: Session = Depends(get_db)):
     o = _load_order(db, user, order_id, request, write=True)
+    o = lock_row(db, MedicationOrder, o.id)
     if o.status not in ("draft", *ACTIVE):
         fail(409, "NOT_STOPPABLE", "Đơn không ở trạng thái có thể dừng")
+    if o.status == "draft" and body.outcome == "cancelled":
+        body.reason = (body.reason or "").strip() or "Xóa đơn nháp"      # đơn nháp chưa có hiệu lực: bỏ đơn không cần lý do
+    elif len((body.reason or "").strip()) < 3:
+        fail(422, "REASON_REQUIRED", "Cần nêu lý do (tối thiểu 3 ký tự)")
     if body.outcome == "cancelled" and db.scalars(select(DispenseEvent.id).where(
             DispenseEvent.order_id == o.id).limit(1)).first():
         fail(409, "ALREADY_DISPENSED", "Đơn đã có cấp phát – dùng 'stopped' thay vì hủy")
@@ -263,7 +281,7 @@ def stop_order(order_id: str, body: StopIn, request: Request, user: User = Depen
 
 # ----------------------------------------------------------------- cấp phát
 class DispenseIn(BaseModel):
-    quantity: float = Field(gt=0)
+    quantity: float = Field(gt=0, le=1_000_000, allow_inf_nan=False)
     kind: str = Field(default="dispense", pattern="^(dispense|return|cancel)$")
     ref_dispense_id: str | None = None
     occurred_at: datetime | None = None
@@ -275,6 +293,7 @@ def dispense(order_id: str, body: DispenseIn, request: Request, user: User = Dep
              db: Session = Depends(get_db)):
     def work():
         o = _load_order(db, user, order_id, request, write=True)
+        o = lock_row(db, MedicationOrder, o.id)       # tuần tự hóa: hai lần cấp cùng lúc không thể cùng vượt số kê
         now = utcnow()
         occ = norm_dt(body.occurred_at) or now
         if occ > now + timedelta(minutes=config.FUTURE_TOLERANCE_MIN):
@@ -296,7 +315,7 @@ def dispense(order_id: str, body: DispenseIn, request: Request, user: User = Dep
             if not body.ref_dispense_id or not body.note:
                 fail(422, "REF_REQUIRED", "Hoàn trả/hủy cần ref_dispense_id và lý do (note)")
             ref = db.get(DispenseEvent, body.ref_dispense_id)
-            if not ref or ref.order_id != o.id or ref.kind != "dispense":
+            if not ref or ref.order_id not in order_chain(db, o) or ref.kind != "dispense":
                 fail(404, "REF_NOT_FOUND", "Không tìm thấy lần cấp phát tham chiếu")
             returned = sum(x.quantity for x in db.scalars(select(DispenseEvent).where(
                 DispenseEvent.ref_dispense_id == ref.id)))
@@ -330,6 +349,10 @@ def administer(order_id: str, body: AdminIn, request: Request, user: User = Depe
     occ = norm_dt(body.occurred_at) or now
     if occ > now + timedelta(minutes=config.FUTURE_TOLERANCE_MIN):
         fail(422, "FUTURE_TIME", "occurred_at không được ở tương lai")
+    if o.status not in ACTIVE:      # đơn nháp/đã dừng/đã hủy/đã thay thế: không có việc "dùng thuốc"
+        fail(409, "ORDER_NOT_ACTIVE", f"Đơn đang ở trạng thái '{o.status}' – chỉ ghi nhận dùng thuốc với đơn đã xác nhận/đang hiệu lực")
+    if occ.date() < o.start_date:
+        fail(409, "ORDER_NOT_STARTED", f"Đơn chỉ có hiệu lực từ {o.start_date.strftime('%d/%m/%Y')}")
     if not body.administered and not (body.reason and body.reason.strip()):
         fail(422, "REASON_REQUIRED", "Không sử dụng thuốc (từ chối/quên liều/đổi thuốc) phải ghi lý do")
     if body.administered:

@@ -1,0 +1,18 @@
+# DOC-04 – Thay thế tài liệu → v2, bản cũ 'đã có bản thay thế' (không xóa); đánh dấu không hợp lệ bắt buộc lý do, giữ nguyên tệp gốc (K4)
+Trạng thái: PASS   Thời gian chạy: 14 ms
+Kết quả mong đợi: replace 201; DB: bản cũ status≠valid; invalidate không lý do → 422; có lý do → 200
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- SQL
+    yêu cầu: "select status s from medical_document where id='265e2ec2-feaa-42e8-95c9-8d7f03f1a490'"
+    → - [{"s":"superseded"}]
+- nurse1 POST /api/documents/8d32bc31-2cf2-45fa-bc22-f8068f3899ae/invalidate
+    yêu cầu: {}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"reason","message":"bắt buộc nhập"}]}}
+- nurse1 POST /api/documents/8d32bc31-2cf2-45fa-bc22-f8068f3899ae/invalidate
+    yêu cầu: {"reason":"Tải nhầm người bệnh"}
+    → 200 {"id":"8d32bc31-2cf2-45fa-bc22-f8068f3899ae","person_id":"31ee349a-caa6-4821-9107-111d265a026a","encounter_id":null,"referral_id":null,"stay_id":null,"facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","doc_type":"lab_result","source":null,"issued_date":null,"filename":"v2.pdf","mime":"application/pdf","size":259,"checksum":"5b48364fef9f7f844c58a1327a52707a18c7d9c8297748263d337091324e930a","versi
+- SQL
+    yêu cầu: "select count(*) n from medical_document where id in ('265e2ec2-feaa-42e8-95c9-8d7f03f1a490','8d32bc31-2cf2-45fa-bc22-f8068f3899ae')"
+    → - [{"n":2}]

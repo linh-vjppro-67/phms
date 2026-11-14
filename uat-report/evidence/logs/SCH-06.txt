@@ -1,0 +1,22 @@
+# SCH-06 – Tác vụ nền (scheduler) chạy lặp không sinh cảnh báo/nhắc việc trùng (G6)
+Trạng thái: PASS   Thời gian chạy: 29 ms
+Kết quả mong đợi: Số alert trước/sau lần chạy thứ 2 bằng nhau
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- admin POST /api/scheduler/run
+    → 200 {"marked_due":0,"overdue_alerts":0,"care_plan_tasks":0,"escalated":0,"postponed_out_of_scope":0,"notifications_purged":0,"course_ending_alerts":1,"course_alerts_closed":0}
+- SQL
+    yêu cầu: "select count(*) n from alert"
+    → - [{"n":12}]
+- SQL
+    yêu cầu: "select count(*) n from notification"
+    → - [{"n":635}]
+- admin POST /api/scheduler/run
+    → 200 {"marked_due":0,"overdue_alerts":0,"care_plan_tasks":0,"escalated":0,"postponed_out_of_scope":0,"notifications_purged":0,"course_ending_alerts":0,"course_alerts_closed":0}
+- SQL
+    yêu cầu: "select count(*) n from alert"
+    → - [{"n":12}]
+- SQL
+    yêu cầu: "select count(*) n from notification"
+    → - [{"n":635}]

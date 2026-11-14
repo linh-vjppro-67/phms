@@ -1,0 +1,15 @@
+# EMG-04 – Thông báo CẤP CỨU: điều dưỡng cùng trại nhận (Khẩn); người ghi không tự nhận; trại khác không nhận (N4)
+Trạng thái: PASS   Thời gian chạy: 13 ms
+Kết quả mong đợi: nurse1 có thông báo emergency.created; doctor1 (người ghi) & nurse2 không
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- doctor1 POST /api/emergency-events
+    yêu cầu: {"temp_identity":"Thông báo cấp cứu 1qgkmd1","location":"Buồng 7"}
+    → 201 {"id":"504f9944-e284-467a-b60f-b0ec77362ebd","person_id":"0784553e-85e2-4659-bc83-7971911abce6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","encounter_id":"cd268ebe-3acb-47e3-8599-cb9a7b6a3c38","temp_identity":"Thông báo cấp cứu 1qgkmd1","location":"Buồng 7","reporter":null,"description":null,"status":"open","timeline":[],"late_entry_reason":null,"closing_note":null,"closed_by":null,"crea
+- nurse1 GET /api/notifications?limit=200
+    → 200 {"items":[{"seq":595,"id":"21bca3cb-4382-4e9d-aa4a-84d03d6381e2","category":"emergency","kind":"emergency.created","severity":"critical","title":"CẤP CỨU: Buồng 7","body":"[TẠM] Thông báo cấp cứu 1qgkmd1","link_page":"emergency","link_ref":"504f9944-e284-467a-b60f-b0ec77362ebd","person_id":"0784553e-85e2-4659-bc83-7971911abce6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","created_at":"202
+- doctor1 GET /api/notifications?limit=200
+    → 200 {"items":[{"seq":588,"id":"2f4efdf4-645b-4c22-9b15-812d4fc479e6","category":"emergency","kind":"emergency.created","severity":"critical","title":"CẤP CỨU","body":"[TẠM] Cấp cứu đóng sự kiện 1qgkmd1 – Ngất xỉu","link_page":"emergency","link_ref":"4bfe1463-d47e-40ca-9cd4-6cc4fcfdf508","person_id":"186a6278-0a70-4d50-a32f-8c5fdf26a5d6","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","created_at"
+- nurse2 GET /api/notifications?limit=200
+    → 200 {"items":[{"seq":531,"id":"51f2ee6a-61a3-46a3-9dd2-7fc0ec760b0d","category":"intake","kind":"intake.new_person","severity":"info","title":"Người mới tiếp nhận cần khám ban đầu","body":"UAT BG Liên Cơ Sở 1qgkmd1 vừa được tiếp nhận, chờ khám sức khỏe ban đầu.","link_page":"initial","link_ref":null,"person_id":"79f3527b-ce02-4b27-ab71-6b7fdca2a366","facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c"

@@ -40,3 +40,6 @@ NOTIFY_MAX_AGE_DAYS = int(os.getenv("PHMS_NOTIFY_MAX_AGE_DAYS", "365"))
 
 BREAK_GLASS_MINUTES = int(os.getenv("PHMS_BREAK_GLASS_MINUTES", "30"))   # hạn của một lần truy cập khẩn cấp
 MED_COURSE_REMIND_DAYS = int(os.getenv("PHMS_MED_COURSE_REMIND_DAYS", "3"))  # nhắc trước khi hết liệu trình
+
+# Cơ sở không có dược sĩ: cho điều dưỡng cấp phát thuốc theo y lệnh (mặc định TẮT – cấp phát là việc của dược)
+NURSE_CAN_DISPENSE = os.getenv("PHMS_NURSE_CAN_DISPENSE", "0") == "1"

@@ -78,7 +78,7 @@ def test_confirmed_order_notifies_dispensers_not_prescriber(api):
     p, _ = api.patient()
     e = api.encounter(p["id"])
     o = api.confirmed_order(e["id"])
-    assert "medication.confirmed" in kinds(api, "pharm1") and "medication.confirmed" in kinds(api, "nurse1")
+    assert "medication.confirmed" in kinds(api, "pharm1") and "medication.confirmed" not in kinds(api, "nurse1")   # điều dưỡng không cấp phát
     assert "medication.confirmed" not in kinds(api, "doctor1") and kinds(api, "pharm2") == []
     assert inbox(api, "pharm1")["items"][0]["link_ref"] == o["id"]
 
@@ -175,7 +175,7 @@ def test_dedupe_and_preferences(api):
     assert {x["category"]: x["enabled"] for x in out}["medication"] is False
     p, _ = api.patient()
     api.confirmed_order(api.encounter(p["id"])["id"])
-    assert "medication.confirmed" not in kinds(api, "pharm1") and "medication.confirmed" in kinds(api, "nurse1")   # chỉ người đã tắt bị bỏ qua
+    assert "medication.confirmed" not in kinds(api, "pharm1")                                                      # người đã tắt bị bỏ qua
     api.put("pharm1", "/api/notifications/preferences", {"categories": {"medication": True}})
     with SessionLocal() as db:        # emit cùng khóa hai lần -> chỉ một bản ghi
         from app.models import User

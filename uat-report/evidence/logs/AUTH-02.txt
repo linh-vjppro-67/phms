@@ -1,0 +1,6 @@
+# AUTH-02 – Sai mật khẩu / tài khoản không tồn tại: từ chối, thông báo không lộ tài khoản có tồn tại hay không
+Trạng thái: PASS   Thời gian chạy: 1170 ms
+Kết quả mong đợi: HTTP 401 cho cả hai trường hợp, cùng một thông điệp
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)

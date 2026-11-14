@@ -1,0 +1,6 @@
+# NAV-manager – Menu của Quản lý y tế chỉ gồm các phân hệ được phép (đối chiếu 04-§2)
+Trạng thái: PASS   Thời gian chạy: 285 ms
+Kết quả mong đợi: Thấy: Báo cáo, Khám định kỳ. KHÔNG thấy: Quản trị, Khám ban đầu, Cấp phát, Tiếp nhận & Hồ sơ
+Kết quả thực tế: Menu: Bảng điều khiển | Khám định kỳM07 | Bệnh lý & Cảnh báoM08 | Chuyển việnM09 | Báo cáo & Thống kêM10
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)

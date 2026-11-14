@@ -1,5 +1,26 @@
 # 03 – Kịch bản dữ liệu demo
 
+## Bộ dữ liệu GỌN: 10 người (`python -m app.demo_small --reset`)
+Dùng khi cần dữ liệu ít, dễ theo dõi (bộ đầy đủ ~44 hồ sơ ở bên dưới). **`--reset` xóa toàn bộ dữ liệu hiện có** (tài khoản mẫu được tạo lại, mật khẩu `Phms@2026dev`). Mỗi người đại diện một luồng:
+
+| # | Người | Luồng để test | Đăng nhập thử |
+|---|---|---|---|
+| 1 | Lê Quốc Bảo | Mới tiếp nhận, **chờ khám ban đầu** | `doctor1` → Khám ban đầu |
+| 2 | Phạm Minh Tuấn | **Đang khám ban đầu dở** (đã đo sinh hiệu) | `doctor1` |
+| 3 | Hoàng Văn Nam | Khỏe mạnh; vừa khám cảm cúm, thuốc đã cấp + ghi nhận dùng; **đơn sắp hết liệu trình** | `nurse1`, `pharm1` |
+| 4 | Đỗ Văn Cường | Tăng huyết áp, **dị ứng Aspirin**, 2 thuốc giám sát, kế hoạch theo dõi, **lịch quá hạn** | `nurse1` (cảnh báo), `doctor1` |
+| 5 | Vũ Đình Khoa | Đái tháo đường, kế hoạch theo dõi, **thuốc cấp phát một phần** | `pharm1` |
+| 6 | Bùi Hữu Lộc | **Lao phổi**, phác đồ 4 thuốc, giám sát dùng thuốc (có lần *không dùng*) | `nurse1` → Cấp phát → Giám sát |
+| 7 | Ngô Thanh Sơn | **Chuyển viện chờ phê duyệt** | `approver1` → Chuyển viện |
+| 8 | Đặng Văn Hải | **Chuyển trại** sang Trại 2, tóm tắt đã soạn, **chờ xác nhận** | `officer1` → Chuyển trại |
+| 9 | Trịnh Văn Dũng | **Cấp cứu đang mở**, hồ sơ **không mã** → chờ đối soát (cán bộ tiếp nhận có thông báo) | `officer1` đối soát → `doctor1` đóng sự kiện |
+| 10 | Lý Thị Hoa | **Đơn đã xác nhận chờ cấp phát** + **đơn nháp** (thử Xác nhận / Xóa nháp) | `pharm1`, `doctor1` |
+
+Ngoài ra có một đợt khám định kỳ Quý 4 đang chạy (manager1) và các cảnh báo do tác vụ nền sinh ra. Muốn đối soát người số 9 để thử đóng cấp cứu: hệ thống nguồn `QLPN`, mã thử `TEST-0001`.
+
+---
+
+
 Toàn bộ là **dữ liệu hư cấu** (tên, mã phạm nhân PN-26-xxxx, số quyết định, bệnh viện, PDF). Được tạo bằng `python -m app.demo` qua chính API nghiệp vụ nên đúng phân quyền, máy trạng thái và có nhật ký kiểm toán. Mốc thời gian tính theo ngày chạy; xảy ra trong quá khứ thì lưu `occurred_at` lùi, còn `recorded_at` là lúc nạp dữ liệu (giống “nhập bổ sung”).
 
 ## Quy mô (Trại 1 = F01, Trại 2 = F02)

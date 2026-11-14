@@ -38,6 +38,14 @@ def _out(db: Session, m: PersonMergeRequest) -> dict:
     return d
 
 
+def _guard_elsewhere(db: Session, facility_id: str | None, *ids: str) -> None:
+    """Không gộp người đang có đợt tiếp nhận HIỆU LỰC ở cơ sở khác (dữ liệu của họ thuộc cơ sở đó quản lý)."""
+    for pid in ids:
+        st = active_stay(db, pid)
+        if st and st.facility_id != facility_id:
+            fail(409, "ACTIVE_ELSEWHERE", "Một trong hai hồ sơ đang được quản lý ở cơ sở khác – không thể gộp từ cơ sở của bạn")
+
+
 def _may_request(db: Session, user: User, *ids: str) -> bool:
     """Người lập chỉ được đề nghị với hồ sơ mà cơ sở của mình có liên quan (có đợt tiếp nhận) hoặc do chính mình tạo."""
     for pid in ids:
@@ -61,6 +69,7 @@ def request_merge(body: MergeIn, request: Request, user: User = Depends(require(
     src, tgt = person_or_404(db, body.source_id), person_or_404(db, body.target_id)
     if not _may_request(db, user, src.id, tgt.id):
         fail(403, "FORBIDDEN", "Cơ sở của bạn không có liên quan tới hai hồ sơ này")
+    _guard_elsewhere(db, user.facility_id, src.id, tgt.id)
     if db.scalars(select(PersonMergeRequest.id).where(
             PersonMergeRequest.status == "pending",
             or_(PersonMergeRequest.source_id.in_((src.id, tgt.id)), PersonMergeRequest.target_id.in_((src.id, tgt.id)))).limit(1)).first():
@@ -149,6 +158,7 @@ def decide_merge(mid: str, body: DecideIn, request: Request, user: User = Depend
         fail(403, "FACILITY_SCOPE", "Đề nghị gộp thuộc cơ sở khác – chỉ người điều phối của cơ sở đó được xử lý")
     if m.status != "pending":
         fail(409, "NOT_PENDING", f"Đề nghị đã ở trạng thái '{m.status}'")
+    _guard_elsewhere(db, user.facility_id, m.source_id, m.target_id)        # đề nghị cũ: kiểm lại lúc duyệt (tình hình có thể đã đổi)
     if m.requested_by == user.id:
         fail(403, "FOUR_EYES", "Người lập đề nghị không được tự phê duyệt (nguyên tắc bốn mắt)")
     if not body.approve and not (body.note and len(body.note.strip()) >= 3):

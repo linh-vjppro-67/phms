@@ -51,7 +51,8 @@ export default function Prescribing() {
               <div className="row">
                 {o.status === "draft" && has("medorder.confirm") && <button className="btn sm primary" onClick={() => oa.confirmOrder(o)}>Xác nhận</button>}
                 {["confirmed", "active"].includes(o.status) && has("medorder.write") && <button className="btn sm" onClick={() => oa.reviseOrder(o)}>Điều chỉnh</button>}
-                {["draft", "confirmed", "active"].includes(o.status) && has("medorder.write") && <button className="btn sm" onClick={() => oa.stopOrder(o)}>Dừng</button>}
+                {o.status === "draft" && has("medorder.write") && <button className="btn sm" title="Xóa đơn nháp kê nhầm (chưa có hiệu lực)" onClick={() => oa.stopOrder(o)}>Xóa nháp</button>}
+                {["confirmed", "active"].includes(o.status) && has("medorder.write") && <button className="btn sm" title="Ngừng thuốc đã có hiệu lực" onClick={() => oa.stopOrder(o)}>Dừng thuốc</button>}
                 <button className="btn sm ghost" onClick={() => setOpen(o.encounter_id)}>Lượt khám</button>
               </div>)} />
         )}

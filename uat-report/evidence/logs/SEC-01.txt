@@ -1,0 +1,6 @@
+# SEC-01 – Tiêu đề bảo mật: CSP, X-Frame-Options, nosniff, no-store, Referrer-Policy, Permissions-Policy
+Trạng thái: PASS   Thời gian chạy: 2 ms
+Kết quả mong đợi: Có đủ các header trên ở trang và API
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)

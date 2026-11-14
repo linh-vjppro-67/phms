@@ -1,0 +1,24 @@
+# EXP-03 – 5 yêu cầu đồng thời tạo hồ sơ với CÙNG mã nguồn: chỉ 1 hồ sơ (BR-01)
+Trạng thái: PASS   Thời gian chạy: 21 ms
+Kết quả mong đợi: DB có đúng 1 person với mã đó; không lỗi 5xx
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Race Tên 1 1qgkmd1","source_system":"QLPN","external_id":"UAT-RACE-1qgkmd1","confirm_distinct":true}
+    → 201 {"id":"b460f4b1-c65b-471d-8fa0-d1da37b1f399","full_name":"UAT Race Tên 1 1qgkmd1","name_key":"uat race ten 1 1qgkmd1","date_of_birth":null,"gender":null,"source_system":"QLPN","external_id":"UAT-RACE-1qgkmd1","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:17.976363"}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Race Tên 4 1qgkmd1","source_system":"QLPN","external_id":"UAT-RACE-1qgkmd1","confirm_distinct":true}
+    → 409 {"error":{"code":"CONFLICT","message":"Dữ liệu này vừa được người khác tạo hoặc thay đổi – hãy tải lại rồi thử lại"}}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Race Tên 0 1qgkmd1","source_system":"QLPN","external_id":"UAT-RACE-1qgkmd1","confirm_distinct":true}
+    → 409 {"error":{"code":"CONFLICT","message":"Dữ liệu này vừa được người khác tạo hoặc thay đổi – hãy tải lại rồi thử lại"}}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Race Tên 2 1qgkmd1","source_system":"QLPN","external_id":"UAT-RACE-1qgkmd1","confirm_distinct":true}
+    → 409 {"error":{"code":"CONFLICT","message":"Dữ liệu này vừa được người khác tạo hoặc thay đổi – hãy tải lại rồi thử lại"}}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Race Tên 3 1qgkmd1","source_system":"QLPN","external_id":"UAT-RACE-1qgkmd1","confirm_distinct":true}
+    → 409 {"error":{"code":"CONFLICT","message":"Dữ liệu này vừa được người khác tạo hoặc thay đổi – hãy tải lại rồi thử lại"}}
+- SQL
+    yêu cầu: "select count(*) n from person where external_id='UAT-RACE-1qgkmd1'"
+    → - [{"n":1}]

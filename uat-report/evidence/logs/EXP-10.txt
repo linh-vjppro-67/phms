@@ -1,0 +1,16 @@
+# EXP-10 – Tra cứu danh tính liên cơ sở: chỉ vai trò cần đối soát trùng (cán bộ tiếp nhận) mới tìm được người của cơ sở khác; dược sĩ/phê duyệt/bác sĩ không nên liệt kê được danh tính toàn hệ thống
+Trạng thái: FAIL   Thời gian chạy: 9 ms
+Kết quả mong đợi: pharm2/approver2/doctor2 tìm tên người Trại 1 (chưa từng có quan hệ) → không thấy
+Kết quả thực tế: Người dùng Trại 2 tra cứu được danh tính người Trại 1: pharm2=1, approver2=1, doctor2=1, nurse2=1 (officer2=1, được phép theo BR-01 để đối soát trùng)
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer2 GET /api/persons?q=UAT%20Ph%C3%A2n%20Quy%E1%BB%81n%20A%201qgkmd1
+    → 200 [{"id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","full_name":"UAT Phân Quyền A 1qgkmd1","name_key":"uat phan quyen a 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qgmcbn","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:31.750729
+- pharm2 GET /api/persons?q=UAT%20Ph%C3%A2n%20Quy%E1%BB%81n%20A%201qgkmd1
+    → 200 [{"id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","full_name":"UAT Phân Quyền A 1qgkmd1","name_key":"uat phan quyen a 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qgmcbn","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:31.750729
+- approver2 GET /api/persons?q=UAT%20Ph%C3%A2n%20Quy%E1%BB%81n%20A%201qgkmd1
+    → 200 [{"id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","full_name":"UAT Phân Quyền A 1qgkmd1","name_key":"uat phan quyen a 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qgmcbn","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:31.750729
+- doctor2 GET /api/persons?q=UAT%20Ph%C3%A2n%20Quy%E1%BB%81n%20A%201qgkmd1
+    → 200 [{"id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","full_name":"UAT Phân Quyền A 1qgkmd1","name_key":"uat phan quyen a 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qgmcbn","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:31.750729
+- nurse2 GET /api/persons?q=UAT%20Ph%C3%A2n%20Quy%E1%BB%81n%20A%201qgkmd1
+    → 200 [{"id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","full_name":"UAT Phân Quyền A 1qgkmd1","name_key":"uat phan quyen a 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qgmcbn","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:31.750729

@@ -25,7 +25,7 @@ export const statusLabel = (d, v) => D[d]?.[v]?.[0] ?? v ?? "";
 export const statusTone = (d, v) => D[d]?.[v]?.[1] ?? "neutral";
 
 export const ROLE_LABEL = {
-  custody_officer: "Cán bộ tiếp nhận", nurse: "Điều dưỡng", doctor: "Bác sĩ", pharmacist: "Nhân viên dược",
+  custody_officer: "Cán bộ tiếp nhận", nurse: "Điều dưỡng", doctor: "Bác sĩ", medical_assistant: "Y sĩ", pharmacist: "Nhân viên dược",
   approver: "Người phê duyệt/điều phối", manager: "Quản lý y tế", sysadmin: "Quản trị hệ thống",
 };
 export const OUTCOME = { returned: "Đã trở lại trại", deceased: "Tử vong", not_returned: "Không trở lại" };
@@ -38,7 +38,7 @@ export const VITALS = [
   { type: "Đường huyết", unit: "mmol/L", key: "glu" },
 ];
 export const PERM_LABEL = {
-  "person.read": "Xem danh tính", "person.write": "Tạo/đối soát hồ sơ", "person.merge.request": "Đề nghị gộp hồ sơ trùng", "person.merge.approve": "Duyệt gộp hồ sơ trùng", "stay.write": "Xác nhận tiếp nhận",
+  "person.read": "Xem danh tính", "encounter.examine": "Bắt đầu/điều hành khám (bác sĩ, y sĩ)", "person.write": "Tạo/đối soát hồ sơ", "person.merge.request": "Đề nghị gộp hồ sơ trùng", "person.merge.approve": "Duyệt gộp hồ sơ trùng", "stay.write": "Xác nhận tiếp nhận",
   "clinical.read": "Xem dữ liệu lâm sàng", "encounter.write": "Ghi lượt khám", "observation.write": "Ghi sinh hiệu/kết quả",
   "diagnosis.write": "Chẩn đoán", "encounter.complete": "Hoàn tất khám / addendum", "order.write": "Chỉ định XN/thủ thuật",
   "medorder.write": "Kê đơn", "medorder.confirm": "Xác nhận đơn thuốc", "dispense.write": "Cấp phát thuốc", "admin.write": "Ghi nhận dùng thuốc",

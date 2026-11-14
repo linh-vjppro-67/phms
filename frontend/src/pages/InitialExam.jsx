@@ -5,7 +5,7 @@ import Workbench from "../components/Workbench.jsx";
 import { Badge, Card, DataTable, Empty, PageHeader, Seg, fmtDate, useAct, useAuth, useLoad } from "../ui.jsx";
 
 export default function InitialExam() {
-  const { refreshStats } = useAuth();
+  const { has, refreshStats } = useAuth();
   const act = useAct();
   const [view, setView] = useState("waiting");
   const [open, setOpen] = useState(null);
@@ -37,7 +37,7 @@ export default function InitialExam() {
           columns={[{ h: "Họ tên", c: (s) => <b>{s.person_name}</b> }, { h: "Mã nguồn", c: (s) => s.person_external_id || <Badge tone="warn">Chưa có mã</Badge> }, { h: "Tiếp nhận", c: (s) => fmtDate(s.start_date) },
             view === "going" && { h: "Trạng thái khám", c: (s) => <Badge tone="info">{s.initial_encounter_status === "draft" ? "Nháp" : "Đang khám"}</Badge> },
             view === "done" && { h: "Hoàn tất lúc", c: (s) => fmtDate(s.initial_exam_completed_at) },
-            { h: "", cls: "r", c: (s) => view === "waiting" ? <button className="btn sm primary" onClick={() => start(s)}>Bắt đầu khám</button>
+            { h: "", cls: "r", c: (s) => view === "waiting" ? (has("encounter.examine") ? <button className="btn sm primary" onClick={() => start(s)}>Bắt đầu khám</button> : <span className="muted sm">Chờ bác sĩ/y sĩ khám</span>)
               : <button className="btn sm" onClick={() => setOpen(s.initial_encounter_id)}>{view === "going" ? "Tiếp tục" : "Xem"}</button> }].filter(Boolean)} />
       </Card>
     </>

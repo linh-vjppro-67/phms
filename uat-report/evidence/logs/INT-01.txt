@@ -1,0 +1,8 @@
+# INT-01 – Tiếp nhận mới trọn 3 bước trên giao diện: kiểm tra trùng → tạo hồ sơ → xác nhận đợt tiếp nhận
+Trạng thái: PASS   Thời gian chạy: 839 ms
+Kết quả mong đợi: Hồ sơ 'Đã xác minh', đợt tiếp nhận 'Mới tiếp nhận', khám ban đầu 'Chưa hoàn tất' (A1)
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 GET /api/persons?q=UAT%20Nguy%E1%BB%85n%20V%C4%83n%20M%E1%BB%9Bi%201qgkmd1
+    → 200 [{"id":"b042e173-f2f9-4d37-a9cf-8db0d159792c","full_name":"UAT Nguyễn Văn Mới 1qgkmd1","name_key":"uat nguyen van moi 1qgkmd1","date_of_birth":"1991-01-01","gender":null,"source_system":"QLPN","external_id":"UAT-1qgkmd1-A1","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:41

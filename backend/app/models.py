@@ -13,7 +13,7 @@ from sqlalchemy import (JSON, Boolean, Date, DateTime, Float, ForeignKey, Index,
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .db import Base
-from .utils import uid, utcnow
+from .utils import name_key, uid, utcnow
 
 
 @event.listens_for(Base, "init", propagate=True)
@@ -81,6 +81,7 @@ class Person(Base):
     __table_args__ = (UniqueConstraint("source_system", "external_id", name="uq_person_external"),)
     id: Mapped[str] = _pk()  # BR-01: person_id nội bộ bất biến
     full_name: Mapped[str] = mapped_column(String(200), index=True)
+    name_key: Mapped[str | None] = mapped_column(String(220), nullable=True, index=True)   # tên không dấu/chữ thường – tự cập nhật theo full_name
     date_of_birth: Mapped[date | None] = mapped_column(Date, nullable=True)
     gender: Mapped[str | None] = mapped_column(String(16), nullable=True)
     source_system: Mapped[str | None] = mapped_column(String(64), nullable=True)
@@ -148,6 +149,9 @@ class Handover(Base):
     received_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     received_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
     received_stay_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
+    cancelled_by: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     recorded_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
 
 
@@ -207,7 +211,8 @@ class Encounter(Base):
     status: Mapped[str] = mapped_column(String(20), default="draft")
     reason: Mapped[str | None] = mapped_column(Text, nullable=True)
     priority: Mapped[str | None] = mapped_column(String(12), nullable=True)  # routine | urgent | emergent (WF-02: phân loại ưu tiên khi nhận yêu cầu khám)
-    summary: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summary: Mapped[str | None] = mapped_column(Text, nullable=True)                  # kết luận khám & hướng xử trí – CHỈ người có quyền khám ghi
+    nursing_assessment: Mapped[str | None] = mapped_column(Text, nullable=True)       # đánh giá ban đầu của điều dưỡng (ghi nhận, không phải kết luận)
     appointment_id: Mapped[str | None] = mapped_column(String(36), nullable=True)  # tham chiếu mềm tránh vòng FK
     practitioner_id: Mapped[str | None] = _fk("app_user.id", nullable=True)
     cancel_reason: Mapped[str | None] = mapped_column(Text, nullable=True)
@@ -583,3 +588,9 @@ class AuditHead(Base):
     __tablename__ = "audit_head"
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     counter: Mapped[int] = mapped_column(Integer, default=0)
+
+
+@event.listens_for(Person, "before_insert")
+@event.listens_for(Person, "before_update")
+def _person_name_key(_, __, target):
+    target.name_key = name_key(target.full_name)

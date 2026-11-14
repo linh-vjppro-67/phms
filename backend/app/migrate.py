@@ -37,8 +37,12 @@ def _ensure(engine) -> list[str]:
             added.append(f"{table.name}.{col.name}")
     from sqlalchemy import select
     from sqlalchemy.orm import Session
-    from .models import AuditHead
+    from .models import AuditHead, Person
+    from .utils import name_key
     with Session(engine) as db:
+        for p in db.scalars(select(Person).where(Person.name_key.is_(None))):     # hồ sơ cũ chưa có khóa tên
+            p.name_key = name_key(p.full_name)
+        db.commit()
         if not db.scalar(select(AuditHead.id).where(AuditHead.id == 1)):
             db.add(AuditHead(id=1, counter=0)); db.commit()
     return added

@@ -63,7 +63,7 @@ function Overdue() {
             { h: "Tình trạng", c: (a) => (a.overdue ? <Badge tone="bad">Trễ {days(a.due_date)} ngày</Badge> : <Status d="appt" v={a.status} />) }, { h: "Ghi chú", c: (a) => <span className="sm">{a.note || ""}</span> },
             { h: "", cls: "r", c: (a) => (
               <div className="row" style={{ justifyContent: "flex-end" }}>
-                {has("encounter.write") && <button className="btn sm primary" onClick={() => examine(a)}>Khám</button>}
+                {has("encounter.examine") && <button className="btn sm primary" onClick={() => examine(a)}>Khám</button>}
                 {has("schedule.write") && <button className="btn sm" onClick={() => setM({ a, to: "postponed" })}>Hoãn</button>}
                 {has("schedule.write") && <button className="btn sm" onClick={() => setM({ a, to: "not_done" })}>Không thực hiện</button>}
               </div>) }]} />

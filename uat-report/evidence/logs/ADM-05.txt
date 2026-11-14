@@ -1,0 +1,12 @@
+# ADM-05 – Đặt lại mật khẩu: mật khẩu tạm sinh ngẫu nhiên, mật khẩu cũ vô hiệu, đăng nhập bằng mật khẩu tạm bị buộc đổi (P5)
+Trạng thái: PASS   Thời gian chạy: 123 ms
+Kết quả mong đợi: Login cũ → 401; login tạm → requires=password_change
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- admin POST /api/users
+    yêu cầu: {"username":"uat_reset_1qgkmd1","password":"Uat@Reset2026x","full_name":"UAT Reset","role":"nurse","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da"}
+    → 201 {"id":"a0dcc091-3971-40bb-8d39-9390bfaaf841","username":"uat_reset_1qgkmd1","full_name":"UAT Reset","role":"nurse","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":true,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:49.423651","permissions":["admin.write","alert.handle"
+- admin POST /api/users/a0dcc091-3971-40bb-8d39-9390bfaaf841/reset-password
+    yêu cầu: {}
+    → 200 {"username":"uat_reset_1qgkmd1","temporary_password":"gXztWbq2QPsR","must_change_password":true}

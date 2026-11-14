@@ -1,0 +1,44 @@
+# EXP-23 – Không ghi thêm chẩn đoán / chỉ định / đơn thuốc / đề nghị chuyển viện vào lượt khám đã HỦY (BR-02: hủy = đóng, không phát sinh dữ liệu mới)
+Trạng thái: FAIL   Thời gian chạy: 30 ms
+Kết quả mong đợi: Mọi thao tác ghi vào lượt đã hủy bị 409 ENCOUNTER_LOCKED (không để lại chuyển viện/đơn mồ côi)
+Kết quả thực tế: Vẫn ghi được vào lượt khám ĐÃ HỦY: đề nghị chuyển viện (HTTP 201)
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Ghi Vào Lượt Đã Hủy 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1u1kndu"}
+    → 201 {"id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","full_name":"UAT Ghi Vào Lượt Đã Hủy 1qgkmd1","name_key":"uat ghi vao luot da huy 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1u1kndu","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14
+- officer1 POST /api/persons/c7a60e0a-e047-42ad-9ec3-68d51e1e9a69/stays
+    yêu cầu: {}
+    → 201 {"id":"5a686c59-0d00-46bb-a3af-bdbf2bb2837a","person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:18.847108","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"fc085485-8801-4280-9a91-23c884aa3a74","person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","stay_id":"5a686c59-0d00-46bb-a3af-bdbf2bb2837a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/fc085485-8801-4280-9a91-23c884aa3a74/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"fc085485-8801-4280-9a91-23c884aa3a74","person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","stay_id":"5a686c59-0d00-46bb-a3af-bdbf2bb2837a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/c7a60e0a-e047-42ad-9ec3-68d51e1e9a69/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/fc085485-8801-4280-9a91-23c884aa3a74/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"fc085485-8801-4280-9a91-23c884aa3a74","person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","stay_id":"5a686c59-0d00-46bb-a3af-bdbf2bb2837a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"fa3d6625-d60b-4331-82bd-5bf942bd36e8","person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","stay_id":"5a686c59-0d00-46bb-a3af-bdbf2bb2837a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/fa3d6625-d60b-4331-82bd-5bf942bd36e8/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"fa3d6625-d60b-4331-82bd-5bf942bd36e8","person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","stay_id":"5a686c59-0d00-46bb-a3af-bdbf2bb2837a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e
+- doctor1 POST /api/encounters/fa3d6625-d60b-4331-82bd-5bf942bd36e8/transition
+    yêu cầu: {"to":"cancelled","reason":"Nhập nhầm người bệnh"}
+    → 200 {"id":"fa3d6625-d60b-4331-82bd-5bf942bd36e8","person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","stay_id":"5a686c59-0d00-46bb-a3af-bdbf2bb2837a","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"cancelled","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e44
+- doctor1 POST /api/encounters/fa3d6625-d60b-4331-82bd-5bf942bd36e8/diagnoses
+    yêu cầu: {"text":"Viêm họng cấp","kind":"final"}
+    → 409 {"error":{"code":"ENCOUNTER_LOCKED","message":"Lượt khám đang ở trạng thái 'cancelled' – dùng addendum để bổ sung/điều chỉnh"}}
+- doctor1 POST /api/encounters/fa3d6625-d60b-4331-82bd-5bf942bd36e8/orders
+    yêu cầu: {"kind":"lab","description":"Công thức máu"}
+    → 409 {"error":{"code":"ENCOUNTER_LOCKED","message":"Lượt khám đang ở trạng thái 'cancelled' – dùng addendum để bổ sung/điều chỉnh"}}
+- doctor1 POST /api/encounters/fa3d6625-d60b-4331-82bd-5bf942bd36e8/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1","route":"uống","frequency":"2/ngày","start_date":"2026-11-13","duration_days":5,"quantity_prescribed":10}
+    → 409 {"error":{"code":"ENCOUNTER_LOCKED","message":"Lượt khám đang ở trạng thái 'cancelled' – dùng addendum để bổ sung/điều chỉnh"}}
+- doctor1 POST /api/encounters/fa3d6625-d60b-4331-82bd-5bf942bd36e8/referrals
+    yêu cầu: {"urgency":"routine","reason":"Lập trên lượt đã hủy","destination":"BV A"}
+    → 201 {"id":"7e51f8de-0ac8-459e-8661-cef3c6073e12","encounter_id":"fa3d6625-d60b-4331-82bd-5bf942bd36e8","person_id":"c7a60e0a-e047-42ad-9ec3-68d51e1e9a69","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","urgency":"routine","reason":"Lập trên lượt đã hủy","status":"draft","destination":"BV A","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut_u

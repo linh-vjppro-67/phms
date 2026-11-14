@@ -1,0 +1,55 @@
+# MED-06 – Không cấp theo đơn nháp, đơn đã hết liệu trình, đơn chưa tới ngày bắt đầu
+Trạng thái: PASS   Thời gian chạy: 38 ms
+Kết quả mong đợi: Cả ba trường hợp → 409; đơn nháp không nằm trong hàng đợi cấp phát
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Hiệu Lực Đơn 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1qpy646"}
+    → 201 {"id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","full_name":"UAT Hiệu Lực Đơn 1qgkmd1","name_key":"uat hieu luc don 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1qpy646","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:02:43.807755"
+- officer1 POST /api/persons/d1eaa77d-b800-4046-a67e-1ddf37783c83/stays
+    yêu cầu: {}
+    → 201 {"id":"4779ce6e-57c4-4d85-affa-e858ba05a209","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:02:43.809888","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"7202f1e1-a0d6-4698-9f5d-f3d070427a5f","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","stay_id":"4779ce6e-57c4-4d85-affa-e858ba05a209","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/7202f1e1-a0d6-4698-9f5d-f3d070427a5f/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"7202f1e1-a0d6-4698-9f5d-f3d070427a5f","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","stay_id":"4779ce6e-57c4-4d85-affa-e858ba05a209","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/d1eaa77d-b800-4046-a67e-1ddf37783c83/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/7202f1e1-a0d6-4698-9f5d-f3d070427a5f/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"7202f1e1-a0d6-4698-9f5d-f3d070427a5f","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","stay_id":"4779ce6e-57c4-4d85-affa-e858ba05a209","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","stay_id":"4779ce6e-57c4-4d85-affa-e858ba05a209","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","stay_id":"4779ce6e-57c4-4d85-affa-e858ba05a209","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad39e
+- doctor1 POST /api/encounters/c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"1 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"869b17be-f388-444c-bf6d-206406356ba2","encounter_id":"c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"1 lần/ngày","start_date":"2026-11-13","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/encounters/c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50/medication-orders
+    yêu cầu: {"drug_name":"Ibuprofen 400mg","drug_code":"IBU400","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-10-14","duration_days":5,"quantity_prescribed":10}
+    → 201 {"id":"237c1ab1-11d2-4760-aee1-d2c3247d6f41","encounter_id":"c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"IBU400","drug_name":"Ibuprofen 400mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-10-14","duration_days":5,"quantity_prescribed":10,"inst
+- doctor1 POST /api/medication-orders/237c1ab1-11d2-4760-aee1-d2c3247d6f41/confirm
+    yêu cầu: {}
+    → 200 {"id":"237c1ab1-11d2-4760-aee1-d2c3247d6f41","encounter_id":"c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"IBU400","drug_name":"Ibuprofen 400mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-10-14","duration_days":5,"quantity_prescribed":10,"inst
+- doctor1 POST /api/encounters/c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50/medication-orders
+    yêu cầu: {"drug_name":"Cetirizine 10mg","drug_code":"CETI10","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-23","duration_days":5,"quantity_prescribed":5}
+    → 201 {"id":"a19aba4d-e5da-4afc-bb9f-cea208a9ad9c","encounter_id":"c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"CETI10","drug_name":"Cetirizine 10mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-23","duration_days":5,"quantity_prescribed":5,"instr
+- doctor1 POST /api/medication-orders/a19aba4d-e5da-4afc-bb9f-cea208a9ad9c/confirm
+    yêu cầu: {}
+    → 200 {"id":"a19aba4d-e5da-4afc-bb9f-cea208a9ad9c","encounter_id":"c2d4cd3c-7064-4db2-8ae0-5e50ec19ac50","person_id":"d1eaa77d-b800-4046-a67e-1ddf37783c83","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"CETI10","drug_name":"Cetirizine 10mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-23","duration_days":5,"quantity_prescribed":5,"instr
+- pharm1 POST /api/medication-orders/869b17be-f388-444c-bf6d-206406356ba2/dispenses
+    yêu cầu: {"quantity":1}
+    → 409 {"error":{"code":"ORDER_NOT_EFFECTIVE","message":"Đơn đang ở trạng thái 'draft', không thể cấp phát"}}
+- pharm1 POST /api/medication-orders/a19aba4d-e5da-4afc-bb9f-cea208a9ad9c/dispenses
+    yêu cầu: {"quantity":1}
+    → 409 {"error":{"code":"ORDER_NOT_STARTED","message":"Đơn chỉ có hiệu lực từ 23/11/2026"}}
+- pharm1 POST /api/medication-orders/237c1ab1-11d2-4760-aee1-d2c3247d6f41/dispenses
+    yêu cầu: {"quantity":1}
+    → 409 {"error":{"code":"ORDER_EXPIRED","message":"Đơn đã hết liệu trình (đến 18/10/2026) – cần bác sĩ đánh giá, tái kê hoặc điều chỉnh","expired_on":"2026-10-18"}}
+- pharm1 GET /api/dispense-queue
+    → 200 [{"id":"e1d2a7c9-b3c8-4690-acc1-3ddc02bca6e8","encounter_id":"03afd5fd-0f49-4536-8ff9-37c246400937","person_id":"e1ddbffd-45f9-44c0-bc35-a2a8af0991f5","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","drug_code":"AMLO5","drug_name":"Amlodipine 5mg","strength":"5mg","dose":"1 viên","route":"uống","frequency":"1 lần/ngày","start_date":"2026-08-26","duration_days":139,"quantity_prescribed":139,"i

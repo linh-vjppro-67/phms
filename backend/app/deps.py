@@ -83,6 +83,33 @@ def has_facility_link(db: Session, person_id: str, facility_id: str | None) -> b
         CustodyStay.status != "voided").limit(1)).first() is not None
 
 
+# REQ-02: tra cứu danh tính LIÊN CƠ SỞ chỉ dành cho vai trò quản lý danh tính (tiếp nhận/đối soát/gộp hồ sơ).
+# Vai trò khác (bác sĩ, điều dưỡng, dược, quản lý…) chỉ thấy người có quan hệ quản lý tại cơ sở của mình hoặc đang có break-glass còn hạn.
+IDENTITY_WIDE_PERMS = {"person.write", "person.merge.request", "person.merge.approve"}
+
+
+def identity_wide(user: User) -> bool:
+    return bool(IDENTITY_WIDE_PERMS & perms_of(user))
+
+
+def identity_scope_clause(user: User):
+    """Điều kiện SQL giới hạn danh sách Person mà người dùng được tra cứu (None = không giới hạn)."""
+    if identity_wide(user):
+        return None
+    linked = select(CustodyStay.person_id).where(CustodyStay.facility_id == user.facility_id, CustodyStay.status != "voided")
+    granted = select(BreakGlassGrant.person_id).where(
+        BreakGlassGrant.user_id == user.id, BreakGlassGrant.revoked_at.is_(None), BreakGlassGrant.expires_at > utcnow())
+    return Person.id.in_(linked) | Person.id.in_(granted)
+
+
+def ensure_identity_visible(db: Session, user: User, person_id: str, request: Request | None = None) -> None:
+    if identity_wide(user) or has_facility_link(db, person_id, user.facility_id) or active_grant(db, user.id, person_id):
+        return
+    audit(db, user, "access_denied", "Person", person_id, person_id=person_id, result="denied",
+          reason="tra cứu danh tính ngoài phạm vi cơ sở", request=request, commit=True)
+    fail(403, "FACILITY_SCOPE", "Hồ sơ nằm ngoài phạm vi cơ sở của bạn", break_glass_allowed="breakglass" in perms_of(user))
+
+
 def active_stay(db: Session, person_id: str, facility_id: str | None = None) -> CustodyStay | None:
     q = select(CustodyStay).where(CustodyStay.person_id == person_id,
                                   CustodyStay.status.in_(("received", "managed")))
@@ -143,3 +170,27 @@ def ensure_clinical_access(db: Session, user: User, person_id: str, request: Req
     audit(db, user, "access_denied", "Person", person_id, person_id=person_id, result="denied",
           reason="ngoài phạm vi cơ sở", request=request, commit=True)
     fail(403, "FACILITY_SCOPE", "Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn", break_glass_allowed="breakglass" in perms_of(user))
+
+
+def ensure_clinical_write(db: Session, user: User, person_id: str, request: Request | None = None) -> None:
+    """Ghi dữ liệu lâm sàng cần: (1) đọc được hồ sơ, (2) người bệnh đang có đợt tiếp nhận HIỆU LỰC tại cơ sở của người ghi.
+    Cơ sở cũ sau chuyển trại và người truy cập khẩn cấp (break-glass) chỉ được ĐỌC."""
+    ensure_clinical_access(db, user, person_id, request)
+    if active_stay(db, person_id, user.facility_id):
+        return
+    if not has_facility_link(db, person_id, user.facility_id):      # chỉ vào được nhờ break-glass
+        audit(db, user, "access_denied", "Person", person_id, person_id=person_id, result="denied",
+              reason="ghi dữ liệu khi truy cập khẩn cấp (chỉ đọc)", request=request, commit=True)
+        fail(403, "BREAKGLASS_READ_ONLY", "Truy cập khẩn cấp chỉ được xem, không được ghi dữ liệu")
+    fail(409, "NO_ACTIVE_STAY", "Người này không có đợt tiếp nhận hiệu lực tại cơ sở của bạn (đã chuyển trại/kết thúc) – chỉ được xem")
+
+
+def ensure_not_break_glass_only(db: Session, user: User, person_id: str, request: Request | None = None) -> None:
+    """Ghi tài liệu/hồ sơ: phải đọc được hồ sơ VÀ thuộc cơ sở có quan hệ quản lý với người bệnh.
+    Truy cập khẩn cấp (break-glass) chỉ được ĐỌC – không tải lên/thay thế/vô hiệu hóa tài liệu (DEF-01).
+    Không đòi đợt tiếp nhận đang hiệu lực: cơ sở cũ vẫn được bổ sung/đính chính tài liệu thuộc đợt của mình."""
+    ensure_clinical_access(db, user, person_id, request)
+    if not has_facility_link(db, person_id, user.facility_id):
+        audit(db, user, "access_denied", "Person", person_id, person_id=person_id, result="denied",
+              reason="ghi tài liệu khi truy cập khẩn cấp (chỉ đọc)", request=request, commit=True)
+        fail(403, "BREAKGLASS_READ_ONLY", "Truy cập khẩn cấp chỉ được xem, không được tải lên/thay thế/vô hiệu hóa tài liệu")

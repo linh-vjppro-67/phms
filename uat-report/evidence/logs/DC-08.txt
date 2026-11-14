@@ -1,0 +1,11 @@
+# DC-08 – Chuỗi nhật ký kiểm toán không đứt; seq liên tục, không trùng
+Trạng thái: PASS   Thời gian chạy: 39 ms
+Kết quả mong đợi: audit/verify = toàn vẹn; seq liên tục
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- admin GET /api/audit/verify
+    → 200 {"ok":true,"checked":2151}
+- SQL
+    yêu cầu: "select count(*) n, min(seq) a, max(seq) b, count(distinct seq) d from audit_event"
+    → - [{"n":2151,"a":1,"b":2151,"d":2151}]

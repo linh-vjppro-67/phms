@@ -1,0 +1,9 @@
+# DC-12 – Mỗi đợt tiếp nhận chỉ có tối đa 1 lượt khám ban đầu không bị hủy (WF-01, B5) – kiểm lại sau lượt bổ sung
+Trạng thái: FAIL   Thời gian chạy: 4 ms
+Kết quả mong đợi: Không stay nào có >1 encounter initial chưa hủy
+Kết quả thực tế: 13 đợt tiếp nhận có nhiều hơn 1 lượt khám ban đầu: [{"stay_id":"199be6fb-2a5c-4561-ba86-8e02dc66fe80","n":6},{"stay_id":"29375619-73e0-4d91-bcbd-be248fb55557","n":6},{"stay_id":"510b8862-ee94-4ac1-9ef9-905e14c51770","n":5},{"stay_id":"583436e9-6eaf-4394-8a15-f75f7316e031","n":4}]
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- SQL
+    yêu cầu: "select stay_id, count(*) n from encounter where type='initial' and status!='cancelled' group by stay_id having n>1"
+    → - [{"stay_id":"199be6fb-2a5c-4561-ba86-8e02dc66fe80","n":6},{"stay_id":"29375619-73e0-4d91-bcbd-be248fb55557","n":6},{"stay_id":"510b8862-ee94-4ac1-9ef9-905e14c51770","n":5},{"stay_id":"583436e9-6eaf-4394-8a15-f75f7316e031","n":4},{"stay_id":"5c25e449-49c5-41dc-9699-3f03ee2a7292","n":5},{"stay_id":"5f16be65-f607-4288-8cf4-7171afac8720","n":5},{"stay_id":"79ebe98a-be53-463c-83f2-aeceebc90e25","n":2},

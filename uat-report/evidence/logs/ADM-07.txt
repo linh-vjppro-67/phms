@@ -1,0 +1,12 @@
+# ADM-07 – MFA TOTP: bật bằng mã 6 số; đăng nhập sau đó đòi mã; mã sai bị từ chối; mã đã dùng không dùng lại được; quản trị đặt lại MFA (P3/P4)
+Trạng thái: PASS   Thời gian chạy: 314 ms
+Kết quả mong đợi: Không OTP → 401 MFA_REQUIRED; OTP sai → 401; OTP đúng → 200; dùng lại → 401; reset-mfa → login chỉ mật khẩu
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- admin POST /api/users
+    yêu cầu: {"username":"uat_mfa_1qgkmd1","password":"Uat@Mfa20260x","full_name":"UAT MFA","role":"nurse","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da"}
+    → 201 {"id":"42052088-8189-478c-9afe-e17854753e3f","username":"uat_mfa_1qgkmd1","full_name":"UAT MFA","role":"nurse","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":true,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:49.579161","permissions":["admin.write","alert.handle","br
+- admin POST /api/users/42052088-8189-478c-9afe-e17854753e3f/reset-mfa
+    yêu cầu: {}
+    → 200 {"id":"42052088-8189-478c-9afe-e17854753e3f","username":"uat_mfa_1qgkmd1","full_name":"UAT MFA","role":"nurse","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","active":true,"failed_attempts":1,"locked_until":null,"token_version":4,"must_change_password":false,"password_changed_at":"2026-11-13T14:02:49.669795","mfa_enabled":false,"created_at":"2026-11-13T14:02:49.579161","permissions":["admin.

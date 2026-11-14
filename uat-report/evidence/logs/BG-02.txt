@@ -1,0 +1,12 @@
+# BG-02 – Vai trò không có quyền 'breakglass' (dược, cán bộ) không được truy cập khẩn; hết hạn 30 phút tự đóng hồ sơ
+Trạng thái: BLOCKED   Thời gian chạy: 4 ms
+Kết quả mong đợi: pharm2/officer2 → 403; hết hạn: cần chờ 30 phút
+Kết quả thực tế: PHẦN HẾT HẠN 30 PHÚT KHÔNG KIỂM ĐƯỢC: cần chờ 30 phút hoặc cấu hình PHMS_BREAK_GLASS_MINUTES ngắn (không đổi cấu hình staging trong phiên này). Phần phân quyền (403 cho dược/cán bộ) ĐẠT.
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- pharm2 POST /api/persons/8f533006-a3de-4a0f-82a6-e4d19200bed8/break-glass
+    yêu cầu: {"reason":"Dược cần xem hồ sơ khẩn"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Vai trò của bạn không được truy cập khẩn cấp"}}
+- officer2 POST /api/persons/8f533006-a3de-4a0f-82a6-e4d19200bed8/break-glass
+    yêu cầu: {"reason":"Cán bộ cần xem hồ sơ khẩn"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Vai trò của bạn không được truy cập khẩn cấp"}}

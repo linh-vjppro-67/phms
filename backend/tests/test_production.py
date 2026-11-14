@@ -439,6 +439,8 @@ def test_retract_allergy_keeps_record_and_removes_warning(api):
     assert api.post("nurse1", f"/api/allergies/{a['id']}/retract", {"reason": "Gỡ lần hai"}).status_code == 409
     hs = api.get("doctor1", f"/api/persons/{p['id']}/health-summary").json()["clinical"]
     assert hs["allergies"] == []
+    h = hs["allergies_retracted"]                                                                                    # lịch sử còn xem được
+    assert len(h) == 1 and h[0]["substance"] == "thuốc trừ sâu" and h[0]["inactive_reason"] == "Nhập nhầm người bệnh khác" and h[0]["inactive_by_name"] == "nurse1"
     d = api.med_order(e["id"], drug_name="thuốc trừ sâu", drug_code="PARA500")                                      # hết cảnh báo dị ứng
     assert not any(w["type"] == "allergy" for w in d["warnings"])
     log = str(api.get("admin", "/api/audit?limit=50").json())
@@ -448,3 +450,120 @@ def test_retract_allergy_keeps_record_and_removes_warning(api):
     c = api.post("doctor1", f"/api/persons/{p['id']}/allergies", {"substance": "Penicillin", "confirmed": True}).json()
     assert api.post("nurse1", f"/api/allergies/{c['id']}/retract", {"reason": "Điều dưỡng thử gỡ"}).status_code == 403
     assert api.post("doctor1", f"/api/allergies/{c['id']}/retract", {"reason": "Bác sĩ đính chính sau khi xác minh"}).status_code == 200
+
+
+# ------------------------------------------------------------------ danh mục thuốc thiết yếu
+def test_drug_catalog_is_rich_valid_and_usable_for_prescribing(api):
+    drugs = api.get("doctor1", "/api/catalogs/drug").json()
+    assert len(drugs) >= 250
+    by = {d["code"]: d for d in drugs}
+    assert {"PARA500", "AMOX500", "ORS"} <= set(by)                                  # mã gốc còn nguyên (demo/đơn cũ tham chiếu)
+    assert len({d["name"].lower() for d in drugs}) == len(drugs)                      # không trùng tên
+    assert all(d["extra"]["group"] and d["extra"]["route"] for d in drugs)
+    d = next(x for x in drugs if x["name"] == "Diclofenac 50mg")
+    assert d["extra"] == {"group": "Giảm đau, hạ sốt", "form": "viên", "route": "uống", "strength": "50mg"}
+    p, _ = api.patient("DR1", "Kê Thuốc Danh Mục")
+    e = api.encounter(p["id"])
+    api.post("doctor1", f"/api/persons/{p['id']}/allergies", {"substance": "Penicillin", "severity": "severe"})
+    ok = api.med_order(e["id"], drug_name="Diclofenac 50mg", drug_code=d["code"])      # mã mới kê được
+    assert not any(w["type"] == "allergy" for w in ok["warnings"])
+    amc = next(x for x in drugs if x["name"] == "Amoxicillin + Acid clavulanic 500mg+125mg")
+    o2 = api.med_order(e["id"], drug_name=amc["name"], drug_code=amc["code"])          # cùng nhóm penicillin → cảnh báo dị ứng chéo
+    assert any(w["type"] == "allergy" for w in o2["warnings"])
+
+
+def test_catalog_import_is_idempotent_and_never_creates_users(api):
+    from app.catalog_import import import_catalogs
+    from app.db import SessionLocal
+    from app.models import CatalogItem, User
+    with SessionLocal() as s:
+        users = s.query(User).count()
+        r = import_catalogs(s)
+        assert r == {"icd_added": 0, "drug_added": 0, "drug_extra_filled": 0}         # seed đã nạp đủ -> chạy lại không đổi gì
+        legacy = s.query(CatalogItem).filter_by(catalog="drug", code="PARA500").one()
+        legacy.extra = None
+        s.commit()
+        assert import_catalogs(s)["drug_extra_filled"] == 1                            # DB cũ: chỉ bổ sung thông tin nhóm
+        assert s.query(User).count() == users
+
+
+def test_draft_order_can_be_deleted_without_reason_but_confirmed_needs_one(api):
+    p, _ = api.patient("DEL1", "Xóa Đơn Nháp")
+    e = api.encounter(p["id"])
+    d = api.med_order(e["id"])
+    r = api.post("doctor1", f"/api/medication-orders/{d['id']}/stop", {"outcome": "cancelled"})                       # đơn nháp: không cần lý do
+    assert r.status_code == 200 and r.json()["status"] == "cancelled"
+    c = api.confirmed_order(e["id"], drug_name="Ibuprofen 400mg", drug_code="IBU400")
+    assert api.post("doctor1", f"/api/medication-orders/{c['id']}/stop", {"outcome": "stopped"}).status_code == 422   # đơn đã xác nhận: vẫn bắt buộc lý do
+    assert api.post("doctor1", f"/api/medication-orders/{c['id']}/stop", {"outcome": "stopped", "reason": "Dị ứng thuốc"}).status_code == 200
+
+
+# ------------------------------------------------------------------ phạm vi điều dưỡng / y sĩ
+def test_nurse_receives_and_measures_but_cannot_examine_conclude_or_dispense(api):
+    p, _ = api.patient("NR1", "Phạm Vi Điều Dưỡng")
+    e = api.encounter(p["id"], user="nurse1", start=False)                                      # tiếp đón: tạo yêu cầu khám (nháp) được
+    assert e["status"] == "draft"
+    assert api.post("nurse1", f"/api/encounters/{e['id']}/observations", {"type": "Mạch", "value": "80", "unit": "lần/phút"}).status_code == 201   # đo sinh hiệu
+    r = api.post("nurse1", f"/api/encounters/{e['id']}/transition", {"to": "in_progress"})
+    assert r.status_code == 403 and r.json()["error"]["code"] == "EXAMINE_REQUIRED"             # không bắt đầu khám
+    ok = api.patch("nurse1", f"/api/encounters/{e['id']}", {"nursing_assessment": "Tỉnh, tiếp xúc tốt, than đau đầu 2 ngày"})
+    assert ok.status_code == 200 and ok.json()["nursing_assessment"].startswith("Tỉnh")          # đánh giá ban đầu: được
+    assert api.patch("nurse1", f"/api/encounters/{e['id']}", {"summary": "Viêm họng, cho thuốc"}).status_code == 403   # kết luận: không
+    assert api.post("doctor1", f"/api/encounters/{e['id']}/transition", {"to": "in_progress"}).status_code == 200
+    assert api.patch("doctor1", f"/api/encounters/{e['id']}", {"summary": "Viêm họng cấp, kê đơn"}).status_code == 200
+    assert api.post("nurse1", f"/api/encounters/{e['id']}/transition", {"to": "awaiting_results"}).status_code == 403
+    e2 = api.encounter(p["id"], user="nurse1", start=False)
+    assert api.post("nurse1", f"/api/encounters/{e2['id']}/transition", {"to": "cancelled", "reason": "Nhập nhầm yêu cầu"}).status_code == 200     # hủy yêu cầu nháp: được
+    # cấp phát: mặc định chỉ dược; cơ sở không có dược sĩ bật cấu hình
+    o = api.confirmed_order(e["id"])
+    assert api.post("nurse1", f"/api/medication-orders/{o['id']}/dispenses", {"quantity": 1}).status_code == 403
+    assert api.get("nurse1", "/api/dispense-queue").status_code == 403
+    assert api.post("pharm1", f"/api/medication-orders/{o['id']}/dispenses", {"quantity": 1}).status_code == 201
+    assert api.post("nurse1", f"/api/medication-orders/{o['id']}/administrations", {"administered": True}).status_code == 201   # thực hiện y lệnh: được
+
+
+def test_nurse_dispense_can_be_enabled_per_deployment(api, monkeypatch):
+    from app import config
+    monkeypatch.setattr(config, "NURSE_CAN_DISPENSE", True)
+    p, _ = api.patient("NR2", "Cấp Phát Theo Ủy Quyền")
+    o = api.confirmed_order(api.encounter(p["id"])["id"])
+    assert api.post("nurse1", f"/api/medication-orders/{o['id']}/dispenses", {"quantity": 2}).status_code == 201
+
+
+def test_medical_assistant_role_exists_and_can_examine(api):
+    r = api.post("admin", "/api/users", {"username": "ysi1", "password": "Tam@2026Pass1", "full_name": "Y sĩ 1", "role": "medical_assistant", "facility_id": api.f1})
+    assert r.status_code == 201
+    tok = api.c.post("/api/auth/login", json={"username": "ysi1", "password": "Tam@2026Pass1"}).json()["access_token"]
+    ch = api.c.post("/api/auth/change-password", headers={"Authorization": f"Bearer {tok}"}, json={"old_password": "Tam@2026Pass1", "new_password": "Moi@2026Strong1"}).json()["access_token"]
+    h = {"Authorization": f"Bearer {ch}"}
+    p, _ = api.patient("YS1", "Khám Bởi Y Sĩ")
+    e = api.c.post("/api/encounters", headers=h, json={"person_id": p["id"], "type": "ad_hoc", "reason": "x"}).json()
+    assert api.c.post(f"/api/encounters/{e['id']}/transition", headers=h, json={"to": "in_progress"}).status_code == 200
+    assert api.c.post(f"/api/encounters/{e['id']}/diagnoses", headers=h, json={"text": "Cảm cúm"}).status_code == 201
+
+
+def test_duplicate_active_problem_is_rejected(api):
+    p, _ = api.patient("PB1", "Vấn Đề Trùng")
+    ok = api.post("doctor1", f"/api/persons/{p['id']}/problems", {"name": "Tăng huyết áp vô căn", "code": "I10"})
+    assert ok.status_code == 201
+    r = api.post("doctor1", f"/api/persons/{p['id']}/problems", {"name": "Tăng huyết áp vô căn", "code": "I10"})
+    assert r.status_code == 409 and r.json()["error"]["code"] == "PROBLEM_EXISTS"
+    assert api.post("doctor1", f"/api/persons/{p['id']}/problems", {"name": "Tên khác", "code": "I10"}).status_code == 409          # cùng mã ICD
+    api.post("doctor1", f"/api/problems/{ok.json()['id']}/resolve", {"note": "Ổn định, kết thúc"})
+    assert api.post("doctor1", f"/api/persons/{p['id']}/problems", {"name": "Tăng huyết áp vô căn", "code": "I10"}).status_code == 201   # đã kết thúc -> thêm lại được
+
+
+def test_officer_is_notified_when_emergency_person_is_unverified(api):
+    p = api.post("officer1", "/api/persons", {"full_name": "Cấp Cứu Chưa Đối Soát"}).json()          # có sẵn nhưng KHÔNG mã -> chờ đối soát
+    api.stay(p["id"])
+    assert p["status"] == "pending_verification"
+    ev = api.post("doctor1", "/api/emergency-events", {"person_id": p["id"], "description": "Ngất"}).json()
+    kinds = lambda u: [n["kind"] for n in api.get(u, "/api/notifications").json()["items"]]  # noqa: E731
+    assert "emergency.identity" in kinds("officer1")                                                  # cán bộ tiếp nhận được báo ngay khi có cấp cứu
+    api.post("doctor1", f"/api/encounters/{ev['encounter_id']}/transition", {"to": "completed"})
+    for _ in range(2):                                                                                # bác sĩ cố đóng nhiều lần
+        r = api.post("doctor1", f"/api/emergency-events/{ev['id']}/close", {"note": "xong"})
+        assert r.status_code == 409 and "Danh tính" in str(r.json()["error"]["problems"])
+    assert kinds("officer1").count("emergency.identity_blocking") == 1                                # nhắc một lần/sự kiện, không spam
+    api.post("officer1", f"/api/persons/{p['id']}/verify", {"source_system": "QLPN", "external_id": "PN-CC-1", "note": "Đối chiếu hồ sơ QLPN"})
+    assert api.post("doctor1", f"/api/emergency-events/{ev['id']}/close", {"note": "xong"}).status_code == 200

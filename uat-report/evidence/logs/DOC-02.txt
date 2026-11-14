@@ -1,0 +1,14 @@
+# DOC-02 – Từ chối: .txt đổi tên .pdf, tệp .exe, tệp rỗng, PNG giả (kiểm magic bytes, không tin đuôi tệp) (K3)
+Trạng thái: PASS   Thời gian chạy: 6 ms
+Kết quả mong đợi: Mỗi trường hợp HTTP 4xx (400/415/422)
+Kết quả thực tế: HTTP: .txt→.pdf 415, .exe 415, rỗng 422, PDF-trong-.png 201
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- nurse1 POST /api/documents (fake.pdf, 53B)
+    → 415 {"error":{"code":"UNSUPPORTED_TYPE","message":"Chỉ chấp nhận PDF/PNG/JPEG"}}
+- nurse1 POST /api/documents (virus.exe, 18B)
+    → 415 {"error":{"code":"UNSUPPORTED_TYPE","message":"Chỉ chấp nhận PDF/PNG/JPEG"}}
+- nurse1 POST /api/documents (rong.pdf, 0B)
+    → 422 {"error":{"code":"EMPTY_FILE","message":"Tệp rỗng"}}
+- nurse1 POST /api/documents (x.png, 25B)
+    → 201 {"id":"e4bfa19b-d539-46dc-8636-e078c4e675af","person_id":"31ee349a-caa6-4821-9107-111d265a026a","encounter_id":null,"referral_id":null,"stay_id":null,"facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","doc_type":"other","source":null,"issued_date":null,"filename":"x.png","mime":"application/pdf","

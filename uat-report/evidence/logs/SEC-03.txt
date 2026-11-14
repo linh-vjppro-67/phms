@@ -1,0 +1,38 @@
+# SEC-03 – Tham chiếu đối tượng trực tiếp (IDOR) & ID giả: UUID ngẫu nhiên/ID sai định dạng trả 404/422, không 500, không lộ stack trace
+Trạng thái: PASS   Thời gian chạy: 14 ms
+Kết quả mong đợi: HTTP 404/422 với thông điệp chuẩn {error:{code,message}}
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- doctor1 GET /api/encounters/00000000-0000-0000-0000-000000000000
+    → 404 {"error":{"code":"ENCOUNTER_NOT_FOUND","message":"Không tìm thấy lượt khám"}}
+- doctor1 GET /api/persons/00000000-0000-0000-0000-000000000000/health-summary
+    → 404 {"error":{"code":"PERSON_NOT_FOUND","message":"Không tìm thấy hồ sơ"}}
+- doctor1 GET /api/medication-orders/00000000-0000-0000-0000-000000000000
+    → 404 {"error":{"code":"ORDER_NOT_FOUND","message":"Không tìm thấy đơn thuốc"}}
+- doctor1 GET /api/referrals/00000000-0000-0000-0000-000000000000
+    → 404 {"error":{"code":"REFERRAL_NOT_FOUND","message":"Không tìm thấy hồ sơ chuyển viện"}}
+- doctor1 GET /api/encounters/abc
+    → 404 {"error":{"code":"ENCOUNTER_NOT_FOUND","message":"Không tìm thấy lượt khám"}}
+- doctor1 GET /api/persons/abc/health-summary
+    → 404 {"error":{"code":"PERSON_NOT_FOUND","message":"Không tìm thấy hồ sơ"}}
+- doctor1 GET /api/medication-orders/abc
+    → 404 {"error":{"code":"ORDER_NOT_FOUND","message":"Không tìm thấy đơn thuốc"}}
+- doctor1 GET /api/referrals/abc
+    → 404 {"error":{"code":"REFERRAL_NOT_FOUND","message":"Không tìm thấy hồ sơ chuyển viện"}}
+- doctor1 GET /api/encounters/..%2F..%2Fetc%2Fpasswd
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- doctor1 GET /api/persons/..%2F..%2Fetc%2Fpasswd/health-summary
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- doctor1 GET /api/medication-orders/..%2F..%2Fetc%2Fpasswd
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- doctor1 GET /api/referrals/..%2F..%2Fetc%2Fpasswd
+    → 404 {"error":{"code":"HTTP_404","message":"Not Found"}}
+- doctor1 GET /api/encounters/1%20OR%201%3D1
+    → 404 {"error":{"code":"ENCOUNTER_NOT_FOUND","message":"Không tìm thấy lượt khám"}}
+- doctor1 GET /api/persons/1%20OR%201%3D1/health-summary
+    → 404 {"error":{"code":"PERSON_NOT_FOUND","message":"Không tìm thấy hồ sơ"}}
+- doctor1 GET /api/medication-orders/1%20OR%201%3D1
+    → 404 {"error":{"code":"ORDER_NOT_FOUND","message":"Không tìm thấy đơn thuốc"}}
+- doctor1 GET /api/referrals/1%20OR%201%3D1
+    → 404 {"error":{"code":"REFERRAL_NOT_FOUND","message":"Không tìm thấy hồ sơ chuyển viện"}}

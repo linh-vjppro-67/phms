@@ -7,7 +7,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..audit import audit
-from ..db import get_db
+from ..db import get_db, lock_row
 from ..deps import ensure_clinical_access, require
 from ..idempotency import run_idempotent
 from ..notify import emit, person_name
@@ -80,6 +80,8 @@ def create_referral(enc_id: str, body: ReferralIn, request: Request, user: User 
                     db: Session = Depends(get_db)):
     def work():
         e = load_encounter(db, user, enc_id, request, write=True)
+        if e.status == "cancelled":      # DEF-04: không lập đề nghị chuyển viện trên lượt khám đã hủy (sẽ thành hồ sơ mồ côi)
+            fail(409, "ENCOUNTER_CANCELLED", "Lượt khám đã hủy – không thể lập đề nghị chuyển viện")
         data = body.model_dump()
         data["handover_docs"] = check_handover_docs(db, e.person_id, body.handover_docs)
         r = Referral(encounter_id=e.id, person_id=e.person_id, facility_id=e.facility_id, created_by=user.id, **data)
@@ -134,6 +136,7 @@ def set_handover_docs(rid: str, body: DocsIn, request: Request, user: User = Dep
 def change_status(rid: str, body: StatusIn, request: Request, user: User = Depends(require("referral.read")),
                   db: Session = Depends(get_db)):
     r = _load(db, user, rid, request)
+    r = lock_row(db, Referral, r.id)        # DEF-03: hai người cùng duyệt/đổi trạng thái một đề nghị -> tuần tự hóa, người sau thấy trạng thái mới
     perms = perms_of(user)
     frm, to = r.status, body.to
     emergency_shortcut = r.urgency == "emergency" and frm in ("draft", "pending", "coordinated") \

@@ -1,0 +1,26 @@
+# UI-03 – Chuyển trại trên giao diện: cán bộ khởi tạo → điều dưỡng soạn tóm tắt → cán bộ xác nhận (không thấy nội dung y tế) (J1–J4)
+Trạng thái: PASS   Thời gian chạy: 2099 ms
+Kết quả mong đợi: Phiếu 4 bước; nút Xác nhận chặn khi thiếu tóm tắt; cán bộ không thấy nội dung tóm tắt; xác nhận xong stay 'transferred'
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Bàn Giao UI 1qgkmd1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-1ty48g6"}
+    → 201 {"id":"8d56304f-484a-411f-92c0-5705870dc30c","full_name":"UAT Bàn Giao UI 1qgkmd1","name_key":"uat ban giao ui 1qgkmd1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-1ty48g6","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","created_at":"2026-11-13T14:05:14.362395"}
+- officer1 POST /api/persons/8d56304f-484a-411f-92c0-5705870dc30c/stays
+    yêu cầu: {}
+    → 201 {"id":"0091e8cb-0083-43b9-938e-fd3fb433a692","person_id":"8d56304f-484a-411f-92c0-5705870dc30c","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","status":"received","start_date":"2026-11-13","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","recorded_at":"2026-11-13T14:05:14.365074","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"8d56304f-484a-411f-92c0-5705870dc30c","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"5803d1e9-dccf-4520-94d9-bd1ff2c322be","person_id":"8d56304f-484a-411f-92c0-5705870dc30c","stay_id":"0091e8cb-0083-43b9-938e-fd3fb433a692","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/5803d1e9-dccf-4520-94d9-bd1ff2c322be/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"5803d1e9-dccf-4520-94d9-bd1ff2c322be","person_id":"8d56304f-484a-411f-92c0-5705870dc30c","stay_id":"0091e8cb-0083-43b9-938e-fd3fb433a692","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91
+- doctor1 POST /api/persons/8d56304f-484a-411f-92c0-5705870dc30c/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/5803d1e9-dccf-4520-94d9-bd1ff2c322be/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"5803d1e9-dccf-4520-94d9-bd1ff2c322be","person_id":"8d56304f-484a-411f-92c0-5705870dc30c","stay_id":"0091e8cb-0083-43b9-938e-fd3fb433a692","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d8d6c470-91af-49ba-8573-91ad
+- SQL
+    yêu cầu: "select status s from custody_stay where id='0091e8cb-0083-43b9-938e-fd3fb433a692'"
+    → - [{"s":"transferred"}]

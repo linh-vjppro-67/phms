@@ -1,0 +1,32 @@
+# AUTH-01 – 13 tài khoản mẫu đăng nhập thành công, nhận đúng vai trò & cơ sở
+Trạng thái: PASS   Thời gian chạy: 254 ms
+Kết quả mong đợi: HTTP 200; /auth/me trả đúng role, tài khoản F01/F02 gắn đúng cơ sở, admin không gắn cơ sở
+Kết quả thực tế: 13/13 tài khoản đăng nhập, role & cơ sở đúng
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- admin GET /api/auth/me
+    → 200 {"id":"4612e6d0-1ff2-46d7-bcb4-b919450bedc5","username":"admin","full_name":"Quản trị hệ thống","role":"sysadmin","facility_id":null,"active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458352","permissions":["audit.read","catalog.read","catalog.write","scheduler.run","u
+- officer1 GET /api/auth/me
+    → 200 {"id":"61c9f71c-e4e3-4fab-9a35-d77a6c2edc10","username":"officer1","full_name":"Cán bộ tiếp nhận 1","role":"custody_officer","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458358","permissions":["catalog.read","h
+- nurse1 GET /api/auth/me
+    → 200 {"id":"450f4f32-86f9-410c-b688-4cf08a490bda","username":"nurse1","full_name":"Điều dưỡng 1","role":"nurse","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458359","permissions":["admin.write","alert.handle","break
+- doctor1 GET /api/auth/me
+    → 200 {"id":"d8d6c470-91af-49ba-8573-91ad39e44b6f","username":"doctor1","full_name":"Bác sĩ 1","role":"doctor","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458360","permissions":["admin.write","alert.handle","breakgl
+- pharm1 GET /api/auth/me
+    → 200 {"id":"460ca5ef-9e4d-4e5b-b806-ccb166aae3a9","username":"pharm1","full_name":"Dược sĩ 1","role":"pharmacist","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458361","permissions":["catalog.read","clinical.read","d
+- approver1 GET /api/auth/me
+    → 200 {"id":"7dc9b29b-9898-4926-8659-982222c42fb8","username":"approver1","full_name":"Người điều phối 1","role":"approver","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458361","permissions":["catalog.read","handover
+- manager1 GET /api/auth/me
+    → 200 {"id":"a4b60ff2-a249-496e-9db5-1883b0e9e714","username":"manager1","full_name":"Quản lý y tế 1","role":"manager","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458362","permissions":["alert.handle","catalog.read"
+- officer2 GET /api/auth/me
+    → 200 {"id":"26ae5e42-4825-4f17-84f9-5e601ff4273b","username":"officer2","full_name":"Cán bộ tiếp nhận 2","role":"custody_officer","facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458363","permissions":["catalog.read","h
+- nurse2 GET /api/auth/me
+    → 200 {"id":"012e9725-40f7-4324-81ae-0b9dbff9b154","username":"nurse2","full_name":"Điều dưỡng 2","role":"nurse","facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458364","permissions":["admin.write","alert.handle","break
+- doctor2 GET /api/auth/me
+    → 200 {"id":"1ae4dfa2-4fa1-4383-a26d-e9dc1fb701f6","username":"doctor2","full_name":"Bác sĩ 2","role":"doctor","facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458363","permissions":["admin.write","alert.handle","breakgl
+- pharm2 GET /api/auth/me
+    → 200 {"id":"47be7b54-1ec0-4233-b306-e99097988118","username":"pharm2","full_name":"Dược sĩ 2","role":"pharmacist","facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458365","permissions":["catalog.read","clinical.read","d
+- approver2 GET /api/auth/me
+    → 200 {"id":"60b17767-83a7-4b52-9462-ca57919c7f36","username":"approver2","full_name":"Người điều phối 2","role":"approver","facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458365","permissions":["catalog.read","handover
+- manager2 GET /api/auth/me
+    → 200 {"id":"7fb0886c-dd79-4420-a7c6-d846947ac4dd","username":"manager2","full_name":"Quản lý y tế 2","role":"manager","facility_id":"31bbfa76-f22b-4e16-a52b-d3bcb6e1078c","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-13T14:02:26.458366","permissions":["alert.handle","catalog.read"

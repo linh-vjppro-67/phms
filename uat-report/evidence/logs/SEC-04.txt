@@ -1,0 +1,21 @@
+# SEC-04 – Dữ liệu quá khổ / sai kiểu: chuỗi 100.000 ký tự, JSON sai kiểu, thiếu trường → 422/413, không 500
+Trạng thái: PASS   Thời gian chạy: 7 ms
+Kết quả mong đợi: Không có HTTP 5xx
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","type":"ad_hoc","reason":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    → 201 {"id":"ea7f49bb-f584-4ee1-bad5-79c6833d7738","person_id":"8f533006-a3de-4a0f-82a6-e4d19200bed8","stay_id":"ea7e0522-44b7-4a97-845b-093e9071892d","facility_id":"b67385d4-c0ae-4cde-a653-d8b7c71a45da","type":"ad_hoc","status":"draft","reason":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":123,"type":[]}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"person_id","message":"Input should be a valid string"},{"field":"type","message":"Input should be a valid string"}]}}
+- doctor1 POST /api/encounters
+    yêu cầu: {}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"person_id","message":"bắt buộc nhập"},{"field":"type","message":"bắt buộc nhập"}]}}
+- doctor1 POST /api/encounters/5d110be7-dd0f-4024-a1cb-0b7be94d0ce7/diagnoses
+    yêu cầu: {"text":null}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"text","message":"Input should be a valid string"}]}}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":{"a":1}}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"full_name","message":"Input should be a valid string"}]}}

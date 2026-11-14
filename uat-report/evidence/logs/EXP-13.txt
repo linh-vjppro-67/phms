@@ -1,0 +1,9 @@
+# EXP-13 – Phát hiện can thiệp nhật ký: sửa 1 bản ghi audit trong BẢN SAO CSDL → verify_chain báo đứt chuỗi tại đúng vị trí
+Trạng thái: PASS   Thời gian chạy: 386 ms
+Kết quả mong đợi: verify_chain = {ok:false, broken_at_seq: seq đã sửa}
+Kết quả thực tế: Bản sao bị sửa seq 51 → {'ok': False, 'broken_at_seq': 51, 'checked': 50}
+
+## Nhật ký gọi API / truy vấn SQL (rút gọn)
+- SQL
+    yêu cầu: "select seq from audit_event order by seq limit 1 offset 50"
+    → - [{"seq":51}]

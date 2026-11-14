@@ -1,0 +1,47 @@
+# EXP-25 – 3 người cùng duyệt MỘT đề nghị chuyển viện: chỉ 1 thao tác thành công, lịch sử điều phối không ghi trùng bước
+Trạng thái: PASS   Thời gian chạy: 34 ms
+Kết quả mong đợi: Đúng 1 HTTP 2xx; đúng 1 sự kiện pending→coordinated
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời CV 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4yirxti"}
+    → 201 {"id":"807989a4-e248-4878-90a9-6961f3acfeaa","full_name":"UAT Đồng Thời CV 4uvjld1","name_key":"uat dong thoi cv 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4yirxti","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:20:32.783253"
+- officer1 POST /api/persons/807989a4-e248-4878-90a9-6961f3acfeaa/stays
+    yêu cầu: {}
+    → 201 {"id":"7ba1cf45-b379-4320-87d5-8c06d0216372","person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:32.785586","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"61aec004-e732-47b4-b197-f62e1922e607","person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","stay_id":"7ba1cf45-b379-4320-87d5-8c06d0216372","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/61aec004-e732-47b4-b197-f62e1922e607/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"61aec004-e732-47b4-b197-f62e1922e607","person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","stay_id":"7ba1cf45-b379-4320-87d5-8c06d0216372","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/807989a4-e248-4878-90a9-6961f3acfeaa/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/61aec004-e732-47b4-b197-f62e1922e607/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"61aec004-e732-47b4-b197-f62e1922e607","person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","stay_id":"7ba1cf45-b379-4320-87d5-8c06d0216372","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"7fc6ec18-f995-45e9-8feb-08c70ee6db37","person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","stay_id":"7ba1cf45-b379-4320-87d5-8c06d0216372","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/7fc6ec18-f995-45e9-8feb-08c70ee6db37/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"7fc6ec18-f995-45e9-8feb-08c70ee6db37","person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","stay_id":"7ba1cf45-b379-4320-87d5-8c06d0216372","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/7fc6ec18-f995-45e9-8feb-08c70ee6db37/referrals
+    yêu cầu: {"urgency":"routine","reason":"Song song","destination":"BV A"}
+    → 201 {"id":"03bdb41b-b68c-4e21-b252-e4203204ee79","encounter_id":"7fc6ec18-f995-45e9-8feb-08c70ee6db37","person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":"Song song","status":"draft","destination":"BV A","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut_used":false,
+- doctor1 PATCH /api/referrals/03bdb41b-b68c-4e21-b252-e4203204ee79/status
+    yêu cầu: {"to":"pending"}
+    → 200 {"id":"03bdb41b-b68c-4e21-b252-e4203204ee79","encounter_id":"7fc6ec18-f995-45e9-8feb-08c70ee6db37","person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":"Song song","status":"pending","destination":"BV A","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut_used":fals
+- approver1 PATCH /api/referrals/03bdb41b-b68c-4e21-b252-e4203204ee79/status
+    yêu cầu: {"to":"coordinated","destination":"BV A"}
+    → 200 {"id":"03bdb41b-b68c-4e21-b252-e4203204ee79","encounter_id":"7fc6ec18-f995-45e9-8feb-08c70ee6db37","person_id":"807989a4-e248-4878-90a9-6961f3acfeaa","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":null,"status":"coordinated","destination":"BV A","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut_used":false,"
+- approver1 PATCH /api/referrals/03bdb41b-b68c-4e21-b252-e4203204ee79/status
+    yêu cầu: {"to":"coordinated","destination":"BV A"}
+    → 409 {"error":{"code":"BAD_TRANSITION","message":"Không thể chuyển 'coordinated' -> 'coordinated'"}}
+- approver1 PATCH /api/referrals/03bdb41b-b68c-4e21-b252-e4203204ee79/status
+    yêu cầu: {"to":"coordinated","destination":"BV A"}
+    → 409 {"error":{"code":"BAD_TRANSITION","message":"Không thể chuyển 'coordinated' -> 'coordinated'"}}
+- SQL
+    yêu cầu: "select count(*) n from referral_event where referral_id='03bdb41b-b68c-4e21-b252-e4203204ee79' and to_status='coordinated'"
+    → - [{"n":1}]

@@ -1,0 +1,6 @@
+# NAV-doctor – Menu của Bác sĩ chỉ gồm các phân hệ được phép (đối chiếu 04-§2)
+Trạng thái: PASS   Thời gian chạy: 284 ms
+Kết quả mong đợi: Thấy: Khám ban đầu, Khám chữa bệnh, Chỉ định & Kê đơn, Chuyển viện, Cấp cứu. KHÔNG thấy: Báo cáo, Quản trị
+Kết quả thực tế: Menu: Bảng điều khiển | Tiếp nhận & Hồ sơM01 | Chuyển trại & Bàn giaoWF-07 | Khám ban đầuM03 | Khám chữa bệnhM04 | Cấp cứuWF-08 | Chỉ định & Kê đơnM05 | Cấp phát thuốcM06 | Khám định kỳM07 | Bệnh lý & Cảnh báoM08 | Chuyển việnM09 | Hồ sơ sức khỏeM02 | Tài liệu y tếM12
+
+## Nhật ký lời gọi API / truy vấn SQL

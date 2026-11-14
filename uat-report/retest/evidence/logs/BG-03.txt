@@ -1,0 +1,36 @@
+# BG-03 – Break-glass là CHỈ ĐỌC (mục 10.1/D2): người ngoài cơ sở đang có lượt break-glass không được tải lên / thay thế / vô hiệu hóa tài liệu y tế của người bệnh
+Trạng thái: PASS   Thời gian chạy: 27 ms
+Kết quả mong đợi: Upload, replace, invalidate bởi người break-glass → 403 BREAKGLASS_READ_ONLY; tài liệu gốc vẫn 'valid'
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT BG Tài Liệu 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4yip918"}
+    → 201 {"id":"d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473","full_name":"UAT BG Tài Liệu 4uvjld1","name_key":"uat bg tai lieu 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4yip918","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:20:32.686511"}
+- officer1 POST /api/persons/d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473/stays
+    yêu cầu: {}
+    → 201 {"id":"6179f040-c6e8-429b-bad4-21fe0e7e79aa","person_id":"d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:32.688727","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"ecd71925-fb71-428e-b664-cf356493f1b2","person_id":"d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473","stay_id":"6179f040-c6e8-429b-bad4-21fe0e7e79aa","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/ecd71925-fb71-428e-b664-cf356493f1b2/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"ecd71925-fb71-428e-b664-cf356493f1b2","person_id":"d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473","stay_id":"6179f040-c6e8-429b-bad4-21fe0e7e79aa","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/ecd71925-fb71-428e-b664-cf356493f1b2/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"ecd71925-fb71-428e-b664-cf356493f1b2","person_id":"d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473","stay_id":"6179f040-c6e8-429b-bad4-21fe0e7e79aa","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- nurse1 POST /api/documents (uat.pdf, 259B)
+    → 201 {"id":"f91c7853-2f89-4d85-95f2-8e9092dd9615","person_id":"d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473","encounter_id":null,"referral_id":null,"stay_id":null,"facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","doc_type":"lab_result","source":null,"issued_date":null,"filename":"uat.pdf","mime":"application
+- doctor2 POST /api/persons/d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473/break-glass
+    yêu cầu: {"reason":"Cấp cứu ngoài trại cần xem hồ sơ"}
+    → 200 {"expires_at":"2026-11-14T08:50:32.701538","minutes":30,"read_only":true}
+- doctor2 POST /api/documents (uat.pdf, 259B)
+    → 403 {"error":{"code":"BREAKGLASS_READ_ONLY","message":"Truy cập khẩn cấp chỉ được xem, không được tải lên/thay thế/vô hiệu hóa tài liệu"}}
+- doctor2 POST /api/documents/f91c7853-2f89-4d85-95f2-8e9092dd9615/invalidate
+    yêu cầu: {"reason":"vô hiệu bởi người break-glass"}
+    → 403 {"error":{"code":"BREAKGLASS_READ_ONLY","message":"Truy cập khẩn cấp chỉ được xem, không được tải lên/thay thế/vô hiệu hóa tài liệu"}}
+- SQL
+    yêu cầu: "select group_concat(status) s from medical_document where person_id='d44d4d0a-5bf9-4cc4-8e7f-1a9c03640473'"
+    → - [{"s":"valid"}]

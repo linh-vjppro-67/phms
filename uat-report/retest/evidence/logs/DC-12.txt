@@ -1,0 +1,9 @@
+# DC-12 – Mỗi đợt tiếp nhận chỉ có tối đa 1 lượt khám ban đầu không bị hủy (WF-01, B5)
+Trạng thái: PASS   Thời gian chạy: 3 ms
+Kết quả mong đợi: Không stay nào có >1 encounter initial chưa hủy
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- SQL
+    yêu cầu: "select stay_id, count(*) n from encounter where type='initial' and status!='cancelled' group by stay_id having n>1"
+    → - []

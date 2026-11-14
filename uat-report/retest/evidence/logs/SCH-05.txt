@@ -1,0 +1,48 @@
+# SCH-05 – Cảnh báo: tiếp nhận một lần, lần 2 bị chặn; xử lý xong ghi người chịu trách nhiệm + thời điểm (G1)
+Trạng thái: PASS   Thời gian chạy: 35 ms
+Kết quả mong đợi: ack lần 2 → 409; resolve → handled_at, owner_id
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Cảnh Báo 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4v7xgjo"}
+    → 201 {"id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","full_name":"UAT Cảnh Báo 4uvjld1","name_key":"uat canh bao 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4v7xgjo","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:58.757999"}
+- officer1 POST /api/persons/dfdd393b-9b72-4965-9f0c-dc19e0992a2a/stays
+    yêu cầu: {}
+    → 201 {"id":"76870dcc-7202-49fa-a11f-9fe609c798f3","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:17:58.760198","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"a0bff714-bf0d-4005-822f-f032e1be30f1","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","stay_id":"76870dcc-7202-49fa-a11f-9fe609c798f3","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/a0bff714-bf0d-4005-822f-f032e1be30f1/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"a0bff714-bf0d-4005-822f-f032e1be30f1","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","stay_id":"76870dcc-7202-49fa-a11f-9fe609c798f3","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/dfdd393b-9b72-4965-9f0c-dc19e0992a2a/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/a0bff714-bf0d-4005-822f-f032e1be30f1/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"a0bff714-bf0d-4005-822f-f032e1be30f1","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","stay_id":"76870dcc-7202-49fa-a11f-9fe609c798f3","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"2a250183-b438-4591-a978-84d2502ff646","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","stay_id":"76870dcc-7202-49fa-a11f-9fe609c798f3","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/2a250183-b438-4591-a978-84d2502ff646/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"2a250183-b438-4591-a978-84d2502ff646","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","stay_id":"76870dcc-7202-49fa-a11f-9fe609c798f3","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/2a250183-b438-4591-a978-84d2502ff646/referrals
+    yêu cầu: {"urgency":"emergency","reason":"Tạo cảnh báo hậu kiểm","destination":"BV A"}
+    → 201 {"id":"62a287ab-e66a-425a-99c5-19314b3d3fd2","encounter_id":"2a250183-b438-4591-a978-84d2502ff646","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"emergency","reason":"Tạo cảnh báo hậu kiểm","status":"draft","destination":"BV A","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcu
+- doctor1 PATCH /api/referrals/62a287ab-e66a-425a-99c5-19314b3d3fd2/status
+    yêu cầu: {"to":"in_external_treatment"}
+    → 200 {"id":"62a287ab-e66a-425a-99c5-19314b3d3fd2","encounter_id":"2a250183-b438-4591-a978-84d2502ff646","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"emergency","reason":"Tạo cảnh báo hậu kiểm","status":"in_external_treatment","destination":"BV A","handover_docs":null,"left_at":"2026-11-14T08:17:58.776399","result_note":null,"post_ref
+- SQL
+    yêu cầu: "select id from alert where dedupe_key='ref-review:62a287ab-e66a-425a-99c5-19314b3d3fd2'"
+    → - [{"id":"f9d43752-8a75-4e4c-bb63-4290870f445a"}]
+- manager1 POST /api/alerts/f9d43752-8a75-4e4c-bb63-4290870f445a/acknowledge
+    → 200 {"id":"f9d43752-8a75-4e4c-bb63-4290870f445a","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","kind":"referral_post_review","message":"Chuyển viện cấp cứu dùng đường tắt – cần hậu kiểm","dedupe_key":"ref-review:62a287ab-e66a-425a-99c5-19314b3d3fd2","status":"acknowledged","level":0,"owner_id":"2a368d20-5029-49a6-83ac-1ea493a09ada","resolution"
+- manager1 POST /api/alerts/f9d43752-8a75-4e4c-bb63-4290870f445a/acknowledge
+    → 409 {"error":{"code":"BAD_TRANSITION","message":"Cảnh báo đang ở trạng thái 'acknowledged'"}}
+- manager1 POST /api/alerts/f9d43752-8a75-4e4c-bb63-4290870f445a/resolve
+    yêu cầu: {"note":"Đã hậu kiểm"}
+    → 200 {"id":"f9d43752-8a75-4e4c-bb63-4290870f445a","person_id":"dfdd393b-9b72-4965-9f0c-dc19e0992a2a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","kind":"referral_post_review","message":"Chuyển viện cấp cứu dùng đường tắt – cần hậu kiểm","dedupe_key":"ref-review:62a287ab-e66a-425a-99c5-19314b3d3fd2","status":"resolved","level":0,"owner_id":"2a368d20-5029-49a6-83ac-1ea493a09ada","resolution":"Đã
+- SQL
+    yêu cầu: "select owner_id, handled_at, status from alert where id='f9d43752-8a75-4e4c-bb63-4290870f445a'"
+    → - [{"owner_id":"2a368d20-5029-49a6-83ac-1ea493a09ada","handled_at":"2026-11-14 08:17:58.787068","status":"resolved"}]

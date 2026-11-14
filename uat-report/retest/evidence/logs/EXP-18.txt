@@ -1,0 +1,38 @@
+# EXP-18 – Gộp hồ sơ: không tự gộp chính mình; chặn khi cả hai hồ sơ cùng có đợt tiếp nhận đang hiệu lực (D6)
+Trạng thái: PASS   Thời gian chạy: 24 ms
+Kết quả mong đợi: source=target → 4xx; cả hai đang hoạt động → duyệt bị 409
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Gộp Hai Kỳ 4uvjld1","date_of_birth":"1979-09-09","source_system":"QLPN","external_id":"UAT-4yiw8dg"}
+    → 201 {"id":"2585c52e-6113-48a6-9985-ffc5557da1b5","full_name":"UAT Gộp Hai Kỳ 4uvjld1","name_key":"uat gop hai ky 4uvjld1","date_of_birth":"1979-09-09","gender":null,"source_system":"QLPN","external_id":"UAT-4yiw8dg","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:20:32.937263"}
+- officer1 POST /api/persons/2585c52e-6113-48a6-9985-ffc5557da1b5/stays
+    yêu cầu: {}
+    → 201 {"id":"088ec0da-8fb3-43b9-9a97-500440a318fe","person_id":"2585c52e-6113-48a6-9985-ffc5557da1b5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:32.939163","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"2585c52e-6113-48a6-9985-ffc5557da1b5","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"0c5c1a0f-8550-4f2b-9849-297c5e34edaf","person_id":"2585c52e-6113-48a6-9985-ffc5557da1b5","stay_id":"088ec0da-8fb3-43b9-9a97-500440a318fe","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/0c5c1a0f-8550-4f2b-9849-297c5e34edaf/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"0c5c1a0f-8550-4f2b-9849-297c5e34edaf","person_id":"2585c52e-6113-48a6-9985-ffc5557da1b5","stay_id":"088ec0da-8fb3-43b9-9a97-500440a318fe","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/2585c52e-6113-48a6-9985-ffc5557da1b5/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/0c5c1a0f-8550-4f2b-9849-297c5e34edaf/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"0c5c1a0f-8550-4f2b-9849-297c5e34edaf","person_id":"2585c52e-6113-48a6-9985-ffc5557da1b5","stay_id":"088ec0da-8fb3-43b9-9a97-500440a318fe","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Gộp Hai Kỳ 4uvjld1","date_of_birth":"1979-09-09","confirm_distinct":true}
+    → 201 {"id":"737b0902-5fc4-4195-b7a0-3bffffa5ac36","full_name":"UAT Gộp Hai Kỳ 4uvjld1","name_key":"uat gop hai ky 4uvjld1","date_of_birth":"1979-09-09","gender":null,"source_system":null,"external_id":null,"status":"pending_verification","duplicate_candidates":["2585c52e-6113-48a6-9985-ffc5557da1b5"],"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created
+- officer1 POST /api/persons/737b0902-5fc4-4195-b7a0-3bffffa5ac36/stays
+    yêu cầu: {}
+    → 201 {"id":"87f8b605-9c1e-4bd6-945e-b5f5edea1bf3","person_id":"737b0902-5fc4-4195-b7a0-3bffffa5ac36","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:32.951813","hea
+- officer1 POST /api/person-merges
+    yêu cầu: {"source_id":"2585c52e-6113-48a6-9985-ffc5557da1b5","target_id":"2585c52e-6113-48a6-9985-ffc5557da1b5","reason":"Tự gộp chính mình thử nghiệm"}
+    → 422 {"error":{"code":"SAME_PERSON","message":"Hồ sơ nguồn và hồ sơ giữ lại phải khác nhau"}}
+- officer1 POST /api/person-merges
+    yêu cầu: {"source_id":"737b0902-5fc4-4195-b7a0-3bffffa5ac36","target_id":"2585c52e-6113-48a6-9985-ffc5557da1b5","reason":"Cùng họ tên ngày sinh, đối chiếu giấy tờ"}
+    → 409 {"error":{"code":"BOTH_ACTIVE","message":"Cả hai hồ sơ cùng có đợt tiếp nhận đang hiệu lực – cần xử lý đợt tiếp nhận trước khi gộp"}}
+- SQL
+    yêu cầu: "select status s from person where id='737b0902-5fc4-4195-b7a0-3bffffa5ac36'"
+    → - [{"s":"pending_verification"}]

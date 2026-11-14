@@ -1,0 +1,21 @@
+# SEC-04 – Dữ liệu quá khổ / sai kiểu: chuỗi 100.000 ký tự, JSON sai kiểu, thiếu trường → 422/413, không 500
+Trạng thái: PASS   Thời gian chạy: 7 ms
+Kết quả mong đợi: Không có HTTP 5xx
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","type":"ad_hoc","reason":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+    → 201 {"id":"52252689-c5db-4c3a-a9c7-618ca4380e21","person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","stay_id":"2b41e0e0-ef5c-4d49-87bf-6fb32f136e32","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":123,"type":[]}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"person_id","message":"Input should be a valid string"},{"field":"type","message":"Input should be a valid string"}]}}
+- doctor1 POST /api/encounters
+    yêu cầu: {}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"person_id","message":"bắt buộc nhập"},{"field":"type","message":"bắt buộc nhập"}]}}
+- doctor1 POST /api/encounters/a11de813-9fc9-4675-9c03-860b11339db2/diagnoses
+    yêu cầu: {"text":null}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"text","message":"Input should be a valid string"}]}}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":{"a":1}}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"full_name","message":"Input should be a valid string"}]}}

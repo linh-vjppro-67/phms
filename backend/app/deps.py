@@ -85,7 +85,7 @@ def has_facility_link(db: Session, person_id: str, facility_id: str | None) -> b
 
 # REQ-02: tra cứu danh tính LIÊN CƠ SỞ chỉ dành cho vai trò quản lý danh tính (tiếp nhận/đối soát/gộp hồ sơ).
 # Vai trò khác (bác sĩ, điều dưỡng, dược, quản lý…) chỉ thấy người có quan hệ quản lý tại cơ sở của mình hoặc đang có break-glass còn hạn.
-IDENTITY_WIDE_PERMS = {"person.write", "person.merge.request", "person.merge.approve"}
+IDENTITY_WIDE_PERMS = {"person.write"}          # cán bộ tiếp nhận (tạo/đối soát/đề nghị gộp hồ sơ)
 
 
 def identity_wide(user: User) -> bool:
@@ -97,13 +97,18 @@ def identity_scope_clause(user: User):
     if identity_wide(user):
         return None
     linked = select(CustodyStay.person_id).where(CustodyStay.facility_id == user.facility_id, CustodyStay.status != "voided")
+    mine_created = select(User.id).where(User.facility_id == user.facility_id)     # hồ sơ do người của cơ sở mình lập (chưa có đợt tiếp nhận vẫn thấy)
     granted = select(BreakGlassGrant.person_id).where(
         BreakGlassGrant.user_id == user.id, BreakGlassGrant.revoked_at.is_(None), BreakGlassGrant.expires_at > utcnow())
-    return Person.id.in_(linked) | Person.id.in_(granted)
+    return Person.id.in_(linked) | Person.id.in_(granted) | Person.created_by.in_(mine_created)
 
 
 def ensure_identity_visible(db: Session, user: User, person_id: str, request: Request | None = None) -> None:
     if identity_wide(user) or has_facility_link(db, person_id, user.facility_id) or active_grant(db, user.id, person_id):
+        return
+    p = db.get(Person, person_id)
+    creator = db.get(User, p.created_by) if p and p.created_by else None
+    if creator and creator.facility_id and creator.facility_id == user.facility_id:
         return
     audit(db, user, "access_denied", "Person", person_id, person_id=person_id, result="denied",
           reason="tra cứu danh tính ngoài phạm vi cơ sở", request=request, commit=True)

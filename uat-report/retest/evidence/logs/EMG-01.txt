@@ -1,0 +1,12 @@
+# EMG-01 – Ghi nhận cấp cứu tối thiểu, chưa rõ danh tính → tạo ngay hồ sơ tạm + lượt khám cấp cứu đang mở, không bị chặn bởi thủ tục (UAT-07/I1)
+Trạng thái: PASS   Thời gian chạy: 9 ms
+Kết quả mong đợi: 201; person.provisional/[TẠM]; encounter type=emergency in_progress; priority emergent
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- nurse1 POST /api/emergency-events
+    yêu cầu: {"temp_identity":"Nam khoảng 40 tuổi, chưa rõ danh tính 4uvjld1"}
+    → 201 {"id":"ff8b046a-69db-4950-9cce-bb4ffa287183","person_id":"497c5e0d-126b-4623-9e12-7d4cc40883f8","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","encounter_id":"d73868c7-3078-4580-93ba-958ff15434f4","temp_identity":"Nam khoảng 40 tuổi, chưa rõ danh tính 4uvjld1","location":null,"reporter":null,"description":null,"status":"open","timeline":[],"late_entry_reason":null,"closing_note":null,"closed
+- SQL
+    yêu cầu: "select p.full_name n, e.type t, e.status s, e.priority pr from emergency_event ev join person p on p.id=ev.person_id join encounter e on e.id=ev.encounter_id where ev.id='ff8b046a-69db-4950-9cce-bb4ffa287183'"
+    → - [{"n":"[TẠM] Nam khoảng 40 tuổi, chưa rõ danh tính 4uvjld1","t":"emergency","s":"in_progress","pr":"emergent"}]

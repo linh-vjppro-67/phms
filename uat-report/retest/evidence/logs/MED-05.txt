@@ -1,0 +1,50 @@
+# MED-05 – Hoàn trả vượt số đã cấp bị chặn; hoàn trả hợp lệ là sự kiện riêng tham chiếu lần cấp (BR-04)
+Trạng thái: PASS   Thời gian chạy: 39 ms
+Kết quả mong đợi: Hoàn trả > đã cấp → 409; hoàn trả hợp lệ → 200 và ghi thành dòng riêng kind=return
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Hoàn Trả 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4v5m3w0"}
+    → 201 {"id":"de6d8146-a273-451a-a687-efe8e1bfda5a","full_name":"UAT Hoàn Trả 4uvjld1","name_key":"uat hoan tra 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4v5m3w0","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:55.756900"}
+- officer1 POST /api/persons/de6d8146-a273-451a-a687-efe8e1bfda5a/stays
+    yêu cầu: {}
+    → 201 {"id":"c25f21f8-e27f-47c6-9e5a-d262072e783e","person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:17:55.759073","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"9a8153b0-2986-4929-8a66-7e53114a82a1","person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","stay_id":"c25f21f8-e27f-47c6-9e5a-d262072e783e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/9a8153b0-2986-4929-8a66-7e53114a82a1/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"9a8153b0-2986-4929-8a66-7e53114a82a1","person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","stay_id":"c25f21f8-e27f-47c6-9e5a-d262072e783e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/de6d8146-a273-451a-a687-efe8e1bfda5a/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/9a8153b0-2986-4929-8a66-7e53114a82a1/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"9a8153b0-2986-4929-8a66-7e53114a82a1","person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","stay_id":"c25f21f8-e27f-47c6-9e5a-d262072e783e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"63fc4b4f-391d-4dc7-876a-cc45968e8c47","person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","stay_id":"c25f21f8-e27f-47c6-9e5a-d262072e783e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/63fc4b4f-391d-4dc7-876a-cc45968e8c47/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"63fc4b4f-391d-4dc7-876a-cc45968e8c47","person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","stay_id":"c25f21f8-e27f-47c6-9e5a-d262072e783e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/63fc4b4f-391d-4dc7-876a-cc45968e8c47/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"dc6972e0-f433-4bca-9722-cb41cd316e35","encounter_id":"63fc4b4f-391d-4dc7-876a-cc45968e8c47","person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/dc6972e0-f433-4bca-9722-cb41cd316e35/confirm
+    yêu cầu: {}
+    → 200 {"id":"dc6972e0-f433-4bca-9722-cb41cd316e35","encounter_id":"63fc4b4f-391d-4dc7-876a-cc45968e8c47","person_id":"de6d8146-a273-451a-a687-efe8e1bfda5a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- pharm1 POST /api/medication-orders/dc6972e0-f433-4bca-9722-cb41cd316e35/dispenses
+    yêu cầu: {"quantity":10}
+    → 201 {"id":"6eadc45d-5f84-495e-9b31-187f705473bb","order_id":"dc6972e0-f433-4bca-9722-cb41cd316e35","kind":"dispense","ref_dispense_id":null,"quantity":10,"status":"partial","note":null,"dispensed_by":"bda97de0-d49c-4c3b-b0f3-5cc30b77d7e1","occurred_at":"2026-11-14T08:17:55.780309","recorded_at":"2026-11-14T08:17:55.780309","order":{"id":"dc6972e0-f433-4bca-9722-cb41cd316e35","encounter_id":"63fc4b4f-3
+- SQL
+    yêu cầu: "select id from dispense_event where order_id='dc6972e0-f433-4bca-9722-cb41cd316e35' and kind='dispense'"
+    → - [{"id":"6eadc45d-5f84-495e-9b31-187f705473bb"}]
+- pharm1 POST /api/medication-orders/dc6972e0-f433-4bca-9722-cb41cd316e35/dispenses
+    yêu cầu: {"kind":"return","quantity":11,"ref_dispense_id":"6eadc45d-5f84-495e-9b31-187f705473bb","note":"Hoàn trả thử vượt số"}
+    → 409 {"error":{"code":"OVER_RETURN","message":"Số lượng hoàn trả vượt số đã cấp","returnable":10}}
+- pharm1 POST /api/medication-orders/dc6972e0-f433-4bca-9722-cb41cd316e35/dispenses
+    yêu cầu: {"kind":"return","quantity":4,"ref_dispense_id":"6eadc45d-5f84-495e-9b31-187f705473bb","note":"Người bệnh không dùng"}
+    → 201 {"id":"e303b38d-9bac-4e70-b733-21eb3ea1a184","order_id":"dc6972e0-f433-4bca-9722-cb41cd316e35","kind":"return","ref_dispense_id":"6eadc45d-5f84-495e-9b31-187f705473bb","quantity":4,"status":"partial","note":"Người bệnh không dùng","dispensed_by":"bda97de0-d49c-4c3b-b0f3-5cc30b77d7e1","occurred_at":"2026-11-14T08:17:55.789730","recorded_at":"2026-11-14T08:17:55.789730","order":{"id":"dc6972e0-f433-
+- SQL
+    yêu cầu: "select count(*) n from dispense_event where order_id='dc6972e0-f433-4bca-9722-cb41cd316e35'"
+    → - [{"n":2}]

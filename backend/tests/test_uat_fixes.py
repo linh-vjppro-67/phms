@@ -123,6 +123,28 @@ def test_req02_identity_lookup_is_scoped_except_identity_roles(api):
         assert api.get(u, f"/api/persons/{p['id']}").status_code == 200
 
 
+def test_req02_approver_sees_own_facility_registrations_but_not_other_facility(api):
+    mine = api.person(ext="PN-77-0001", name="Đỗ Văn Mới")                 # officer1 (Trại 1) vừa lập hồ sơ, chưa có đợt tiếp nhận
+    other = api.person(ext="PN-77-0002", name="Hồ Văn Khác", user="officer2")
+    ids = [x["id"] for x in api.get("approver1", "/api/persons").json()]
+    assert mine["id"] in ids and other["id"] not in ids
+    assert api.get("approver1", f"/api/persons/{mine['id']}").status_code == 200
+    assert api.get("approver1", f"/api/persons/{other['id']}").status_code == 403
+
+
+def test_req02_emergency_lookup_by_exact_code_is_minimal_and_audited(api):
+    p, _ = api.patient(ext="PN-99-0001", name="Phạm Văn Khẩn")
+    found = api.get("doctor2", "/api/persons?q=PN-99-0001").json()                   # bác sĩ Trại 2: đúng mã đầy đủ
+    assert [x["id"] for x in found] == [p["id"]] and found[0]["out_of_scope"] is True
+    assert found[0]["date_of_birth"] is None and "duplicate_candidates" not in found[0]  # chỉ thông tin tối thiểu để nhận diện
+    assert api.get("doctor2", "/api/persons?q=PN-99").json() == []                    # mã một phần: không
+    assert api.get("doctor2", "/api/persons?q=Phạm Văn Khẩn").json() == []            # theo tên: không
+    assert api.get("pharm2", "/api/persons?q=PN-99-0001").json() == []                # vai trò không có quyền break-glass: không
+    assert api.get("doctor2", f"/api/persons/{p['id']}").status_code == 403           # mở hồ sơ vẫn phải qua break-glass
+    ev = api.get("admin", f"/api/audit?action=person_lookup_out_of_scope&person_id={p['id']}").json()
+    assert len(ev) == 1                                                               # tra cứu khẩn cấp được ghi nhật ký
+
+
 def test_req02_break_glass_grant_makes_identity_visible(api):
     p, _ = api.patient(ext="P-F1", name="Lê Văn Khẩn")
     assert api.get("doctor2", f"/api/persons/{p['id']}").status_code == 403

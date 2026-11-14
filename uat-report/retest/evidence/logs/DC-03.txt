@@ -1,0 +1,9 @@
+# DC-03 – Mỗi người chỉ có tối đa 1 đợt tiếp nhận đang hoạt động (received/managed)
+Trạng thái: PASS   Thời gian chạy: 4 ms
+Kết quả mong đợi: Không person nào >1 stay hoạt động
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- SQL
+    yêu cầu: "select person_id, count(*) n from custody_stay where status in ('received','managed') group by person_id having n>1"
+    → - []

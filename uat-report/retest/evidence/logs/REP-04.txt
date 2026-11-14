@@ -1,0 +1,16 @@
+# REP-04 – Xuất CSV: bắt buộc nêu mục đích (≥5 ký tự), chỉ người có report.export; có ghi nhật ký report_exported; xuất bị từ chối cũng được ghi (L3)
+Trạng thái: PASS   Thời gian chạy: 9 ms
+Kết quả mong đợi: Thiếu mục đích → 422; nurse → 403; manager + mục đích → 200 text/csv; audit report_exported
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- manager1 GET /api/reports/encounters?format=csv
+    → 422 {"error":{"code":"PURPOSE_REQUIRED","message":"Xuất dữ liệu phải nêu mục đích/căn cứ"}}
+- manager1 GET /api/reports/encounters?format=csv&purpose=abc
+    → 422 {"error":{"code":"PURPOSE_REQUIRED","message":"Xuất dữ liệu phải nêu mục đích/căn cứ"}}
+- nurse1 GET /api/reports/encounters?format=csv&purpose=Kiem+tra+UAT
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (report.read)"}}
+- manager1 GET /api/reports/encounters?format=csv&purpose=B%C3%A1o%20c%C3%A1o%20qu%C3%BD%20UAT%204uvjld1
+    → 200 "metric,value\r\nby_type.ad_hoc.encounter_count,49\r\nby_type.ad_hoc.distinct_person_count,47\r\nby_type.emergency.encounter_count,10\r\nby_type.emergency.distinct_person_count,10\r\nby_type.initial.encounter_count,60\r\nby_type.initial.distinct_person_count,60\r\nby_type.periodic.encounter_count,21\r\nby_type.periodic.distinct_person_count,14\r\ntotal_encounters,140\r\ntotal_distinct_persons,79\r
+- admin GET /api/audit?action=report_exported&limit=20
+    → 200 [{"seq":1776,"id":"e5ca70a1-3387-42ae-a35a-57de595ea6cd","actor_id":"2a368d20-5029-49a6-83ac-1ea493a09ada","actor_name":"manager1","action":"report_exported","object_type":"encounters","object_id":null,"person_id":null,"result":"success","reason":"Báo cáo quý UAT 4uvjld1","source_ip":"127.0.0.1","at":"2026-11-14T08:17:59.091491","prev_hash":"099f8209bd3023ae49007f2df4e3b061f3989f3c7e84c44b47af06b4

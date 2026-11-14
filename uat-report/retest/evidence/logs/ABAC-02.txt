@@ -1,0 +1,11 @@
+# ABAC-02 – Cách ly cơ sở với chuyển viện/báo cáo: người Trại 2 không thao tác được hồ sơ chuyển viện Trại 1
+Trạng thái: PASS   Thời gian chạy: 3 ms
+Kết quả mong đợi: 403 khi approver2 đổi trạng thái referral của F01; báo cáo manager2 chỉ gồm dữ liệu F02
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- approver2 PATCH /api/referrals/612813c8-6a01-430f-9857-6040196b73e4/status
+    yêu cầu: {"to":"coordinated"}
+    → 403 {"error":{"code":"FACILITY_SCOPE","message":"Hồ sơ chuyển viện thuộc cơ sở khác"}}
+- manager2 GET /api/reports/encounters
+    → 200 {"report":"encounters","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","date_from":"2026-10-15","date_to":"2026-11-14","generated_at":"2026-11-14T08:17:49.783775","data":{"by_type":{"ad_hoc":{"encounter_count":1,"distinct_person_count":1},"initial":{"encounter_count":1,"distinct_person_count":1},"periodic":{"encounter_count":2,"distinct_person_count":2}},"total_encounters":4,"total_distinct_p

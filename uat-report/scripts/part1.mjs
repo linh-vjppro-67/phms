@@ -91,7 +91,7 @@ export async function part1(S) {
     ["officer1", "Cán bộ tiếp nhận", ["Bảng điều khiển", "Tiếp nhận & Hồ sơ", "Chuyển trại"], ["Khám ban đầu", "Khám chữa bệnh", "Cấp phát", "Hồ sơ sức khỏe", "Tài liệu y tế", "Báo cáo", "Quản trị", "Cấp cứu", "Chuyển viện"]],
     ["nurse1", "Điều dưỡng", ["Khám chữa bệnh", "Cấp cứu", "Hồ sơ sức khỏe"], ["Báo cáo", "Quản trị"]],
     ["doctor1", "Bác sĩ", ["Khám ban đầu", "Khám chữa bệnh", "Chỉ định & Kê đơn", "Chuyển viện", "Cấp cứu"], ["Báo cáo", "Quản trị"]],
-    ["pharm1", "Dược", ["Cấp phát thuốc"], ["Quản trị", "Báo cáo", "Tiếp nhận & Hồ sơ", "Chuyển viện", "Cấp cứu"]],
+    ["pharm1", "Dược", ["Cấp phát thuốc", "Tiếp nhận & Hồ sơ"], ["Quản trị", "Báo cáo", "Chuyển viện", "Cấp cứu"]],   // REQ-01 (đã chốt): dược được TRA CỨU bệnh nhân như thực hành EMR, không đăng ký/đối soát
     ["approver1", "Người phê duyệt", ["Chuyển viện", "Chuyển trại"], ["Khám ban đầu", "Khám chữa bệnh", "Cấp phát", "Hồ sơ sức khỏe", "Báo cáo", "Quản trị"]],
     ["manager1", "Quản lý y tế", ["Báo cáo", "Khám định kỳ"], ["Quản trị", "Khám ban đầu", "Cấp phát", "Tiếp nhận & Hồ sơ"]],
     ["admin", "Quản trị hệ thống", ["Quản trị"], ["Khám ban đầu", "Khám chữa bệnh", "Hồ sơ sức khỏe", "Cấp phát", "Tiếp nhận & Hồ sơ", "Chuyển viện", "Báo cáo", "Cấp cứu", "Tài liệu y tế"]],
@@ -100,7 +100,11 @@ export async function part1(S) {
     await tc({ id: `NAV-${u.replace(/\d/, "")}`, mod: "Phân quyền (UI)", kind: "Permission", role: label, title: `Menu của ${label} chỉ gồm các phân hệ được phép (đối chiếu 04-§2)`,
       expected: `Thấy: ${must_have.join(", ")}. KHÔNG thấy: ${must_not.join(", ")}`, sev: "Critical" }, async (c) => {
       const page = await ui(u); const labels = await navLabels(page); await c.shot(page, "menu");
-      if (u === "pharm1") { await nav(page, "Tiếp nhận & Hồ sơ").catch(() => {}); await c.shot(page, "tab-tiep-nhan-cua-duoc-si"); }
+      if (u === "pharm1") {
+        await nav(page, "Tiếp nhận & Hồ sơ"); await page.waitForTimeout(600); await c.shot(page, "tab-tiep-nhan-cua-duoc-si");
+        const btns = await page.$$eval("button", (b) => b.map((x) => x.textContent.trim()));
+        must(!btns.some((t) => /Tiếp nhận mới|Đối soát|Đề nghị gộp|Tiếp nhận kỳ mới/.test(t)), `Dược thấy nút ghi ở tab tra cứu: ${btns.filter((t) => /Tiếp nhận|Đối soát|gộp/.test(t)).join(", ")}`);
+      }
       for (const m of must_have) must(labels.some((l) => l.includes(m)), `${u} thiếu tab “${m}” (có: ${labels.join(" | ")})`);
       for (const m of must_not) must(!labels.some((l) => l.includes(m)), `${u} thấy tab không được phép “${m}”`);
       return `Menu: ${labels.join(" | ")}`;

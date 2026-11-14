@@ -1,0 +1,16 @@
+# RBAC-01 – Cán bộ tiếp nhận không đọc được dữ liệu lâm sàng (lượt khám, hồ sơ sức khỏe, đơn thuốc, tài liệu y tế)
+Trạng thái: PASS   Thời gian chạy: 9 ms
+Kết quả mong đợi: HTTP 403 ở mọi endpoint lâm sàng (UAT-09)
+Kết quả thực tế: 4 endpoint lâm sàng 403; health-summary chỉ trả danh tính + đợt tiếp nhận (clinical=null)
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 GET /api/encounters/a11de813-9fc9-4675-9c03-860b11339db2
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- officer1 GET /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/medication-orders
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- officer1 GET /api/documents?person_id=3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (document.read)"}}
+- officer1 GET /api/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- officer1 GET /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/health-summary
+    → 200 {"person":{"id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","full_name":"UAT Phân Quyền A 4uvjld1","name_key":"uat phan quyen a 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4uvlhc3","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:

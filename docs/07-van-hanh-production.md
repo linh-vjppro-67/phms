@@ -19,7 +19,7 @@ Trình duyệt ──HTTPS──▶ Reverse proxy (nginx/Traefik: TLS, HSTS, gi�
 
 | Biến | Bắt buộc | Mô tả |
 |---|---|---|
-| `PHMS_ENV=production` | ✔ | Bật chế độ production: **từ chối khởi động nếu secret yếu**, tắt `/docs` `/redoc` `/openapi.json`, luôn gửi HSTS |
+| `PHMS_ENV=production` | ✔ | Bật chế độ production: **từ chối khởi động nếu secret yếu, nếu dùng SQLite (trừ `PHMS_ALLOW_SQLITE=1`), hoặc nếu còn tài khoản mẫu dùng mật khẩu mặc định**, tắt `/docs` `/redoc` `/openapi.json`, luôn gửi HSTS |
 | `PHMS_SECRET` | ✔ | Khóa ký phiên (JWT) và mã hóa bí mật MFA. ≥ 32 ký tự ngẫu nhiên. **Đổi khóa = mọi phiên bị đăng xuất và mọi MFA phải đăng ký lại** |
 | `PHMS_DOC_KEY` | ✔ | Khóa mã hóa tài liệu y tế. **Mất khóa = không đọc được tài liệu.** Giữ bản sao ở nơi an toàn, tách khỏi gói sao lưu |
 | `PHMS_DB_URL` | ✔ | `postgresql+psycopg://user:pass@host:5432/phms` |
@@ -33,6 +33,9 @@ Trình duyệt ──HTTPS──▶ Reverse proxy (nginx/Traefik: TLS, HSTS, gi�
 | `PHMS_PASSWORD_LOGIN_DISABLED=1` | | Chỉ cho đăng nhập SSO (trừ `sysadmin`, để còn đường vào khi IdP hỏng) |
 | `PHMS_SCHEDULER=0` | | Tắt bộ lập lịch trong worker web (khuyến nghị khi chạy nhiều worker – xem mục 4) |
 | `PHMS_NURSE_CAN_DISPENSE=1` | | Cơ sở **không có dược sĩ**: cho điều dưỡng cấp phát thuốc theo y lệnh (mặc định tắt – cấp phát là việc của dược) |
+| `PHMS_BOOTSTRAP_ADMIN_PASSWORD` | | Mật khẩu quản trị đầu tiên cho `python -m app.bootstrap` (bỏ trống = tự sinh, in một lần). **Xóa khỏi môi trường sau khi cài xong** |
+| `PHMS_ALLOW_SQLITE=1` | | **Ngoại lệ**: cho production chạy SQLite. Chỉ điểm triển khai nhỏ, **một** worker, một máy – khóa chống tranh chấp (`lock_row`) chỉ có hiệu lực trong một tiến trình |
+| `PHMS_ALLOW_SAMPLE_ACCOUNTS=1` | | **Ngoại lệ** cho môi trường đào tạo/thử nghiệm có chủ đích: cho phép còn tài khoản mẫu với mật khẩu công khai. **Không dùng với dữ liệu thật** |
 | `PHMS_PBKDF2_ITER` | | Số vòng băm mật khẩu (mặc định 200.000; không đặt thấp hơn 100.000 ở production) |
 
 Mẫu đầy đủ: [`deploy/phms.env.example`](../deploy/phms.env.example).
@@ -44,7 +47,7 @@ CREATE ROLE phms LOGIN PASSWORD '…';
 CREATE DATABASE phms OWNER phms ENCODING 'UTF8';
 ```
 * Lần khởi động đầu, ứng dụng tự tạo bảng (`ensure_schema`) dưới **khóa tư vấn** nên nhiều worker khởi động cùng lúc vẫn an toàn.
-* Tạo dữ liệu nền (cơ sở, danh mục, tài khoản mẫu): `python -m app.seed` – **xem mục 5 trước khi chạy ở môi trường thật**.
+* Khởi tạo hệ thống **thật** (cơ sở + quản trị viên đầu tiên + danh mục, **không** có tài khoản mẫu): `python -m app.bootstrap --facility F01="Trại giam số 1" --facility F02="Trại giam số 2"` (xem mục 5). `python -m app.seed` chỉ dành cho dev/demo và **tự từ chối chạy ở production**.
 * Danh mục ICD-10 thường gặp ở Việt Nam (217 mã, tên tiếng Việt) và **292 thuốc thiết yếu** (19 nhóm điều trị, kèm hàm lượng/dạng/đường dùng; mã là mã *nội bộ PHMS*, không phải mã thuốc BHYT của Bộ Y tế – dược sĩ/hội đồng thuốc cần rà soát) có sẵn trong seed; nạp thêm vào CSDL đang chạy bằng `python -m app.catalog_import` (idempotent, chỉ thêm mã còn thiếu, **không** tạo tài khoản). Đây là bộ khởi đầu để chọn nhanh, **không thay thế** bộ ICD-10 đầy đủ của Bộ Y tế – nạp bộ đầy đủ ở Quản trị → Danh mục khi khách cung cấp.
 * Sao lưu bằng `python -m app.backup` (mục 8), không chỉ `pg_dump` thủ công, vì cần kèm tệp tài liệu.
 
@@ -59,15 +62,20 @@ PHMS_ENV=production python -m app.scheduler_cli --loop
 ```
 Reverse proxy mẫu (TLS, HSTS, giới hạn đăng nhập): [`deploy/nginx.conf`](../deploy/nginx.conf). Proxy **phải** gửi `X-Forwarded-Proto` và `X-Forwarded-For` (ứng dụng dùng để nhận biết HTTPS và ghi IP vào nhật ký).
 
-## 5. Tài khoản & mật khẩu – CHECKLIST TRƯỚC KHI GO-LIVE
+## 5. Tài khoản & mật khẩu – CÀI MỚI CHO KHÁCH
 
-Trạng thái hiện tại của gói giao: **tài khoản mẫu giữ nguyên** (admin, officer1…manager2; mật khẩu `Phms@2026dev`), không bị ép đổi mật khẩu, để việc test/QC không bị gián đoạn. Trước khi dùng dữ liệu thật:
+**Môi trường dev/demo:** tài khoản mẫu (admin, officer1…manager2; mật khẩu `Phms@2026dev`) giữ nguyên, không bị ép đổi mật khẩu, để test/QC không gián đoạn.
 
-1. **Không dùng `app.seed` để tạo tài khoản thật.** Chạy seed (hoặc `ensure_schema`) rồi đăng nhập `admin`, **tạo tài khoản thật** ở tab *Quản trị → Người dùng* (người mới bị buộc đổi mật khẩu lần đầu), sau đó **khóa hoặc đặt lại mật khẩu** toàn bộ tài khoản mẫu. Tối thiểu đổi mật khẩu `admin`.
-2. Đặt `PHMS_ENV=production`, `PHMS_SECRET`, `PHMS_DOC_KEY` riêng (ứng dụng từ chối chạy nếu thiếu).
-3. Bật MFA bắt buộc ít nhất cho `sysadmin` (`PHMS_MFA_REQUIRED_ROLES=sysadmin`), nên thêm `approver`, `manager`.
-4. Quên mật khẩu: quản trị dùng nút **Đặt lại mật khẩu** (hệ thống sinh mật khẩu tạm hiện một lần, người dùng bị buộc đổi ở lần đăng nhập kế tiếp, mọi phiên cũ bị thu hồi). Mất thiết bị MFA: **Đặt lại MFA** (chỉ sau khi xác minh đúng người). Mọi thao tác đều ghi nhật ký.
-5. Chính sách mật khẩu: ≥ 10 ký tự, có chữ hoa/thường/số, khác mật khẩu cũ; khóa 15 phút sau 5 lần sai (kể cả sai OTP) và báo cho quản trị.
+**Production – quy trình cài mới (không dùng tài khoản mẫu):**
+
+1. Chuẩn bị `deploy/phms.env` từ [`phms.env.example`](../deploy/phms.env.example): `PHMS_ENV=production`, `PHMS_SECRET`, `PHMS_DOC_KEY` (hai khóa **khác nhau**), `PHMS_DB_URL` (PostgreSQL), `PHMS_MFA_REQUIRED_ROLES=sysadmin` (nên thêm `approver,manager`). Ứng dụng **từ chối khởi động** nếu thiếu/yếu.
+2. Khởi tạo: `docker compose -f deploy/docker-compose.yml --env-file deploy/phms.env run --rm bootstrap --facility F01="Tên cơ sở 1" [--facility F02="Tên cơ sở 2"]` (hoặc `python -m app.bootstrap …`). Lệnh tạo cơ sở, danh mục và **một** quản trị viên `admin` (bắt buộc đổi mật khẩu + đăng ký MFA ở lần đầu). Chạy lại nhiều lần an toàn, không ghi đè.
+3. Đăng nhập `admin` → đổi mật khẩu → đăng ký MFA → ở *Quản trị → Người dùng* tạo tài khoản thật (cán bộ tiếp nhận, điều dưỡng, bác sĩ, dược, người điều phối, quản lý; người mới bị buộc đổi mật khẩu lần đầu). Tạo **ít nhất 2 quản trị viên**.
+4. Nếu môi trường production cũ còn tài khoản mẫu (vd. đã chạy `app.seed` trước đây): ứng dụng sẽ **từ chối khởi động** và nêu tên các tài khoản đó. Đặt lại mật khẩu hoặc vô hiệu hóa chúng (bằng công cụ quản trị CSDL hoặc tạm đặt `PHMS_ALLOW_SAMPLE_ACCOUNTS=1` để đăng nhập `admin` xử lý rồi bỏ biến này).
+5. Quên mật khẩu: quản trị dùng nút **Đặt lại mật khẩu** (mật khẩu tạm hiện một lần, người dùng bị buộc đổi ở lần đăng nhập kế tiếp, mọi phiên cũ bị thu hồi). Mất thiết bị MFA: **Đặt lại MFA** (chỉ sau khi xác minh đúng người). Mọi thao tác đều ghi nhật ký.
+6. Chính sách mật khẩu: ≥ 10 ký tự, có chữ hoa/thường/số, khác mật khẩu cũ; khóa 15 phút sau 5 lần sai (kể cả sai OTP) và báo cho quản trị.
+
+Đăng nhập hiện dùng **tài khoản + mật khẩu (+ MFA)**. SSO là tùy chọn, bật sau (mục 7), không cần cho lần go-live đầu.
 
 ## 6. MFA (TOTP, RFC 6238)
 
@@ -101,7 +109,7 @@ python -m app.backup prune   --out /var/backups/phms --keep 30
 
 ## 9. Giám sát
 
-* `GET /api/health` (liveness). Khi quá tải ứng dụng trả **503 + `Retry-After`** thay vì lỗi 500.
+* `GET /api/health` (liveness, không chạm CSDL) và `GET /api/health/ready` (readiness, kiểm tra kết nối CSDL; 503 nếu không) – dùng cho load balancer/Docker healthcheck. Khi quá tải ứng dụng trả **503 + `Retry-After`** thay vì lỗi 500.
 * `GET /api/audit/verify` (quyền quản trị) – nên gọi định kỳ (cron) và **cảnh báo nếu `ok:false`**: chuỗi nhật ký bị sửa/đứt.
 * Nhật ký ứng dụng ra stdout (`uvicorn`, logger `phms`, `phms.scheduler`) – thu thập bằng hệ thống log của bạn.
 * Thông báo bảo mật trong ứng dụng (khóa tài khoản, break-glass) tới người có quyền `audit.read`.
@@ -117,7 +125,9 @@ python -m app.backup prune   --out /var/backups/phms --keep 30
 - [ ] `PHMS_ENV=production`, secret/khóa riêng, ứng dụng khởi động được
 - [ ] TLS hợp lệ ở proxy; `curl -I https://…` thấy `Strict-Transport-Security`, `Content-Security-Policy`, `X-Frame-Options: DENY`
 - [ ] `/docs` trả 404
-- [ ] Tài khoản mẫu đã khóa/đổi mật khẩu; có ít nhất 2 quản trị viên (một dự phòng) và MFA bật cho họ
+- [ ] Khởi tạo bằng `app.bootstrap` (không có tài khoản mẫu); có ít nhất 2 quản trị viên (một dự phòng) và MFA bật cho họ
+- [ ] `PHMS_DB_URL` là PostgreSQL; `PHMS_ALLOW_SQLITE` và `PHMS_ALLOW_SAMPLE_ACCOUNTS` **không** được đặt
+- [ ] `/api/health/ready` trả `{"status":"ready"}`; đã thử đăng nhập tài khoản mẫu cũ (phải bị từ chối)
 - [ ] PostgreSQL chỉ nghe mạng nội bộ; tài khoản DB quyền tối thiểu; sao lưu chạy và đã diễn tập phục hồi
 - [ ] Giới hạn tốc độ `/api/auth/login` ở proxy (mẫu có sẵn) – ứng dụng đã khóa tài khoản sau 5 lần sai nhưng không chặn theo IP
 - [ ] Cron gọi `/api/audit/verify` và cảnh báo khi lỗi
@@ -127,4 +137,6 @@ python -m app.backup prune   --out /var/backups/phms --keep 30
 * Chưa có mã khôi phục MFA dùng một lần; chưa có cảnh báo đăng nhập từ thiết bị lạ.
 * Chưa chặn tốc độ theo IP trong ứng dụng (làm ở proxy).
 * Nhật ký hash-chain *phát hiện* sửa đổi, không *ngăn* người có quyền ghi CSDL – cần phân quyền DB chặt và sao chép nhật ký ra hệ thống ngoài (SIEM) nếu yêu cầu cao hơn.
-* Chưa có Alembic; chưa kiểm chứng container (Docker daemon không có trong môi trường kiểm thử).
+* Chưa có Alembic.
+* Đã kiểm chứng chế độ production trên **PostgreSQL 16 thật** (153 test, 4 worker uvicorn, bootstrap, từ chối cấu hình không an toàn). **Chưa build được image Docker** (Docker daemon không chạy khi kiểm thử; `docker compose config` hợp lệ) – hãy `docker compose build` thử trước khi giao khách.
+* SSO chưa thử với IdP thật (mục 7). Chưa kiểm chứng TLS/nginx thật (`nginx -t` tại máy chủ đích).

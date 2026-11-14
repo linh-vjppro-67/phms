@@ -1,0 +1,21 @@
+# AUTH-04 – Chính sách mật khẩu: 9 ký tự / thiếu chữ hoa / thiếu số bị từ chối; 10 ký tự hợp lệ được chấp nhận
+Trạng thái: PASS   Thời gian chạy: 69 ms
+Kết quả mong đợi: Mật khẩu yếu → 422 WEAK_PASSWORD; mật khẩu ≥10 ký tự có hoa, thường, số → 201
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- admin POST /api/users
+    yêu cầu: {"username":"uat_pw1_4uvjld1","password":"Abcdef1gh","full_name":"UAT PW","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}
+    → 422 {"error":{"code":"WEAK_PASSWORD","message":"Mật khẩu tối thiểu 10 ký tự"}}
+- admin POST /api/users
+    yêu cầu: {"username":"uat_pw2_4uvjld1","password":"abcdefgh12345","full_name":"UAT PW","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}
+    → 422 {"error":{"code":"WEAK_PASSWORD","message":"Mật khẩu cần chữ hoa, chữ thường và chữ số"}}
+- admin POST /api/users
+    yêu cầu: {"username":"uat_pw3_4uvjld1","password":"ABCDEFGHijklmn","full_name":"UAT PW","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}
+    → 422 {"error":{"code":"WEAK_PASSWORD","message":"Mật khẩu cần chữ hoa, chữ thường và chữ số"}}
+- admin POST /api/users
+    yêu cầu: {"username":"uat_pw9_4uvjld1","password":"Phms@2026dev","full_name":"UAT PW","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}
+    → 201 {"id":"685120d8-b229-4792-ba22-4eafedff0660","username":"uat_pw9_4uvjld1","full_name":"UAT PW","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":true,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-14T08:17:44.849550","permissions":["admin.write","alert.handle","bre
+- admin POST /api/users
+    yêu cầu: {"username":"uat_pw4_4uvjld1","password":"Abcdefgh1j","full_name":"UAT PW","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}
+    → 201 {"id":"54e103cd-2549-46f7-964a-6675dd7efd74","username":"uat_pw4_4uvjld1","full_name":"UAT PW","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":true,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-14T08:17:44.881081","permissions":["admin.write","alert.handle","bre

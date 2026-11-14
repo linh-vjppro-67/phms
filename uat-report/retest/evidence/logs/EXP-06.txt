@@ -1,0 +1,52 @@
+# EXP-06 – Sau khi người đã chuyển sang Trại 2: cơ sở cũ không tạo lượt khám mới / không cấp phát đơn cũ cho người đó
+Trạng thái: PASS   Thời gian chạy: 42 ms
+Kết quả mong đợi: Tạo lượt khám & cấp phát cho người đã chuyển trại bị chặn (người không còn trong quản lý của cơ sở)
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Sau Chuyển Trại 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4yi09y3"}
+    → 201 {"id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","full_name":"UAT Sau Chuyển Trại 4uvjld1","name_key":"uat sau chuyen trai 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4yi09y3","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:20:31.7
+- officer1 POST /api/persons/0148a8dc-d3d8-45f3-97b9-7313df67fd4a/stays
+    yêu cầu: {}
+    → 201 {"id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:31.788856","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"51fb45af-dddd-4888-8a94-df17c10143d3","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/51fb45af-dddd-4888-8a94-df17c10143d3/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"51fb45af-dddd-4888-8a94-df17c10143d3","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/0148a8dc-d3d8-45f3-97b9-7313df67fd4a/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/51fb45af-dddd-4888-8a94-df17c10143d3/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"51fb45af-dddd-4888-8a94-df17c10143d3","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"46524fe9-58a5-4349-af5b-ea4d2d2b3e8b","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/46524fe9-58a5-4349-af5b-ea4d2d2b3e8b/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"46524fe9-58a5-4349-af5b-ea4d2d2b3e8b","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/46524fe9-58a5-4349-af5b-ea4d2d2b3e8b/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"e91495e7-08aa-427d-84ff-2e80bb9a66ea","encounter_id":"46524fe9-58a5-4349-af5b-ea4d2d2b3e8b","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/e91495e7-08aa-427d-84ff-2e80bb9a66ea/confirm
+    yêu cầu: {}
+    → 200 {"id":"e91495e7-08aa-427d-84ff-2e80bb9a66ea","encounter_id":"46524fe9-58a5-4349-af5b-ea4d2d2b3e8b","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- officer1 POST /api/stays/266871ad-1f74-4a13-8a0d-ba4d10fec8ac/handover
+    yêu cầu: {"kind":"transfer","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","reason":"Điều chuyển"}
+    → 201 {"id":"93d56245-4233-4fb4-9fa5-8747f9bc2632","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","kind":"transfer","from_facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"pending","reason":"Điều chuyển","summary":null,"document_ids":null,"open_items":null,"initiated_by":"03197fa1-200
+- nurse1 PUT /api/handovers/93d56245-4233-4fb4-9fa5-8747f9bc2632/summary
+    yêu cầu: {"summary":"Đang dùng Paracetamol 15 ngày"}
+    → 200 {"id":"93d56245-4233-4fb4-9fa5-8747f9bc2632","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","kind":"transfer","from_facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"pending","reason":"Điều chuyển","summary":"Đang dùng Paracetamol 15 ngày","document_ids":null,"open_items":{"open
+- officer1 POST /api/handovers/93d56245-4233-4fb4-9fa5-8747f9bc2632/confirm
+    yêu cầu: {"acknowledge_open_items":true}
+    → 200 {"id":"93d56245-4233-4fb4-9fa5-8747f9bc2632","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","kind":"transfer","from_facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"confirmed","reason":"Điều chuyển","summary":null,"document_ids":null,"open_items":null,"initiated_by":"03197fa1-2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","type":"ad_hoc","reason":"Khám sau khi đã chuyển trại"}
+    → 409 {"error":{"code":"NO_ACTIVE_STAY","message":"Người này không có đợt tiếp nhận đang hiệu lực tại cơ sở của bạn"}}
+- pharm1 POST /api/medication-orders/e91495e7-08aa-427d-84ff-2e80bb9a66ea/dispenses
+    yêu cầu: {"quantity":5}
+    → 409 {"error":{"code":"NO_ACTIVE_STAY","message":"Người này không có đợt tiếp nhận hiệu lực tại cơ sở của bạn (đã chuyển trại/kết thúc) – chỉ được xem"}}
+- pharm1 GET /api/dispense-queue
+    → 200 [{"id":"538940fc-a803-4ed5-afd5-f0bd9343f914","encounter_id":"7d836c91-4133-4f80-a0a4-e98a824128fc","person_id":"02360512-c110-417d-be53-0c362dd8cc8f","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"AMLO5","drug_name":"Amlodipine 5mg","strength":"5mg","dose":"1 viên","route":"uống","frequency":"1 lần/ngày","start_date":"2026-08-27","duration_days":139,"quantity_prescribed":139,"i

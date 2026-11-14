@@ -1,0 +1,200 @@
+# EXP-09 – Mọi danh sách (alerts, lịch hẹn, hàng đợi cấp phát, chuyển viện, bàn giao, cấp cứu, lượt khám, đơn thuốc, kế hoạch, thông báo, báo cáo) của người Trại 2 KHÔNG chứa người bệnh của Trại 1
+Trạng thái: PASS   Thời gian chạy: 142 ms
+Kết quả mong đợi: Không có id/họ tên người Trại 1 trong bất kỳ phản hồi nào
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Cách Ly Danh Sách 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4yi3kmk"}
+    → 201 {"id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","full_name":"UAT Cách Ly Danh Sách 4uvjld1","name_key":"uat cach ly danh sach 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4yi3kmk","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:20:
+- officer1 POST /api/persons/16a74afa-29c0-4bab-bf19-8c84b2c76932/stays
+    yêu cầu: {}
+    → 201 {"id":"baec72ea-d891-4078-880a-4e13e0e72a0d","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:31.907975","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"01417839-e897-4c61-bc9d-469bade5247d","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","stay_id":"baec72ea-d891-4078-880a-4e13e0e72a0d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/01417839-e897-4c61-bc9d-469bade5247d/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"01417839-e897-4c61-bc9d-469bade5247d","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","stay_id":"baec72ea-d891-4078-880a-4e13e0e72a0d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/16a74afa-29c0-4bab-bf19-8c84b2c76932/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/01417839-e897-4c61-bc9d-469bade5247d/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"01417839-e897-4c61-bc9d-469bade5247d","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","stay_id":"baec72ea-d891-4078-880a-4e13e0e72a0d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"c1b03329-d8a5-4bd6-b8a4-98cb8dd97197","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","stay_id":"baec72ea-d891-4078-880a-4e13e0e72a0d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/c1b03329-d8a5-4bd6-b8a4-98cb8dd97197/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"c1b03329-d8a5-4bd6-b8a4-98cb8dd97197","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","stay_id":"baec72ea-d891-4078-880a-4e13e0e72a0d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/c1b03329-d8a5-4bd6-b8a4-98cb8dd97197/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"3c4a8d15-25b4-4df1-b02c-58f7bb73251f","encounter_id":"c1b03329-d8a5-4bd6-b8a4-98cb8dd97197","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/3c4a8d15-25b4-4df1-b02c-58f7bb73251f/confirm
+    yêu cầu: {}
+    → 200 {"id":"3c4a8d15-25b4-4df1-b02c-58f7bb73251f","encounter_id":"c1b03329-d8a5-4bd6-b8a4-98cb8dd97197","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/encounters/c1b03329-d8a5-4bd6-b8a4-98cb8dd97197/referrals
+    yêu cầu: {"urgency":"emergency","reason":"Cách ly thử","destination":"BV A"}
+    → 201 {"id":"363b31fc-695b-4d23-9aa4-b110ef6906ec","encounter_id":"c1b03329-d8a5-4bd6-b8a4-98cb8dd97197","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"emergency","reason":"Cách ly thử","status":"draft","destination":"BV A","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut_used":fa
+- nurse1 POST /api/appointments
+    yêu cầu: {"person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","due_date":"2026-11-19","note":"x"}
+    → 201 {"id":"7ad17cdc-93c9-4271-83c1-3780a3b06177","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","kind":"follow_up","care_plan_id":null,"round_id":null,"due_date":"2026-11-19","status":"scheduled","assignee_id":null,"note":"x","status_reason":null,"completed_encounter_id":null,"recorded_at":"2026-11-14T08:20:31.929128","completed_at":null,"overdu
+- nurse1 POST /api/emergency-events
+    yêu cầu: {"person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","description":"cách ly"}
+    → 201 {"id":"fe66ff21-2a2d-4eb9-a145-48adcb43353c","person_id":"16a74afa-29c0-4bab-bf19-8c84b2c76932","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","encounter_id":"c1bd2515-96be-447b-843e-e862bbc662d1","temp_identity":null,"location":null,"reporter":null,"description":"cách ly","status":"open","timeline":[],"late_entry_reason":null,"closing_note":null,"closed_by":null,"created_by":"dd047762-e5ba-
+- doctor2 GET /api/alerts
+    → 200 [{"id":"1f0c87d7-032d-4ce4-a941-17f6155f4617","person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","kind":"break_glass_review","message":"Truy cập khẩn cấp bởi doctor2: Cấp cứu ngoài trại, cần tiền sử dị ứng","dedupe_key":"bg:8c4c0987-c3b7-4027-9513-1b5303893a7f","status":"new","level":0,"owner_id":null,"resolution":null,"created_at":"2026-11-14T0
+- doctor2 GET /api/appointments
+    → 200 [{"id":"1068b30f-c10b-42f0-8c63-6dd49d009c3b","person_id":"4beefa29-53fe-4666-aa00-2c286e08ab70","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","kind":"care_plan","care_plan_id":"3d185e54-11b3-48db-8f29-21a2d527be39","round_id":null,"due_date":"2026-11-16","status":"scheduled","assignee_id":"2e188070-4bcd-45a9-bd11-90f139df7bbf","note":null,"status_reason":null,"completed_encounter_id":null,
+- doctor2 GET /api/dispense-queue
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (dispense.write)"}}
+- doctor2 GET /api/referrals
+    → 200 [{"id":"d3fc0e6f-f0a6-4076-bb30-1758031f6aca","encounter_id":"41f19cda-2c1f-4ee4-9d1a-517e007357fd","person_id":"cf43def4-73a0-4e07-a197-0ba0612d2fd0","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","urgency":"urgent","reason":"Nghi viêm ruột thừa giai đoạn sớm","status":"pending","destination":"Bệnh viện Đa khoa huyện","handover_docs":null,"left_at":null,"result_note":null,"post_referral_pla
+- doctor2 GET /api/handovers
+    → 200 [{"id":"93d56245-4233-4fb4-9fa5-8747f9bc2632","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","kind":"transfer","from_facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"confirmed","reason":"Điều chuyển","summary":"Đang dùng Paracetamol 15 ngày","document_ids":null,"open_items":{"o
+- doctor2 GET /api/emergency-events
+    → 200 []
+- doctor2 GET /api/encounters
+    → 200 [{"id":"0bc64209-8d5a-43c2-999f-02c50c43493e","person_id":"ec90d8c7-a259-4451-b352-439b87b0250c","stay_id":"505df08c-c9ed-473d-baae-682c7aa11d35","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d7bd42e0-03a8-4599-8cc2-246
+- doctor2 GET /api/medication-orders
+    → 200 [{"id":"e91495e7-08aa-427d-84ff-2e80bb9a66ea","encounter_id":"46524fe9-58a5-4349-af5b-ea4d2d2b3e8b","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,
+- doctor2 GET /api/care-plans
+    → 200 [{"id":"e7269b3f-cd93-46de-8098-fed08f0b5daa","person_id":"06cc8ee8-477c-4d7b-9252-629fcc6f6269","problem_id":"a04ebaa1-6a4a-4e3d-9731-1d1baf5a59ed","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","goals":"HbA1c < 7%, đường huyết đói 4.4–7.2 mmol/L","measures":[{"name":"Đường huyết","unit":"mmol/L"},{"name":"Cân nặng","unit":"kg"}],"review_interval_days":30,"start_date":"2026-11-08","status":
+- doctor2 GET /api/stays
+    → 200 [{"id":"5486d82a-430b-4faf-94e4-e4cb3d8a01c5","person_id":"d9e0f93b-464d-4a13-9ddb-29468da93238","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"c111a337-3886-4536-9954-d72612c58d48","recorded_at":"2026-11-14T08:17:58.521895","pe
+- doctor2 GET /api/notifications?limit=300
+    → 200 {"items":[{"seq":530,"id":"8139ce16-40f1-41e0-8a24-802b892d8a0c","category":"intake","kind":"intake.new_person","severity":"info","title":"Người mới tiếp nhận cần khám ban đầu","body":"UAT BG Liên Cơ Sở 4uvjld1 vừa được tiếp nhận, chờ khám sức khỏe ban đầu.","link_page":"initial","link_ref":null,"person_id":"d9e0f93b-464d-4a13-9ddb-29468da93238","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d"
+- doctor2 GET /api/checkup-rounds
+    → 200 [{"id":"ae22f5a7-7256-4412-a0a6-03ca824806fd","name":"Khám sức khỏe định kỳ Quý 4/2026 – Trại 2","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","due_date":"2026-11-24","criteria":{"min_days_since_last_periodic":null},"status":"open","excluded":[{"person_id":"cf7a179c-8f16-4c22-88f3-691ee9845f93","reason":"Chưa hoàn tất khám ban đầu"},{"person_id":"e159e03d-6ce3-4ca3-9b18-fef4a3ca528f","reaso
+- doctor2 GET /api/dashboard
+    → 200 {"active_persons":8,"awaiting_initial_exam":4,"pending_verification":0,"overdue_appointments":0,"appointments_today":0,"unresolved_alerts":3,"new_alerts":3,"open_encounters":1,"awaiting_results":0,"orders_draft":0,"open_referrals":1,"referrals_post_review":0,"pending_handovers":0,"open_emergencies":0}
+- nurse2 GET /api/alerts
+    → 200 [{"id":"1f0c87d7-032d-4ce4-a941-17f6155f4617","person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","kind":"break_glass_review","message":"Truy cập khẩn cấp bởi doctor2: Cấp cứu ngoài trại, cần tiền sử dị ứng","dedupe_key":"bg:8c4c0987-c3b7-4027-9513-1b5303893a7f","status":"new","level":0,"owner_id":null,"resolution":null,"created_at":"2026-11-14T0
+- nurse2 GET /api/appointments
+    → 200 [{"id":"1068b30f-c10b-42f0-8c63-6dd49d009c3b","person_id":"4beefa29-53fe-4666-aa00-2c286e08ab70","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","kind":"care_plan","care_plan_id":"3d185e54-11b3-48db-8f29-21a2d527be39","round_id":null,"due_date":"2026-11-16","status":"scheduled","assignee_id":"2e188070-4bcd-45a9-bd11-90f139df7bbf","note":null,"status_reason":null,"completed_encounter_id":null,
+- nurse2 GET /api/dispense-queue
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (dispense.write)"}}
+- nurse2 GET /api/referrals
+    → 200 [{"id":"d3fc0e6f-f0a6-4076-bb30-1758031f6aca","encounter_id":"41f19cda-2c1f-4ee4-9d1a-517e007357fd","person_id":"cf43def4-73a0-4e07-a197-0ba0612d2fd0","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","urgency":"urgent","reason":"Nghi viêm ruột thừa giai đoạn sớm","status":"pending","destination":"Bệnh viện Đa khoa huyện","handover_docs":null,"left_at":null,"result_note":null,"post_referral_pla
+- nurse2 GET /api/handovers
+    → 200 [{"id":"93d56245-4233-4fb4-9fa5-8747f9bc2632","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","kind":"transfer","from_facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"confirmed","reason":"Điều chuyển","summary":"Đang dùng Paracetamol 15 ngày","document_ids":null,"open_items":{"o
+- nurse2 GET /api/emergency-events
+    → 200 []
+- nurse2 GET /api/encounters
+    → 200 [{"id":"0bc64209-8d5a-43c2-999f-02c50c43493e","person_id":"ec90d8c7-a259-4451-b352-439b87b0250c","stay_id":"505df08c-c9ed-473d-baae-682c7aa11d35","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d7bd42e0-03a8-4599-8cc2-246
+- nurse2 GET /api/medication-orders
+    → 200 [{"id":"e91495e7-08aa-427d-84ff-2e80bb9a66ea","encounter_id":"46524fe9-58a5-4349-af5b-ea4d2d2b3e8b","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,
+- nurse2 GET /api/care-plans
+    → 200 [{"id":"e7269b3f-cd93-46de-8098-fed08f0b5daa","person_id":"06cc8ee8-477c-4d7b-9252-629fcc6f6269","problem_id":"a04ebaa1-6a4a-4e3d-9731-1d1baf5a59ed","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","goals":"HbA1c < 7%, đường huyết đói 4.4–7.2 mmol/L","measures":[{"name":"Đường huyết","unit":"mmol/L"},{"name":"Cân nặng","unit":"kg"}],"review_interval_days":30,"start_date":"2026-11-08","status":
+- nurse2 GET /api/stays
+    → 200 [{"id":"5486d82a-430b-4faf-94e4-e4cb3d8a01c5","person_id":"d9e0f93b-464d-4a13-9ddb-29468da93238","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"c111a337-3886-4536-9954-d72612c58d48","recorded_at":"2026-11-14T08:17:58.521895","pe
+- nurse2 GET /api/notifications?limit=300
+    → 200 {"items":[{"seq":531,"id":"c3c3029f-2b8d-475d-89c4-d1e7a76dbca2","category":"intake","kind":"intake.new_person","severity":"info","title":"Người mới tiếp nhận cần khám ban đầu","body":"UAT BG Liên Cơ Sở 4uvjld1 vừa được tiếp nhận, chờ khám sức khỏe ban đầu.","link_page":"initial","link_ref":null,"person_id":"d9e0f93b-464d-4a13-9ddb-29468da93238","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d"
+- nurse2 GET /api/checkup-rounds
+    → 200 [{"id":"ae22f5a7-7256-4412-a0a6-03ca824806fd","name":"Khám sức khỏe định kỳ Quý 4/2026 – Trại 2","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","due_date":"2026-11-24","criteria":{"min_days_since_last_periodic":null},"status":"open","excluded":[{"person_id":"cf7a179c-8f16-4c22-88f3-691ee9845f93","reason":"Chưa hoàn tất khám ban đầu"},{"person_id":"e159e03d-6ce3-4ca3-9b18-fef4a3ca528f","reaso
+- nurse2 GET /api/dashboard
+    → 200 {"active_persons":8,"awaiting_initial_exam":4,"pending_verification":0,"overdue_appointments":0,"appointments_today":0,"unresolved_alerts":3,"new_alerts":3,"open_encounters":1,"awaiting_results":0,"orders_draft":0,"open_referrals":1,"referrals_post_review":0,"pending_handovers":0,"open_emergencies":0}
+- pharm2 GET /api/alerts
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (schedule.read)"}}
+- pharm2 GET /api/appointments
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (schedule.read)"}}
+- pharm2 GET /api/dispense-queue
+    → 200 [{"id":"da10827a-ad48-4631-9a2d-2466a70111c7","encounter_id":"afbb1210-411f-4a00-9a0d-99b99715bcb8","person_id":"06cc8ee8-477c-4d7b-9252-629fcc6f6269","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","drug_code":"MET850","drug_name":"Metformin 850mg","strength":"850mg","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-08-31","duration_days":135,"quantity_prescribed":27
+- pharm2 GET /api/referrals
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (referral.read)"}}
+- pharm2 GET /api/handovers
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện"}}
+- pharm2 GET /api/emergency-events
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (emergency.write)"}}
+- pharm2 GET /api/encounters
+    → 200 [{"id":"0bc64209-8d5a-43c2-999f-02c50c43493e","person_id":"ec90d8c7-a259-4451-b352-439b87b0250c","stay_id":"505df08c-c9ed-473d-baae-682c7aa11d35","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"d7bd42e0-03a8-4599-8cc2-246
+- pharm2 GET /api/medication-orders
+    → 200 [{"id":"e91495e7-08aa-427d-84ff-2e80bb9a66ea","encounter_id":"46524fe9-58a5-4349-af5b-ea4d2d2b3e8b","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,
+- pharm2 GET /api/care-plans
+    → 200 [{"id":"e7269b3f-cd93-46de-8098-fed08f0b5daa","person_id":"06cc8ee8-477c-4d7b-9252-629fcc6f6269","problem_id":"a04ebaa1-6a4a-4e3d-9731-1d1baf5a59ed","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","goals":"HbA1c < 7%, đường huyết đói 4.4–7.2 mmol/L","measures":[{"name":"Đường huyết","unit":"mmol/L"},{"name":"Cân nặng","unit":"kg"}],"review_interval_days":30,"start_date":"2026-11-08","status":
+- pharm2 GET /api/stays
+    → 200 [{"id":"5486d82a-430b-4faf-94e4-e4cb3d8a01c5","person_id":"d9e0f93b-464d-4a13-9ddb-29468da93238","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"c111a337-3886-4536-9954-d72612c58d48","recorded_at":"2026-11-14T08:17:58.521895","pe
+- pharm2 GET /api/notifications?limit=300
+    → 200 {"items":[{"seq":143,"id":"009e3c3e-ca1a-430d-8c2f-9877a8c856dd","category":"medication","kind":"medication.confirmed","severity":"info","title":"Đơn thuốc mới chờ cấp phát","body":"Dương Thanh Hùng – Metformin 850mg, số lượng kê 260.","link_page":"pharmacy","link_ref":"c84cec71-884b-48bd-960f-a2cde45aa295","person_id":"4beefa29-53fe-4666-aa00-2c286e08ab70","facility_id":"0459621b-efef-4309-8dfa-e
+- pharm2 GET /api/checkup-rounds
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (schedule.read)"}}
+- pharm2 GET /api/dashboard
+    → 200 {"active_persons":8,"awaiting_initial_exam":4,"pending_verification":0,"open_encounters":1,"awaiting_results":0,"orders_draft":0,"dispense_queue":5}
+- approver2 GET /api/alerts
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (schedule.read)"}}
+- approver2 GET /api/appointments
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (schedule.read)"}}
+- approver2 GET /api/dispense-queue
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (dispense.write)"}}
+- approver2 GET /api/referrals
+    → 200 [{"id":"d3fc0e6f-f0a6-4076-bb30-1758031f6aca","encounter_id":"41f19cda-2c1f-4ee4-9d1a-517e007357fd","person_id":"cf43def4-73a0-4e07-a197-0ba0612d2fd0","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","urgency":"urgent","reason":null,"status":"pending","destination":"Bệnh viện Đa khoa huyện","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcu
+- approver2 GET /api/handovers
+    → 200 [{"id":"93d56245-4233-4fb4-9fa5-8747f9bc2632","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","kind":"transfer","from_facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"confirmed","reason":"Điều chuyển","summary":null,"document_ids":null,"open_items":null,"initiated_by":"03197fa1-
+- approver2 GET /api/emergency-events
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (emergency.write)"}}
+- approver2 GET /api/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- approver2 GET /api/medication-orders
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- approver2 GET /api/care-plans
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- approver2 GET /api/stays
+    → 200 [{"id":"5486d82a-430b-4faf-94e4-e4cb3d8a01c5","person_id":"d9e0f93b-464d-4a13-9ddb-29468da93238","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"c111a337-3886-4536-9954-d72612c58d48","recorded_at":"2026-11-14T08:17:58.521895","pe
+- approver2 GET /api/notifications?limit=300
+    → 200 {"items":[{"seq":169,"id":"97970bbb-4ef4-4c81-b1bd-1ed49016b45a","category":"handover","kind":"handover.received","severity":"info","title":"Cơ sở đích đã tiếp nhận người chuyển trại","body":"Huỳnh Hữu Quân: cơ sở nhận đã tiếp nhận (biên nhận hoàn tất).","link_page":"handover","link_ref":"8d83b894-1a1b-4aa5-a421-27bb30d12017","person_id":"666483a4-2ff1-4220-8e39-ca6fe09a5481","facility_id":"045962
+- approver2 GET /api/checkup-rounds
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (schedule.read)"}}
+- approver2 GET /api/dashboard
+    → 200 {"active_persons":8,"awaiting_initial_exam":4,"pending_verification":0,"open_referrals":1,"referrals_post_review":0,"pending_handovers":0}
+- manager2 GET /api/alerts
+    → 200 [{"id":"1f0c87d7-032d-4ce4-a941-17f6155f4617","person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","kind":"break_glass_review","message":"Truy cập khẩn cấp bởi doctor2: Cấp cứu ngoài trại, cần tiền sử dị ứng","dedupe_key":"bg:8c4c0987-c3b7-4027-9513-1b5303893a7f","status":"new","level":0,"owner_id":null,"resolution":null,"created_at":"2026-11-14T0
+- manager2 GET /api/appointments
+    → 200 [{"id":"1068b30f-c10b-42f0-8c63-6dd49d009c3b","person_id":"4beefa29-53fe-4666-aa00-2c286e08ab70","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","kind":"care_plan","care_plan_id":"3d185e54-11b3-48db-8f29-21a2d527be39","round_id":null,"due_date":"2026-11-16","status":"scheduled","assignee_id":"2e188070-4bcd-45a9-bd11-90f139df7bbf","note":null,"status_reason":null,"completed_encounter_id":null,
+- manager2 GET /api/dispense-queue
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (dispense.write)"}}
+- manager2 GET /api/referrals
+    → 200 [{"id":"d3fc0e6f-f0a6-4076-bb30-1758031f6aca","encounter_id":"41f19cda-2c1f-4ee4-9d1a-517e007357fd","person_id":"cf43def4-73a0-4e07-a197-0ba0612d2fd0","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","urgency":"urgent","reason":null,"status":"pending","destination":"Bệnh viện Đa khoa huyện","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcu
+- manager2 GET /api/handovers
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện"}}
+- manager2 GET /api/emergency-events
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (emergency.write)"}}
+- manager2 GET /api/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- manager2 GET /api/medication-orders
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- manager2 GET /api/care-plans
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- manager2 GET /api/stays
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (person.read)"}}
+- manager2 GET /api/notifications?limit=300
+    → 200 {"items":[{"seq":661,"id":"3511663a-3a54-4bd1-9428-8c9a3ecaf3f1","category":"security","kind":"security.break_glass","severity":"critical","title":"Truy cập khẩn cấp (break-glass) cần hậu kiểm","body":"doctor2 (doctor) truy cập hồ sơ ngoài phạm vi cơ sở bằng quyền khẩn cấp (hạn 30 phút). Cần hậu kiểm.","link_page":"chronic","link_ref":null,"person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","facili
+- manager2 GET /api/checkup-rounds
+    → 200 [{"id":"ae22f5a7-7256-4412-a0a6-03ca824806fd","name":"Khám sức khỏe định kỳ Quý 4/2026 – Trại 2","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","due_date":"2026-11-24","criteria":{"min_days_since_last_periodic":null},"status":"open","excluded":[{"person_id":"cf7a179c-8f16-4c22-88f3-691ee9845f93","reason":"Chưa hoàn tất khám ban đầu"},{"person_id":"e159e03d-6ce3-4ca3-9b18-fef4a3ca528f","reaso
+- manager2 GET /api/dashboard
+    → 200 {"overdue_appointments":0,"appointments_today":0,"unresolved_alerts":3,"new_alerts":3,"open_referrals":1,"referrals_post_review":0}
+- officer2 GET /api/alerts
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (schedule.read)"}}
+- officer2 GET /api/appointments
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (schedule.read)"}}
+- officer2 GET /api/dispense-queue
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (dispense.write)"}}
+- officer2 GET /api/referrals
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (referral.read)"}}
+- officer2 GET /api/handovers
+    → 200 [{"id":"93d56245-4233-4fb4-9fa5-8747f9bc2632","stay_id":"266871ad-1f74-4a13-8a0d-ba4d10fec8ac","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","kind":"transfer","from_facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"confirmed","reason":"Điều chuyển","summary":null,"document_ids":null,"open_items":null,"initiated_by":"03197fa1-
+- officer2 GET /api/emergency-events
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (emergency.write)"}}
+- officer2 GET /api/encounters
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- officer2 GET /api/medication-orders
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- officer2 GET /api/care-plans
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (clinical.read)"}}
+- officer2 GET /api/stays
+    → 200 [{"id":"5486d82a-430b-4faf-94e4-e4cb3d8a01c5","person_id":"d9e0f93b-464d-4a13-9ddb-29468da93238","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"c111a337-3886-4536-9954-d72612c58d48","recorded_at":"2026-11-14T08:17:58.521895","pe
+- officer2 GET /api/notifications?limit=300
+    → 200 {"items":[{"seq":763,"id":"92467846-af40-4f16-b377-fc5aec7186ea","category":"handover","kind":"handover.incoming","severity":"warning","title":"Có người được chuyển đến – cần xác nhận tiếp nhận mới","body":"UAT Sau Chuyển Trại 4uvjld1 được chuyển đến, cần xác nhận tiếp nhận mới.","link_page":"intake","link_ref":"0148a8dc-d3d8-45f3-97b9-7313df67fd4a","person_id":"0148a8dc-d3d8-45f3-97b9-7313df67fd4
+- officer2 GET /api/checkup-rounds
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (schedule.read)"}}
+- officer2 GET /api/dashboard
+    → 200 {"active_persons":8,"awaiting_initial_exam":4,"pending_verification":0,"pending_handovers":0}

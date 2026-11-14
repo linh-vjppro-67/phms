@@ -18,6 +18,7 @@ services:
     restart: unless-stopped
     env_file: phms.env
     environment: { PHMS_SCHEDULER: "0" }
+    healthcheck: { test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/health/ready')"], interval: 30s, timeout: 5s, retries: 3 }
     depends_on: { db: { condition: service_healthy } }
     ports: ["127.0.0.1:8000:8000"]
     volumes: ["docs:/data/storage"]
@@ -29,6 +30,13 @@ services:
     command: ["python", "-m", "app.scheduler_cli", "--loop"]
     depends_on: { db: { condition: service_healthy } }
     volumes: ["docs:/data/storage"]
+
+  bootstrap:                    # CHẠY MỘT LẦN khi cài mới: docker compose run --rm bootstrap --facility F01="Trại giam số 1" --facility F02="Trại giam số 2"
+    build: { context: .., dockerfile: deploy/Dockerfile }   # (đặt PHMS_BOOTSTRAP_ADMIN_PASSWORD trong phms.env, hoặc để hệ thống sinh mật khẩu tạm và in ra)
+    profiles: ["tools"]
+    env_file: phms.env
+    entrypoint: ["python", "-m", "app.bootstrap"]
+    depends_on: { db: { condition: service_healthy } }
 
   backup:                       # docker compose run --rm backup   (hoặc cron của máy chủ)
     build: { context: .., dockerfile: deploy/Dockerfile }

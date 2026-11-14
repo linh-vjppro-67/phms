@@ -1,0 +1,12 @@
+# DC-11 – Lịch hẹn khám 'hoàn tất' phải gắn lượt khám hoàn tất; không có lịch hẹn mở của người đã kết thúc/chuyển trại ở cơ sở cũ
+Trạng thái: PASS   Thời gian chạy: 6 ms
+Kết quả mong đợi: 0 dòng
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- SQL
+    yêu cầu: "select a.id from appointment a left join encounter e on e.id=a.completed_encounter_id where a.status='completed' and (e.id is null or e.status!='completed')"
+    → - []
+- SQL
+    yêu cầu: "select a.id from appointment a join custody_stay s on s.person_id=a.person_id and s.facility_id=a.facility_id where a.status in ('scheduled','due') and not exists (select 1 from custody_stay s2 where s2.person_id=a.person_id and s2.facility_id=a.facility_id and s2.status in ('received','managed'))"
+    → - []

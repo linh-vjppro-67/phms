@@ -1,0 +1,12 @@
+# NOT-01 – Hộp thư thông báo riêng từng người: đánh dấu đã đọc thông báo của người khác → 404 (N14); thông báo của cán bộ không chứa nội dung lâm sàng (N12)
+Trạng thái: PASS   Thời gian chạy: 14 ms
+Kết quả mong đợi: 404; nội dung thông báo officer không chứa thuật ngữ y khoa (đơn thuốc, chẩn đoán)
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- nurse1 GET /api/notifications?limit=20
+    → 200 {"items":[{"seq":654,"id":"1ba668f0-bb6b-48e6-ada0-2d905b49e202","category":"intake","kind":"intake.new_person","severity":"info","title":"Người mới tiếp nhận cần khám ban đầu","body":"UAT DM Thuốc 4uvjld1 vừa được tiếp nhận, chờ khám sức khỏe ban đầu.","link_page":"initial","link_ref":null,"person_id":"7ef18305-d880-450c-b9b1-c9d1eec5afcf","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","cre
+- doctor1 POST /api/notifications/1ba668f0-bb6b-48e6-ada0-2d905b49e202/read
+    → 404 {"error":{"code":"NOTIFICATION_NOT_FOUND","message":"Không tìm thấy thông báo"}}
+- officer1 GET /api/notifications?limit=200
+    → 200 {"items":[{"seq":600,"id":"d8ee07c9-5d2e-4a56-b172-b95737cce43d","category":"emergency","kind":"emergency.identity","severity":"warning","title":"Hồ sơ tạm từ cấp cứu cần đối soát danh tính","body":"Có người cấp cứu chưa được đối soát danh tính, cần đối soát với nguồn dữ liệu gốc để bác sĩ đóng được sự kiện.","link_page":"intake","link_ref":"db0d65ec-43c5-4cf0-9fe5-8342cdda4ec0","person_id":"db0d6

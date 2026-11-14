@@ -1,3 +1,5 @@
+> **Cập nhật 14/11/2026:** các lỗi DEF-01…04, REQ-01/02 và hai mục BLOCKED trong báo cáo này đã được sửa/kiểm lại – xem [RETEST-REPORT.md](RETEST-REPORT.md). Nội dung dưới đây là **kết quả gốc của ngày 13/11 (trước khi sửa)**, giữ nguyên để đối chiếu.
+
 # Báo cáo UAT – PHMS (Prisoner Health Management System) – Gói Core MVP
 
 | | |

@@ -1,0 +1,27 @@
+# BG-01 – Break-glass: lý do <10 ký tự bị chặn; hợp lệ → cấp lượt CHỈ ĐỌC có hạn (30'); ghi được dữ liệu vẫn bị chặn; sinh cảnh báo hậu kiểm + thông báo Khẩn cho manager/admin (O1–O3)
+Trạng thái: PASS   Thời gian chạy: 18 ms
+Kết quả mong đợi: 9 ký tự → 422; 10 ký tự → 200 (expires≈+30'); GET health-summary 200; POST observation 403; Alert break_glass_review; manager2 & admin nhận thông báo
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- doctor2 POST /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/break-glass
+    yêu cầu: {"reason":"123456789"}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"reason","message":"cần tối thiểu 10 ký tự"}]}}
+- doctor2 POST /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/break-glass
+    yêu cầu: {"reason":"Cấp cứu ngoài trại, cần tiền sử dị ứng"}
+    → 200 {"expires_at":"2026-11-14T08:48:01.904824","minutes":30,"read_only":true}
+- doctor2 GET /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/health-summary
+    → 200 {"person":{"id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","full_name":"UAT Phân Quyền A 4uvjld1","name_key":"uat phan quyen a 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4uvlhc3","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:
+- doctor2 POST /api/encounters/a11de813-9fc9-4675-9c03-860b11339db2/observations
+    yêu cầu: {"type":"Mạch","value":"80","unit":"l/p"}
+    → 403 {"error":{"code":"BREAKGLASS_READ_ONLY","message":"Truy cập khẩn cấp chỉ được xem, không được ghi dữ liệu"}}
+- doctor2 POST /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/allergies
+    yêu cầu: {"substance":"Phấn hoa"}
+    → 403 {"error":{"code":"BREAKGLASS_READ_ONLY","message":"Truy cập khẩn cấp chỉ được xem, không được ghi dữ liệu"}}
+- SQL
+    yêu cầu: "select count(*) n from alert where kind='break_glass_review' and person_id='3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc'"
+    → - [{"n":1}]
+- admin GET /api/notifications?limit=100
+    → 200 {"items":[{"seq":662,"id":"acaaafa6-5246-4f42-8cb4-164c65f20209","category":"security","kind":"security.break_glass","severity":"critical","title":"Truy cập khẩn cấp (break-glass) cần hậu kiểm","body":"doctor2 (doctor) truy cập hồ sơ ngoài phạm vi cơ sở bằng quyền khẩn cấp (hạn 30 phút). Cần hậu kiểm.","link_page":"admin","link_ref":null,"person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","facility
+- manager2 GET /api/notifications?limit=100
+    → 200 {"items":[{"seq":661,"id":"3511663a-3a54-4bd1-9428-8c9a3ecaf3f1","category":"security","kind":"security.break_glass","severity":"critical","title":"Truy cập khẩn cấp (break-glass) cần hậu kiểm","body":"doctor2 (doctor) truy cập hồ sơ ngoài phạm vi cơ sở bằng quyền khẩn cấp (hạn 30 phút). Cần hậu kiểm.","link_page":"chronic","link_ref":null,"person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","facili

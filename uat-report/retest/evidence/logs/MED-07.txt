@@ -1,0 +1,59 @@
+# MED-07 – Biên số lượng: 0, âm, NaN, > 1.000.000 bị từ chối (cả kê đơn và cấp phát)
+Trạng thái: PASS   Thời gian chạy: 30 ms
+Kết quả mong đợi: Tất cả HTTP 422, không lỗi 500
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Biên Số Lượng 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4v5oc3f"}
+    → 201 {"id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","full_name":"UAT Biên Số Lượng 4uvjld1","name_key":"uat bien so luong 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4v5oc3f","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:55.83717
+- officer1 POST /api/persons/462e02cd-5dc7-493b-b9c8-76d9b11b8ff0/stays
+    yêu cầu: {}
+    → 201 {"id":"cc2aa96a-739f-42dd-9c02-56ddc1840c24","person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:17:55.839284","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"a5f26036-6314-4920-bb2f-accef4602037","person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","stay_id":"cc2aa96a-739f-42dd-9c02-56ddc1840c24","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/a5f26036-6314-4920-bb2f-accef4602037/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"a5f26036-6314-4920-bb2f-accef4602037","person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","stay_id":"cc2aa96a-739f-42dd-9c02-56ddc1840c24","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/462e02cd-5dc7-493b-b9c8-76d9b11b8ff0/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/a5f26036-6314-4920-bb2f-accef4602037/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"a5f26036-6314-4920-bb2f-accef4602037","person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","stay_id":"cc2aa96a-739f-42dd-9c02-56ddc1840c24","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"4c4009c8-6379-41d2-a53b-c23beadd64f4","person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","stay_id":"cc2aa96a-739f-42dd-9c02-56ddc1840c24","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/4c4009c8-6379-41d2-a53b-c23beadd64f4/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"4c4009c8-6379-41d2-a53b-c23beadd64f4","person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","stay_id":"cc2aa96a-739f-42dd-9c02-56ddc1840c24","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/4c4009c8-6379-41d2-a53b-c23beadd64f4/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"59258b62-b4b0-4b0a-bc64-6d1a867a401f","encounter_id":"4c4009c8-6379-41d2-a53b-c23beadd64f4","person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/59258b62-b4b0-4b0a-bc64-6d1a867a401f/confirm
+    yêu cầu: {}
+    → 200 {"id":"59258b62-b4b0-4b0a-bc64-6d1a867a401f","encounter_id":"4c4009c8-6379-41d2-a53b-c23beadd64f4","person_id":"462e02cd-5dc7-493b-b9c8-76d9b11b8ff0","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- pharm1 POST /api/medication-orders/59258b62-b4b0-4b0a-bc64-6d1a867a401f/dispenses
+    yêu cầu: {"quantity":0}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"quantity","message":"phải lớn hơn 0.0"}]}}
+- doctor1 POST /api/encounters/4c4009c8-6379-41d2-a53b-c23beadd64f4/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":0}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"quantity_prescribed","message":"phải lớn hơn 0.0"}]}}
+- pharm1 POST /api/medication-orders/59258b62-b4b0-4b0a-bc64-6d1a867a401f/dispenses
+    yêu cầu: {"quantity":-5}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"quantity","message":"phải lớn hơn 0.0"}]}}
+- doctor1 POST /api/encounters/4c4009c8-6379-41d2-a53b-c23beadd64f4/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":-5}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"quantity_prescribed","message":"phải lớn hơn 0.0"}]}}
+- pharm1 POST /api/medication-orders/59258b62-b4b0-4b0a-bc64-6d1a867a401f/dispenses
+    yêu cầu: {"quantity":1000001}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"quantity","message":"phải nhỏ hơn hoặc bằng 1000000.0"}]}}
+- doctor1 POST /api/encounters/4c4009c8-6379-41d2-a53b-c23beadd64f4/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":1000001}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"quantity_prescribed","message":"phải nhỏ hơn hoặc bằng 1000000.0"}]}}
+- doctor1 POST /api/encounters/4c4009c8-6379-41d2-a53b-c23beadd64f4/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":0,"quantity_prescribed":30}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"duration_days","message":"phải lớn hơn 0"}]}}
+- doctor1 POST /api/encounters/4c4009c8-6379-41d2-a53b-c23beadd64f4/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":3651,"quantity_prescribed":30}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"duration_days","message":"phải nhỏ hơn hoặc bằng 3650"}]}}

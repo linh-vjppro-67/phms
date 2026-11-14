@@ -21,12 +21,12 @@ cd backend
 | `officer1` / `officer2` | Cán bộ tiếp nhận (Trại 1 / 2) | Bảng điều khiển, Tiếp nhận & Hồ sơ, Chuyển trại. **Không thấy dữ liệu lâm sàng** |
 | `nurse1` / `nurse2` | Điều dưỡng | Tiếp đón, tạo *yêu cầu khám* (nháp), đo sinh hiệu, ghi *đánh giá ban đầu*, ghi dị ứng khai báo, thực hiện y lệnh (ghi nhận đã dùng thuốc), bàn giao, cấp cứu ban đầu. **Không**: bắt đầu/kết luận khám, chẩn đoán, chỉ định, kê đơn, cấp phát thuốc (mặc định) |
 | `doctor1` / `doctor2` | Bác sĩ (vai trò **Y sĩ** cùng quyền, tạo ở Quản trị) | Như điều dưỡng + **bắt đầu/điều hành khám, ghi kết luận**, được chẩn đoán, kê/xác nhận đơn, hoàn tất khám, lập chuyển viện, kế hoạch theo dõi |
-| `pharm1` / `pharm2` | Nhân viên dược | Cấp phát thuốc, Kê đơn (chỉ xem), Khám chữa bệnh (xem), Hồ sơ SK |
+| `pharm1` / `pharm2` | Nhân viên dược | Cấp phát thuốc, Kê đơn (chỉ xem), Khám chữa bệnh (xem), Hồ sơ SK, **Tiếp nhận & Hồ sơ ở chế độ chỉ tra cứu** (tìm người bệnh của cơ sở mình để cấp thuốc; **không** có nút tiếp nhận/đối soát/gộp hồ sơ – như thực hành của EMR: dược sĩ được tra cứu bệnh nhân nhưng không đăng ký/nhập viện) |
 | `approver1` / `approver2` | Người phê duyệt/điều phối | Chuyển viện (không thấy lý do chuyên môn), Chuyển trại (xác nhận) |
 | `manager1` / `manager2` | Quản lý y tế | Khám định kỳ, Bệnh lý & Cảnh báo, Chuyển viện, Báo cáo (không thấy chi tiết người bệnh) |
 | `admin` | Quản trị hệ thống | Quản trị (người dùng, phân quyền, danh mục, nhật ký). **Không xem bệnh án** |
 
-Trại 1 (F01) và Trại 2 (F02) **cách ly dữ liệu**: người dùng trại này không mở được hồ sơ của trại kia.
+Trại 1 (F01) và Trại 2 (F02) **cách ly dữ liệu**: người dùng trại này không mở được hồ sơ của trại kia. **Tra cứu danh tính liên cơ sở** (họ tên, ngày sinh, mã nguồn của người đang ở trại khác) chỉ dành cho vai trò quản lý danh tính: cán bộ tiếp nhận, người phê duyệt gộp hồ sơ. Các vai trò còn lại chỉ tìm/mở được người có quan hệ quản lý tại cơ sở của mình (hoặc người đang được cấp truy cập khẩn cấp còn hạn).
 
 ## 3. Luồng tổng thể (vòng đời một người)
 
@@ -260,7 +260,7 @@ Mở **hai trình duyệt/cửa sổ ẩn danh** (một người thao tác, mộ
 ### O. Các điểm đã rà soát cho khớp luồng (xem [06-ra-soat-luong-nghiep-vu.md](06-ra-soat-luong-nghiep-vu.md))
 | # | Các bước | ✔ Kết quả |
 |---|---|---|
-| O1 *(10.1)* | `doctor2` → *Chọn người xử lý* → tìm **Bùi Hữu Lộc** (đang ở Trại 1) → chọn | Hiện hộp thoại **“Truy cập khẩn cấp (break-glass)”**; bấm Hủy → không chọn người nào |
+| O1 *(10.1)* | `doctor2` → *Chọn người xử lý* → gõ tên **Bùi Hữu Lộc** (đang ở Trại 1): **không thấy** (người ngoài cơ sở không tìm được theo tên). Lấy **mã nguồn** của người này (vd. từ `officer1`) rồi gõ **đúng mã đầy đủ** → chọn | Hiện hộp thoại **“Truy cập khẩn cấp (break-glass)”**; bấm Hủy → không chọn người nào |
 | O2 | Nhập lý do <10 ký tự; rồi lý do hợp lệ → xác nhận | Lý do ngắn bị chặn. Hợp lệ: thẻ người hiện nhãn đỏ **“Truy cập khẩn cấp (chỉ đọc) đến HH:MM”**; xem được *Hồ sơ sức khỏe*, *Lịch sử khám* |
 | O3 | Cùng phiên, thử ghi dữ liệu cho người đó (sinh hiệu, đơn thuốc…) / chờ quá hạn | Mọi thao tác **ghi** bị từ chối (chỉ đọc). Hết hạn → hồ sơ tự đóng, truy cập lại bị chặn. `manager2` và `admin` nhận thông báo **Khẩn**; có cảnh báo hậu kiểm ở tab *Bệnh lý & Cảnh báo* |
 | O4 *(WF-04)* | `manager1` tạo đợt khám khi có người mới tiếp nhận | Người mới **không** có nhiệm vụ, nằm ở tab *Loại trừ* với lý do “Chưa hoàn tất khám ban đầu” |

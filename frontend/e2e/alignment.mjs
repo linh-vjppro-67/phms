@@ -28,7 +28,13 @@ try {
   const d2 = await login("doctor2");
   await step("bác sĩ Trại 2 chọn người của Trại 1 -> hộp thoại truy cập khẩn cấp", async () => {
     await d2.click('button:has-text("Chọn người xử lý")');
+    // REQ-02: người ngoài cơ sở chỉ tìm được bằng ĐÚNG mã nguồn (không tìm theo tên) – lấy mã bằng tài khoản Trại 1
+    const o1 = await token("officer1");
+    const lo = (await (await fetch(`${BASE}/api/persons?q=${encodeURIComponent("Bùi Hữu Lộc")}`, { headers: { authorization: `Bearer ${o1}` } })).json())[0];
     await d2.fill('.modal input.search', "Bùi Hữu Lộc");
+    await d2.waitForTimeout(700);
+    if (await d2.$('.modal tr.click:has-text("Bùi Hữu Lộc")')) throw new Error("tìm theo tên vẫn lộ người của cơ sở khác");
+    await d2.fill('.modal input.search', lo.external_id);
     await d2.click('.modal tr.click:has-text("Bùi Hữu Lộc")');
     await d2.waitForSelector('.modal-bg:has-text("Truy cập khẩn cấp (break-glass)")');
     if (SHOTS) await d2.screenshot({ path: `${SHOTS}/align-1-breakglass.png` });

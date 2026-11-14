@@ -1,0 +1,46 @@
+# MED-01 – Cảnh báo dị ứng khi kê Amoxicillin cho người dị ứng Amoxicillin; xác nhận bắt buộc ghi nhận đã đọc + ghi chú xử lý (UAT-02)
+Trạng thái: PASS   Thời gian chạy: 29 ms
+Kết quả mong đợi: Đơn nháp có warnings; confirm không ack → 4xx; ack + ghi chú → 200; audit có medication_warning_acknowledged
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Dị Ứng Amox 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4v5hqmk"}
+    → 201 {"id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","full_name":"UAT Dị Ứng Amox 4uvjld1","name_key":"uat di ung amox 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4v5hqmk","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:55.599739"}
+- officer1 POST /api/persons/a06291ee-e8cd-4ce3-a540-617bb344dfe2/stays
+    yêu cầu: {}
+    → 201 {"id":"6b09cbbb-2e09-47bf-908f-9b17bc8de64f","person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:17:55.601870","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"162370a1-a528-4a3e-9db3-05243b4375a4","person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","stay_id":"6b09cbbb-2e09-47bf-908f-9b17bc8de64f","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/162370a1-a528-4a3e-9db3-05243b4375a4/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"162370a1-a528-4a3e-9db3-05243b4375a4","person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","stay_id":"6b09cbbb-2e09-47bf-908f-9b17bc8de64f","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/a06291ee-e8cd-4ce3-a540-617bb344dfe2/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/162370a1-a528-4a3e-9db3-05243b4375a4/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"162370a1-a528-4a3e-9db3-05243b4375a4","person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","stay_id":"6b09cbbb-2e09-47bf-908f-9b17bc8de64f","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/persons/a06291ee-e8cd-4ce3-a540-617bb344dfe2/allergies
+    yêu cầu: {"substance":"Amoxicillin","reaction":"Phát ban","confirmed":true}
+    → 201 {"id":"7140973c-df9a-43c3-917b-7468df966573","record_id":"5bc9c7e0-7e4f-4a0e-880e-ff515f4b6ece","substance":"Amoxicillin","reaction":"Phát ban","severity":null,"confirmed":true,"source":null,"effective_from":null,"active":true,"inactive_reason":null,"inactive_by":null,"inactive_at":null,"recorded_by":"11c7bd77-2626-4a86-81b4-08e2ad0300c2","recorded_at":"2026-11-14T08:17:55.612447"}
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"e54d87a3-fa87-486e-bda8-6b4284dce48c","person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","stay_id":"6b09cbbb-2e09-47bf-908f-9b17bc8de64f","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/e54d87a3-fa87-486e-bda8-6b4284dce48c/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"e54d87a3-fa87-486e-bda8-6b4284dce48c","person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","stay_id":"6b09cbbb-2e09-47bf-908f-9b17bc8de64f","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/e54d87a3-fa87-486e-bda8-6b4284dce48c/medication-orders
+    yêu cầu: {"drug_name":"Amoxicillin 500mg","drug_code":"AMOX500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"48087a20-76e7-4faa-9a32-3f72ea2742fc","encounter_id":"e54d87a3-fa87-486e-bda8-6b4284dce48c","person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"AMOX500","drug_name":"Amoxicillin 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/48087a20-76e7-4faa-9a32-3f72ea2742fc/confirm
+    yêu cầu: {}
+    → 409 {"error":{"code":"WARNINGS_UNACKNOWLEDGED","message":"Có cảnh báo – bác sĩ cần xác nhận và ghi nhận xử lý","warnings":[{"type":"allergy","message":"Dị ứng đã ghi nhận với 'Amoxicillin' (đã xác nhận)","allergy_id":"7140973c-df9a-43c3-917b-7468df966573"}]}}
+- doctor1 POST /api/medication-orders/48087a20-76e7-4faa-9a32-3f72ea2742fc/confirm
+    yêu cầu: {"acknowledge_warnings":true}
+    → 409 {"error":{"code":"WARNINGS_UNACKNOWLEDGED","message":"Có cảnh báo – bác sĩ cần xác nhận và ghi nhận xử lý","warnings":[{"type":"allergy","message":"Dị ứng đã ghi nhận với 'Amoxicillin' (đã xác nhận)","allergy_id":"7140973c-df9a-43c3-917b-7468df966573"}]}}
+- doctor1 POST /api/medication-orders/48087a20-76e7-4faa-9a32-3f72ea2742fc/confirm
+    yêu cầu: {"acknowledge_warnings":true,"ack_note":"Đã cân nhắc, dùng thay thế dưới theo dõi sát"}
+    → 200 {"id":"48087a20-76e7-4faa-9a32-3f72ea2742fc","encounter_id":"e54d87a3-fa87-486e-bda8-6b4284dce48c","person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"AMOX500","drug_name":"Amoxicillin 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- admin GET /api/audit?action=medication_warning_acknowledged&limit=20
+    → 200 [{"seq":1381,"id":"67d71bed-575a-4545-88a7-0958345a8df3","actor_id":"11c7bd77-2626-4a86-81b4-08e2ad0300c2","actor_name":"doctor1","action":"medication_warning_acknowledged","object_type":"MedicationOrder","object_id":"48087a20-76e7-4faa-9a32-3f72ea2742fc","person_id":"a06291ee-e8cd-4ce3-a540-617bb344dfe2","result":"success","reason":"['allergy']: Đã cân nhắc, dùng thay thế dưới theo dõi sát","sour

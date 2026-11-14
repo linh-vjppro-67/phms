@@ -1,0 +1,18 @@
+# ADM-02 – Nhật ký ghi đủ các hành động nhạy cảm: login, login_failed, user_created, access_denied, document_download, report_exported, break_glass; mỗi sự kiện có người thực hiện + thời điểm
+Trạng thái: PASS   Thời gian chạy: 9 ms
+Kết quả mong đợi: Mỗi action xuất hiện ≥1 lần và có actor/created_at
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- admin GET /api/audit?action=login&limit=5
+    → 200 [{"seq":1181,"id":"e93cbef0-331a-4e56-99d4-5a79bf3f6ca8","actor_id":"10e11bc0-da24-4e71-ab71-8679099a08b6","actor_name":"admin","action":"login","object_type":null,"object_id":null,"person_id":null,"result":"success","reason":null,"source_ip":"127.0.0.1","at":"2026-11-14T08:17:49.559087","prev_hash":"72bc2aeede6e58db6cc98964a89dd2a0233aaea6f3e0d8977fcbc7d250cbbe33","hash":"e78c8ae86f8372cf1211e8ae
+- admin GET /api/audit?action=login_failed&limit=5
+    → 200 [{"seq":1163,"id":"eb3ac2de-30dd-4a4a-a00a-4ebf07059567","actor_id":"7d052ffa-effb-4ae2-bd30-b6d27e540561","actor_name":"uat_lock_4uvjld1","action":"login_failed","object_type":null,"object_id":null,"person_id":null,"result":"denied","reason":"uat_lock_4uvjld1","source_ip":"127.0.0.1","at":"2026-11-14T08:17:44.811670","prev_hash":"2a340c7c57f80234d83166b4d78175916726d694e004b58a0182fbe72bb5763f","
+- admin GET /api/audit?action=user_created&limit=5
+    → 200 [{"seq":1170,"id":"48d5a61f-5589-4a43-add3-b3836c361b9f","actor_id":"10e11bc0-da24-4e71-ab71-8679099a08b6","actor_name":"admin","action":"user_created","object_type":"User","object_id":"9cb42b3b-eec2-46f5-ad76-2376e8d7237f","person_id":null,"result":"success","reason":"uat_off_4uvjld1 (vai trò nurse)","source_ip":"127.0.0.1","at":"2026-11-14T08:17:46.564419","prev_hash":"7a3cb4ce9fe1ecf577de6b9372
+- admin GET /api/audit?action=access_denied&limit=5
+    → 200 [{"seq":1775,"id":"e8ecfc5e-dbb3-4cac-a00f-239437063f97","actor_id":"dd047762-e5ba-41fa-a4a5-e8a0b224fbf4","actor_name":"nurse1","action":"access_denied","object_type":null,"object_id":null,"person_id":null,"result":"denied","reason":"thiếu quyền report.read","source_ip":"127.0.0.1","at":"2026-11-14T08:17:59.089661","prev_hash":"6a858fe60d9565be7550f9ab0be6cd08e08252038d6d796be47ce1fe720c7b9f","ha
+- admin GET /api/audit?action=document_download&limit=5
+    → 200 [{"seq":1770,"id":"9b5cff65-3c2c-4c7e-ba21-4139804c951d","actor_id":"11c7bd77-2626-4a86-81b4-08e2ad0300c2","actor_name":"doctor1","action":"document_download","object_type":"MedicalDocument","object_id":"a3bcfbb4-cb64-4677-95f1-3091c3aeabee","person_id":"f802c25e-d5ab-4495-b356-f5a19222d9b3","result":"success","reason":null,"source_ip":"127.0.0.1","at":"2026-11-14T08:17:59.053704","prev_hash":"395
+- admin GET /api/audit?action=report_exported&limit=5
+    → 200 [{"seq":1776,"id":"e5ca70a1-3387-42ae-a35a-57de595ea6cd","actor_id":"2a368d20-5029-49a6-83ac-1ea493a09ada","actor_name":"manager1","action":"report_exported","object_type":"encounters","object_id":null,"person_id":null,"result":"success","reason":"Báo cáo quý UAT 4uvjld1","source_ip":"127.0.0.1","at":"2026-11-14T08:17:59.091491","prev_hash":"099f8209bd3023ae49007f2df4e3b061f3989f3c7e84c44b47af06b4

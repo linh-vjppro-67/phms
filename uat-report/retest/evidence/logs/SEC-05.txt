@@ -1,0 +1,8 @@
+# SEC-05 – Cấu hình PRODUCTION (từ chối khởi động khi cấu hình không an toàn; tắt /docs; HSTS luôn bật; không còn tài khoản mẫu)
+Trạng thái: PASS   Thời gian chạy: 2023 ms
+Kết quả mong đợi: Khởi động bị từ chối với: secret mặc định, SQLite, tài khoản mẫu; server production thật trên PostgreSQL: /docs 404, HSTS, đăng nhập tài khoản mẫu bị từ chối, readiness OK
+Kết quả thực tế: 4 cấu hình không an toàn đều bị từ chối khi khởi động; server production (PostgreSQL 16, 4 worker): /docs 404, HSTS+CSP, tài khoản mẫu 401, admin bootstrap bị buộc đổi mật khẩu, readiness OK
+
+## Nhật ký lời gọi API / truy vấn SQL
+- NOTE
+    → undefined r1..r4 bị từ chối: 1,1,1,1

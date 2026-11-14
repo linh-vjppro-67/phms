@@ -1,0 +1,38 @@
+# EXP-22 – Sinh hiệu: giá trị phi lý (nhiệt độ 370 °C, mạch -5, giá trị chữ) có bị kiểm soát miền giá trị không
+Trạng thái: PASS   Thời gian chạy: 23 ms
+Kết quả mong đợi: YÊU CẦU CHƯA CÓ trong tài liệu (không nêu miền giá trị hợp lệ) – ghi nhận hiện trạng để BA quyết định
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Sinh Hiệu Phi Lý 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4yj7szk"}
+    → 201 {"id":"c2de176c-ea40-4b99-b08e-90498ec4d865","full_name":"UAT Sinh Hiệu Phi Lý 4uvjld1","name_key":"uat sinh hieu phi ly 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4yj7szk","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:20:33
+- officer1 POST /api/persons/c2de176c-ea40-4b99-b08e-90498ec4d865/stays
+    yêu cầu: {}
+    → 201 {"id":"b0751033-734c-4686-bbc3-df9b094b6fc5","person_id":"c2de176c-ea40-4b99-b08e-90498ec4d865","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:33.356603","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"c2de176c-ea40-4b99-b08e-90498ec4d865","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"f82b3702-1b34-46ec-a109-45bb11ceba5a","person_id":"c2de176c-ea40-4b99-b08e-90498ec4d865","stay_id":"b0751033-734c-4686-bbc3-df9b094b6fc5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/f82b3702-1b34-46ec-a109-45bb11ceba5a/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"f82b3702-1b34-46ec-a109-45bb11ceba5a","person_id":"c2de176c-ea40-4b99-b08e-90498ec4d865","stay_id":"b0751033-734c-4686-bbc3-df9b094b6fc5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/c2de176c-ea40-4b99-b08e-90498ec4d865/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/f82b3702-1b34-46ec-a109-45bb11ceba5a/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"f82b3702-1b34-46ec-a109-45bb11ceba5a","person_id":"c2de176c-ea40-4b99-b08e-90498ec4d865","stay_id":"b0751033-734c-4686-bbc3-df9b094b6fc5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"c2de176c-ea40-4b99-b08e-90498ec4d865","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"3a847012-e2ec-446a-b212-0a60f9d3d436","person_id":"c2de176c-ea40-4b99-b08e-90498ec4d865","stay_id":"b0751033-734c-4686-bbc3-df9b094b6fc5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/3a847012-e2ec-446a-b212-0a60f9d3d436/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"3a847012-e2ec-446a-b212-0a60f9d3d436","person_id":"c2de176c-ea40-4b99-b08e-90498ec4d865","stay_id":"b0751033-734c-4686-bbc3-df9b094b6fc5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- nurse1 POST /api/encounters/3a847012-e2ec-446a-b212-0a60f9d3d436/observations
+    yêu cầu: {"type":"Nhiệt độ","value":"370","unit":"°C"}
+    → 422 {"error":{"code":"OBS_OUT_OF_RANGE","message":"“Nhiệt độ” = 370 nằm ngoài ngưỡng khả dĩ (30–45 °C); kiểm tra lại số liệu nhập"}}
+- nurse1 POST /api/encounters/3a847012-e2ec-446a-b212-0a60f9d3d436/observations
+    yêu cầu: {"type":"Mạch","value":"-5","unit":"lần/phút"}
+    → 422 {"error":{"code":"OBS_OUT_OF_RANGE","message":"“Mạch” = -5 nằm ngoài ngưỡng khả dĩ (20–250 lần/phút); kiểm tra lại số liệu nhập"}}
+- nurse1 POST /api/encounters/3a847012-e2ec-446a-b212-0a60f9d3d436/observations
+    yêu cầu: {"type":"Huyết áp tâm thu","value":"abc","unit":"mmHg"}
+    → 422 {"error":{"code":"OBS_NOT_NUMERIC","message":"“Huyết áp tâm thu” phải là số"}}

@@ -1,0 +1,6 @@
+# NAV-approver – Menu của Người phê duyệt chỉ gồm các phân hệ được phép (đối chiếu 04-§2)
+Trạng thái: PASS   Thời gian chạy: 282 ms
+Kết quả mong đợi: Thấy: Chuyển viện, Chuyển trại. KHÔNG thấy: Khám ban đầu, Khám chữa bệnh, Cấp phát, Hồ sơ sức khỏe, Báo cáo, Quản trị
+Kết quả thực tế: Menu: Bảng điều khiển | Tiếp nhận & Hồ sơM01 | Chuyển trại & Bàn giaoWF-07 | Chuyển việnM09
+
+## Nhật ký lời gọi API / truy vấn SQL

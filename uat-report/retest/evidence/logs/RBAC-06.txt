@@ -1,0 +1,10 @@
+# RBAC-06 – Người phê duyệt không thấy lý do/kết quả chuyên môn và không thấy tài liệu của chuyển viện
+Trạng thái: PASS   Thời gian chạy: 4 ms
+Kết quả mong đợi: reason/result_note bị ẩn (null/“ẩn”) trong API của approver; GET documents 403
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- approver1 GET /api/referrals/612813c8-6a01-430f-9857-6040196b73e4
+    → 200 {"id":"612813c8-6a01-430f-9857-6040196b73e4","encounter_id":"a11de813-9fc9-4675-9c03-860b11339db2","person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":null,"status":"pending","destination":"BV X","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut_used":false,"need
+- approver1 GET /api/documents?person_id=3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (document.read)"}}

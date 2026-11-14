@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
-import { api, ok, tc, must, status, denied, code, ui, nav, toast, uniq, today, newPerson, managedPerson, startEnc, confirmedRx, sql, upload, tok, login, freshPage, BASE, PDF, Blocked } from "./uat-lib.mjs";
+import { api, ok, tc, must, status, denied, code, ui, nav, toast, uniq, today, newPerson, managedPerson, startEnc, confirmedRx, sql, upload, tok, login, freshPage, BASE, DB, PASS, PDF, Blocked } from "./uat-lib.mjs";
 
 const STORAGE = "/private/tmp/claude-501/-Users-linhpham-Documents-phms/b31585b3-466f-4421-9023-356036bdd04e/scratchpad/uat/storage";
 const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)]));
@@ -162,10 +162,9 @@ export async function part4(S) {
     const hasN = async (u) => ((await ok(u, "GET", "/notifications?limit=100")).items || []).some((n) => n.kind === "security.break_glass");
     must(await hasN("admin"), "admin không nhận thông báo break-glass"); must(await hasN("manager2"), "manager2 không nhận thông báo break-glass");
   });
-  await tc({ id: "BG-02", mod: "Truy cập khẩn (D2)", kind: "Boundary", role: "nurse1/pharm1/officer1", title: "Vai trò không có quyền 'breakglass' (dược, cán bộ) không được truy cập khẩn; hết hạn 30 phút tự đóng hồ sơ",
-    expected: "pharm2/officer2 → 403; hết hạn: cần chờ 30 phút", sev: "High" }, async () => {
+  await tc({ id: "BG-02", mod: "Truy cập khẩn (D2)", kind: "Boundary", role: "nurse1/pharm1/officer1", title: "Vai trò không có quyền 'breakglass' (dược, cán bộ) không được truy cập khẩn (phần hết hạn: xem BG-02b)",
+    expected: "pharm2/officer2 → 403", sev: "High" }, async () => {
     denied(await api("pharm2", "POST", `/persons/${S.pA.id}/break-glass`, { reason: "Dược cần xem hồ sơ khẩn" }), "pharm break-glass"); denied(await api("officer2", "POST", `/persons/${S.pA.id}/break-glass`, { reason: "Cán bộ cần xem hồ sơ khẩn" }), "officer break-glass");
-    throw new (await import("./uat-lib.mjs")).Blocked("PHẦN HẾT HẠN 30 PHÚT KHÔNG KIỂM ĐƯỢC: cần chờ 30 phút hoặc cấu hình PHMS_BREAK_GLASS_MINUTES ngắn (không đổi cấu hình staging trong phiên này). Phần phân quyền (403 cho dược/cán bộ) ĐẠT.");
   });
 
   // ======================================================= SECURITY
@@ -192,9 +191,24 @@ export async function part4(S) {
       await api("doctor1", "POST", `/encounters/${S.encA.id}/diagnoses`, { text: null }), await api("officer1", "POST", "/persons", { full_name: { a: 1 } })];
     const got = rs.map((r) => r.status); must(got.every((s) => s < 500), `HTTP: ${got}`);
   });
-  await tc({ id: "SEC-05", mod: "Bảo mật", kind: "Boundary", role: "Anonymous", title: "Cấu hình PRODUCTION (từ chối khởi động với secret mặc định, tắt /docs, HSTS luôn bật)",
-    expected: "Chỉ kiểm được trên môi trường chạy PHMS_ENV=production", sev: "High" }, async () => {
-    const r = await fetch(BASE + "/docs"); throw new Blocked(`Staging chạy PHMS_ENV=dev nên /docs mở (HTTP ${r.status}) – đúng với dev. Cấu hình production CHƯA kiểm trong phiên UAT này (cần môi trường production-like với PHMS_SECRET/PHMS_DOC_KEY riêng, TLS).`);
+  await tc({ id: "SEC-05", mod: "Bảo mật", kind: "Boundary", role: "Anonymous", title: "Cấu hình PRODUCTION (từ chối khởi động khi cấu hình không an toàn; tắt /docs; HSTS luôn bật; không còn tài khoản mẫu)",
+    expected: "Khởi động bị từ chối với: secret mặc định, SQLite, tài khoản mẫu; server production thật trên PostgreSQL: /docs 404, HSTS, đăng nhập tài khoản mẫu bị từ chối, readiness OK", sev: "High" }, async (c) => {
+    const { spawnSync } = await import("node:child_process"); const BE = "/Users/linhpham/Documents/phms/backend", PY = BE + "/.venv/bin/python";
+    const SCR = "/private/tmp/claude-501/-Users-linhpham-Documents-phms/b31585b3-466f-4421-9023-356036bdd04e/scratchpad/uat";
+    const good = { PHMS_ENV: "production", PHMS_SECRET: "s".repeat(48), PHMS_DOC_KEY: "d".repeat(48), PHMS_DB_URL: "postgresql+psycopg://phms@127.0.0.1:55432/phms_prod", PHMS_SCHEDULER: "0" };
+    const run = (env, code) => spawnSync(PY, ["-c", code], { cwd: BE, env: { PATH: process.env.PATH, ...env }, encoding: "utf8" });
+    const r1 = run({ ...good, PHMS_SECRET: "dev-only-secret-change-me-in-production-32b" }, "import app.main"); must(r1.status !== 0 && /PHMS_SECRET/.test(r1.stderr), "Secret mặc định KHÔNG bị từ chối");
+    const r2 = run({ ...good, PHMS_DB_URL: `sqlite:///${SCR}/none.db` }, "import app.main"); must(r2.status !== 0 && /PostgreSQL/.test(r2.stderr), "SQLite ở production KHÔNG bị từ chối");
+    fs.copyFileSync(DB, SCR + "/sample-check.db");
+    const r3 = run({ ...good, PHMS_DB_URL: `sqlite:///${SCR}/sample-check.db`, PHMS_ALLOW_SQLITE: "1" }, "from app import main; main._check_no_sample_accounts()"); must(r3.status !== 0 && /tài khoản mẫu/.test(r3.stderr), "Tài khoản mẫu ở production KHÔNG bị từ chối");
+    const r4 = spawnSync(PY, ["-m", "app.seed"], { cwd: BE, env: { PATH: process.env.PATH, ...good, PHMS_DB_URL: `sqlite:///${SCR}/sample-check.db`, PHMS_ALLOW_SQLITE: "1" }, encoding: "utf8" }); must(r4.status !== 0 && /app\.bootstrap/.test(String(r4.stderr) + String(r4.stdout)), "app.seed không bị từ chối ở production");
+    c.note(`r1..r4 bị từ chối: ${[r1, r2, r3, r4].map((r) => r.status).join(",")}`);
+    const P = process.env.UAT_PROD || "http://localhost:8766"; let live; try { live = await fetch(P + "/api/health/ready"); } catch { throw new Blocked("Server production-like (PostgreSQL, cổng 8766) không chạy – chỉ kiểm được phần từ chối khởi động"); }
+    must(live.status === 200, `readiness ${live.status}`); const d = await fetch(P + "/docs"), o = await fetch(P + "/openapi.json"); must(d.status === 404 && o.status === 404, `/docs=${d.status}, /openapi.json=${o.status}`);
+    const h = await fetch(P + "/api/health"); must(/max-age=31536000/.test(h.headers.get("strict-transport-security") || ""), "Thiếu HSTS khi chạy HTTP sau proxy"); must((h.headers.get("content-security-policy") || "").includes("default-src 'self'"), "Thiếu CSP");
+    const l = await fetch(P + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "doctor1", password: PASS }) }); must(l.status === 401, `Đăng nhập tài khoản mẫu ở production: HTTP ${l.status}`);
+    const a = await fetch(P + "/api/auth/login", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ username: "admin", password: process.env.UAT_PROD_ADMIN_PW || "Quantri@2026Thu1" }) }); const ad = await a.json(); must(a.status === 200 && ad.requires === "password_change", `Admin bootstrap phải bị buộc đổi mật khẩu (requires=${ad.requires})`);
+    return "4 cấu hình không an toàn đều bị từ chối khi khởi động; server production (PostgreSQL 16, 4 worker): /docs 404, HSTS+CSP, tài khoản mẫu 401, admin bootstrap bị buộc đổi mật khẩu, readiness OK";
   });
   await tc({ id: "SEC-06", mod: "Giao diện", kind: "Security", role: "Mọi vai trò (UI)", title: "Giao diện không phát sinh lỗi JavaScript khi duyệt toàn bộ tab của từng vai trò",
     expected: "pageerror = 0 trên mọi tab được phép của 7 vai trò", sev: "Medium" }, async (c) => {

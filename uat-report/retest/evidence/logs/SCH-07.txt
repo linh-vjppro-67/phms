@@ -1,0 +1,35 @@
+# SCH-07 – Lịch hẹn: ngày hẹn quá khứ bị từ chối; hoãn/không thực hiện bắt buộc lý do ≥3 ký tự
+Trạng thái: PASS   Thời gian chạy: 22 ms
+Kết quả mong đợi: due_date quá khứ → 422; hoãn không lý do → 422; có lý do → 200
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Lịch Hẹn 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4v7zbpf"}
+    → 201 {"id":"4d550e6c-e337-47b1-8314-3949a41f7dea","full_name":"UAT Lịch Hẹn 4uvjld1","name_key":"uat lich hen 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4v7zbpf","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:58.825656"}
+- officer1 POST /api/persons/4d550e6c-e337-47b1-8314-3949a41f7dea/stays
+    yêu cầu: {}
+    → 201 {"id":"5462660d-373c-4cc7-8957-7dfef1b15fe5","person_id":"4d550e6c-e337-47b1-8314-3949a41f7dea","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:17:58.828218","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"4d550e6c-e337-47b1-8314-3949a41f7dea","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"f05a0441-27f2-4d69-ac16-c5f0cc4ada09","person_id":"4d550e6c-e337-47b1-8314-3949a41f7dea","stay_id":"5462660d-373c-4cc7-8957-7dfef1b15fe5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/f05a0441-27f2-4d69-ac16-c5f0cc4ada09/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"f05a0441-27f2-4d69-ac16-c5f0cc4ada09","person_id":"4d550e6c-e337-47b1-8314-3949a41f7dea","stay_id":"5462660d-373c-4cc7-8957-7dfef1b15fe5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/4d550e6c-e337-47b1-8314-3949a41f7dea/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/f05a0441-27f2-4d69-ac16-c5f0cc4ada09/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"f05a0441-27f2-4d69-ac16-c5f0cc4ada09","person_id":"4d550e6c-e337-47b1-8314-3949a41f7dea","stay_id":"5462660d-373c-4cc7-8957-7dfef1b15fe5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- nurse1 POST /api/appointments
+    yêu cầu: {"person_id":"4d550e6c-e337-47b1-8314-3949a41f7dea","due_date":"2026-11-13","note":"Quá khứ"}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"due_date","message":"Ngày hẹn phải từ hôm nay đến tối đa 10 năm tới"}]}}
+- nurse1 POST /api/appointments
+    yêu cầu: {"person_id":"4d550e6c-e337-47b1-8314-3949a41f7dea","due_date":"2026-11-21","note":"Tái khám"}
+    → 201 {"id":"30a529e1-3fb1-4957-b512-70d543ce8b52","person_id":"4d550e6c-e337-47b1-8314-3949a41f7dea","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","kind":"follow_up","care_plan_id":null,"round_id":null,"due_date":"2026-11-21","status":"scheduled","assignee_id":null,"note":"Tái khám","status_reason":null,"completed_encounter_id":null,"recorded_at":"2026-11-14T08:17:58.840513","completed_at":null,
+- nurse1 POST /api/appointments/30a529e1-3fb1-4957-b512-70d543ce8b52/status
+    yêu cầu: {"to":"postponed","reason":""}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"reason","message":"cần tối thiểu 3 ký tự"}]}}
+- nurse1 POST /api/appointments/30a529e1-3fb1-4957-b512-70d543ce8b52/status
+    yêu cầu: {"to":"postponed","reason":"Người bệnh đang ở bệnh xá","new_due_date":"2026-11-28"}
+    → 200 {"id":"30a529e1-3fb1-4957-b512-70d543ce8b52","person_id":"4d550e6c-e337-47b1-8314-3949a41f7dea","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","kind":"follow_up","care_plan_id":null,"round_id":null,"due_date":"2026-11-21","status":"postponed","assignee_id":null,"note":"Tái khám","status_reason":"Người bệnh đang ở bệnh xá","completed_encounter_id":null,"recorded_at":"2026-11-14T08:17:58.84051

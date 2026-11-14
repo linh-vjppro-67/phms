@@ -1,0 +1,13 @@
+# REP-03 – Báo cáo chuyển viện & cấp phát khớp DB (đếm theo trạng thái; cấp phát ghi chú 'số đơn ≠ số lần uống')
+Trạng thái: PASS   Thời gian chạy: 11 ms
+Kết quả mong đợi: Tổng đề nghị chuyển viện trong báo cáo = COUNT(referral F01 trong kỳ)
+Kết quả thực tế: chuyển viện: {"total":19,"by_status":{"completed":4,"in_external_treatment":5,"result_received":2,"coordinated":1,"pending":3,"draft":3,"cancelled":1},"a | cấp phát có ghi chú: true
+
+## Nhật ký lời gọi API / truy vấn SQL
+- manager1 GET /api/reports/referrals?date_from=2025-10-10&date_to=2026-11-15
+    → 200 {"report":"referrals","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","date_from":"2025-10-10","date_to":"2026-11-15","generated_at":"2026-11-14T08:17:59.072915","data":{"total":19,"by_status":{"completed":4,"in_external_treatment":5,"result_received":2,"coordinated":1,"pending":3,"draft":3,"cancelled":1},"avg_hours_to_departure":-56.73,"without_result":5,"needs_post_review":4}}
+- manager1 GET /api/reports/dispensing?date_from=2025-10-10&date_to=2026-11-15
+    → 200 {"report":"dispensing","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","date_from":"2025-10-10","date_to":"2026-11-15","generated_at":"2026-11-14T08:17:59.078428","data":{"confirmed_orders":34,"fully_dispensed":4,"partially_dispensed":20,"not_dispensed":10,"dispense_events":59,"note":"Số đơn ≠ số lần uống; cấp phát ≠ sử dụng."}}
+- SQL
+    yêu cầu: "select count(*) n from referral where facility_id='bbd4b30a-969c-4319-b572-b3c58fb42626'"
+    → - [{"n":19}]

@@ -1,0 +1,9 @@
+# INT-10 – Họ tên chứa mã HTML/script được hiển thị dạng văn bản (không chạy mã – XSS)
+Trạng thái: PASS   Thời gian chạy: 1722 ms
+Kết quả mong đợi: Không có hộp thoại alert, không có phần tử <script>/<img> được chèn; chuỗi hiển thị nguyên văn
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"<img src=x onerror=alert(1)>UAT-XSS-4uvjld1","confirm_distinct":true}
+    → 201 {"id":"43bb4547-4ba2-4c2c-8adc-56597d537390","full_name":"<img src=x onerror=alert(1)>UAT-XSS-4uvjld1","name_key":"<img src=x onerror=alert(1)>uat-xss-4uvjld1","date_of_birth":null,"gender":null,"source_system":null,"external_id":null,"status":"pending_verification","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_a

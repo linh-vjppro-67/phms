@@ -1,0 +1,27 @@
+# EXP-02 – 5 yêu cầu đồng thời tạo đợt tiếp nhận cho cùng người: chỉ 1 đợt hoạt động
+Trạng thái: PASS   Thời gian chạy: 15 ms
+Kết quả mong đợi: Đúng 1 stay received/managed
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời Kỳ 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4yhxuwi"}
+    → 201 {"id":"5f56d40f-6d3a-4fd6-9708-41d02abcd498","full_name":"UAT Đồng Thời Kỳ 4uvjld1","name_key":"uat dong thoi ky 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4yhxuwi","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:20:31.700524"
+- officer1 POST /api/persons/5f56d40f-6d3a-4fd6-9708-41d02abcd498/stays
+    yêu cầu: {}
+    → 201 {"id":"3dca2b31-9d25-471b-bd86-79616bf0bb1d","person_id":"5f56d40f-6d3a-4fd6-9708-41d02abcd498","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:31.705627","hea
+- officer1 POST /api/persons/5f56d40f-6d3a-4fd6-9708-41d02abcd498/stays
+    yêu cầu: {}
+    → 409 {"error":{"code":"ACTIVE_STAY_EXISTS","message":"Người này đang trong một đợt tiếp nhận – cần chuyển trại/kết thúc trước","stay_id":"3dca2b31-9d25-471b-bd86-79616bf0bb1d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}}
+- officer1 POST /api/persons/5f56d40f-6d3a-4fd6-9708-41d02abcd498/stays
+    yêu cầu: {}
+    → 409 {"error":{"code":"ACTIVE_STAY_EXISTS","message":"Người này đang trong một đợt tiếp nhận – cần chuyển trại/kết thúc trước","stay_id":"3dca2b31-9d25-471b-bd86-79616bf0bb1d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}}
+- officer1 POST /api/persons/5f56d40f-6d3a-4fd6-9708-41d02abcd498/stays
+    yêu cầu: {}
+    → 409 {"error":{"code":"ACTIVE_STAY_EXISTS","message":"Người này đang trong một đợt tiếp nhận – cần chuyển trại/kết thúc trước","stay_id":"3dca2b31-9d25-471b-bd86-79616bf0bb1d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}}
+- officer1 POST /api/persons/5f56d40f-6d3a-4fd6-9708-41d02abcd498/stays
+    yêu cầu: {}
+    → 409 {"error":{"code":"ACTIVE_STAY_EXISTS","message":"Người này đang trong một đợt tiếp nhận – cần chuyển trại/kết thúc trước","stay_id":"3dca2b31-9d25-471b-bd86-79616bf0bb1d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}}
+- SQL
+    yêu cầu: "select count(*) n from custody_stay where person_id='5f56d40f-6d3a-4fd6-9708-41d02abcd498' and status in ('received','managed')"
+    → - [{"n":1}]

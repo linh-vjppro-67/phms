@@ -1,0 +1,41 @@
+# INT-09 – Gộp hồ sơ trùng: bốn mắt – người đề nghị không tự duyệt; người phê duyệt duyệt → dữ liệu chuyển sang hồ sơ giữ lại, hồ sơ nguồn 'merged'
+Trạng thái: PASS   Thời gian chạy: 34 ms
+Kết quả mong đợi: officer duyệt → 403; approver duyệt → 200; source.status=merged; lượt khám chuyển sang target
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Gộp Giữ 4uvjld1","date_of_birth":"1985-05-05","source_system":"QLPN","external_id":"UAT-4v3xxqg"}
+    → 201 {"id":"edb0afea-2874-4833-9a28-e681948d07a1","full_name":"UAT Gộp Giữ 4uvjld1","name_key":"uat gop giu 4uvjld1","date_of_birth":"1985-05-05","gender":null,"source_system":"QLPN","external_id":"UAT-4v3xxqg","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:53.590104"}
+- officer1 POST /api/persons/edb0afea-2874-4833-9a28-e681948d07a1/stays
+    yêu cầu: {}
+    → 201 {"id":"e71358f5-3560-4acc-8a27-a3401c24aa5d","person_id":"edb0afea-2874-4833-9a28-e681948d07a1","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:17:53.592924","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"edb0afea-2874-4833-9a28-e681948d07a1","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"29ff9fb1-0584-408d-a68a-0b19f9ab7538","person_id":"edb0afea-2874-4833-9a28-e681948d07a1","stay_id":"e71358f5-3560-4acc-8a27-a3401c24aa5d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/29ff9fb1-0584-408d-a68a-0b19f9ab7538/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"29ff9fb1-0584-408d-a68a-0b19f9ab7538","person_id":"edb0afea-2874-4833-9a28-e681948d07a1","stay_id":"e71358f5-3560-4acc-8a27-a3401c24aa5d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/edb0afea-2874-4833-9a28-e681948d07a1/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/29ff9fb1-0584-408d-a68a-0b19f9ab7538/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"29ff9fb1-0584-408d-a68a-0b19f9ab7538","person_id":"edb0afea-2874-4833-9a28-e681948d07a1","stay_id":"e71358f5-3560-4acc-8a27-a3401c24aa5d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Gộp Giữ 4uvjld1","date_of_birth":"1985-05-05","confirm_distinct":true}
+    → 201 {"id":"cf506acd-ea6a-49e8-a3a1-51052dea1fc3","full_name":"UAT Gộp Giữ 4uvjld1","name_key":"uat gop giu 4uvjld1","date_of_birth":"1985-05-05","gender":null,"source_system":null,"external_id":null,"status":"pending_verification","duplicate_candidates":["edb0afea-2874-4833-9a28-e681948d07a1"],"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"
+- officer1 POST /api/person-merges
+    yêu cầu: {"source_id":"cf506acd-ea6a-49e8-a3a1-51052dea1fc3","target_id":"edb0afea-2874-4833-9a28-e681948d07a1","reason":"Cùng họ tên, ngày sinh; đối chiếu hồ sơ giấy xác nhận một người"}
+    → 201 {"id":"d5eb555e-0ea5-4144-beb3-4c00b3a55aa2","source_id":"cf506acd-ea6a-49e8-a3a1-51052dea1fc3","target_id":"edb0afea-2874-4833-9a28-e681948d07a1","reason":"Cùng họ tên, ngày sinh; đối chiếu hồ sơ giấy xác nhận một người","status":"pending","requested_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","requested_at":"2026-11-14T08:17:53.606997","decided_by":null,"decided_at":null,"decision_note":null,"mov
+- officer1 POST /api/person-merges/d5eb555e-0ea5-4144-beb3-4c00b3a55aa2/decision
+    yêu cầu: {"approve":true}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (person.merge.approve)"}}
+- approver1 POST /api/person-merges/d5eb555e-0ea5-4144-beb3-4c00b3a55aa2/decision
+    yêu cầu: {"approve":true}
+    → 200 {"id":"d5eb555e-0ea5-4144-beb3-4c00b3a55aa2","source_id":"cf506acd-ea6a-49e8-a3a1-51052dea1fc3","target_id":"edb0afea-2874-4833-9a28-e681948d07a1","reason":"Cùng họ tên, ngày sinh; đối chiếu hồ sơ giấy xác nhận một người","status":"approved","requested_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","requested_at":"2026-11-14T08:17:53.606997","decided_by":"94e41c12-91ba-49da-97ec-629993dc3c0c","decided
+- SQL
+    yêu cầu: "select status s from person where id='cf506acd-ea6a-49e8-a3a1-51052dea1fc3'"
+    → - [{"s":"merged"}]
+- SQL
+    yêu cầu: "select count(*) n from health_record where person_id='edb0afea-2874-4833-9a28-e681948d07a1'"
+    → - [{"n":1}]

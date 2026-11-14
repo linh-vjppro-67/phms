@@ -1,0 +1,54 @@
+# RBAC-09 – Chỉ sysadmin quản lý người dùng & danh mục
+Trạng thái: PASS   Thời gian chạy: 23 ms
+Kết quả mong đợi: 403 cho POST /users, GET /users, POST /catalogs với mọi vai trò khác
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/users
+    yêu cầu: {"username":"hack_4uvjld1","password":"Hack@2026abcd","full_name":"x","role":"sysadmin"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- officer1 GET /api/users
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- officer1 POST /api/catalogs
+    yêu cầu: {"catalog":"drug","code":"HACK","name":"x"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (catalog.write)"}}
+- nurse1 POST /api/users
+    yêu cầu: {"username":"hack_4uvjld1","password":"Hack@2026abcd","full_name":"x","role":"sysadmin"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- nurse1 GET /api/users
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- nurse1 POST /api/catalogs
+    yêu cầu: {"catalog":"drug","code":"HACK","name":"x"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (catalog.write)"}}
+- doctor1 POST /api/users
+    yêu cầu: {"username":"hack_4uvjld1","password":"Hack@2026abcd","full_name":"x","role":"sysadmin"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- doctor1 GET /api/users
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- doctor1 POST /api/catalogs
+    yêu cầu: {"catalog":"drug","code":"HACK","name":"x"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (catalog.write)"}}
+- pharm1 POST /api/users
+    yêu cầu: {"username":"hack_4uvjld1","password":"Hack@2026abcd","full_name":"x","role":"sysadmin"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- pharm1 GET /api/users
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- pharm1 POST /api/catalogs
+    yêu cầu: {"catalog":"drug","code":"HACK","name":"x"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (catalog.write)"}}
+- approver1 POST /api/users
+    yêu cầu: {"username":"hack_4uvjld1","password":"Hack@2026abcd","full_name":"x","role":"sysadmin"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- approver1 GET /api/users
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- approver1 POST /api/catalogs
+    yêu cầu: {"catalog":"drug","code":"HACK","name":"x"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (catalog.write)"}}
+- manager1 POST /api/users
+    yêu cầu: {"username":"hack_4uvjld1","password":"Hack@2026abcd","full_name":"x","role":"sysadmin"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- manager1 GET /api/users
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (user.manage)"}}
+- manager1 POST /api/catalogs
+    yêu cầu: {"catalog":"drug","code":"HACK","name":"x"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (catalog.write)"}}

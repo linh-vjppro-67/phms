@@ -1,0 +1,41 @@
+# EXP-15 – Quy tắc chuyển viện: 'đi tắt' chỉ cho mức Cấp cứu; điều phối bắt buộc có cơ sở tiếp nhận
+Trạng thái: PASS   Thời gian chạy: 25 ms
+Kết quả mong đợi: routine draft→in_external_treatment 409; coordinated không destination 422
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT CV Quy Tắc 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4yins8f"}
+    → 201 {"id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","full_name":"UAT CV Quy Tắc 4uvjld1","name_key":"uat cv quy tac 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4yins8f","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:20:32.633303"}
+- officer1 POST /api/persons/3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed/stays
+    yêu cầu: {}
+    → 201 {"id":"11840aa9-d2dc-41e1-9192-6f1fc0fa4a56","person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:32.635614","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"b3f00b1e-0b4d-44e5-93c2-9195f2f04ad0","person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","stay_id":"11840aa9-d2dc-41e1-9192-6f1fc0fa4a56","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/b3f00b1e-0b4d-44e5-93c2-9195f2f04ad0/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"b3f00b1e-0b4d-44e5-93c2-9195f2f04ad0","person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","stay_id":"11840aa9-d2dc-41e1-9192-6f1fc0fa4a56","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/b3f00b1e-0b4d-44e5-93c2-9195f2f04ad0/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"b3f00b1e-0b4d-44e5-93c2-9195f2f04ad0","person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","stay_id":"11840aa9-d2dc-41e1-9192-6f1fc0fa4a56","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"49e23091-dfe2-45b6-9848-19b1d6f5698a","person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","stay_id":"11840aa9-d2dc-41e1-9192-6f1fc0fa4a56","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/49e23091-dfe2-45b6-9848-19b1d6f5698a/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"49e23091-dfe2-45b6-9848-19b1d6f5698a","person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","stay_id":"11840aa9-d2dc-41e1-9192-6f1fc0fa4a56","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/49e23091-dfe2-45b6-9848-19b1d6f5698a/referrals
+    yêu cầu: {"urgency":"routine","reason":"Không có nơi tiếp nhận"}
+    → 201 {"id":"97922d48-2531-4b56-9130-2940babc0f6a","encounter_id":"49e23091-dfe2-45b6-9848-19b1d6f5698a","person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":"Không có nơi tiếp nhận","status":"draft","destination":null,"handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut_u
+- doctor1 PATCH /api/referrals/97922d48-2531-4b56-9130-2940babc0f6a/status
+    yêu cầu: {"to":"in_external_treatment"}
+    → 409 {"error":{"code":"BAD_TRANSITION","message":"Không thể chuyển 'draft' -> 'in_external_treatment'"}}
+- doctor1 PATCH /api/referrals/97922d48-2531-4b56-9130-2940babc0f6a/status
+    yêu cầu: {"to":"pending"}
+    → 200 {"id":"97922d48-2531-4b56-9130-2940babc0f6a","encounter_id":"49e23091-dfe2-45b6-9848-19b1d6f5698a","person_id":"3a3a5cdb-1cf2-4ad3-a297-f0255b2e5aed","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":"Không có nơi tiếp nhận","status":"pending","destination":null,"handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut
+- approver1 PATCH /api/referrals/97922d48-2531-4b56-9130-2940babc0f6a/status
+    yêu cầu: {"to":"coordinated"}
+    → 422 {"error":{"code":"DESTINATION_REQUIRED","message":"Cần cơ sở tiếp nhận"}}

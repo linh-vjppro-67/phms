@@ -66,7 +66,7 @@ export function PatientPicker({ onPick, onClose, title = "Chọn người cần 
   const { data, loading } = useLoad(() => api("GET", "/persons" + qs({ q: dq })), [dq]);
   return (
     <Modal title={title} onClose={onClose} wide>
-      <input autoFocus className="search" style={{ maxWidth: "100%" }} placeholder="Nhập họ tên để tìm…" value={q} onChange={(e) => setQ(e.target.value)} />
+      <input autoFocus className="search" style={{ maxWidth: "100%" }} placeholder="Nhập họ tên để tìm… (người ngoài cơ sở: nhập đúng mã nguồn, chỉ dùng khi khẩn cấp)" value={q} onChange={(e) => setQ(e.target.value)} />
       <div className="tblwrap mt" style={{ maxHeight: "52vh" }} tabIndex={0} role="region" aria-label="Danh sách người (cuộn bằng phím mũi tên)">
         {!data?.length ? <Empty title={loading ? "Đang tìm…" : "Không tìm thấy hồ sơ"} /> : (
           <table className="tbl"><thead><tr><th>Họ tên</th><th>Ngày sinh</th><th>Mã nguồn</th><th>Danh tính</th><th>Tại cơ sở này</th></tr></thead>

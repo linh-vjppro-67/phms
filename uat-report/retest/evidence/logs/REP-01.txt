@@ -1,0 +1,11 @@
+# REP-01 – Báo cáo 'Tình hình khám' khớp dữ liệu gốc: số lượt khám và số người khác nhau (UAT-12); đối chiếu SQL theo cơ sở F01
+Trạng thái: PASS   Thời gian chạy: 6 ms
+Kết quả mong đợi: total_encounters = COUNT(encounter không hủy); total_distinct_persons = COUNT(DISTINCT person)
+Kết quả thực tế: Báo cáo = DB: 162 lượt / 80 người
+
+## Nhật ký lời gọi API / truy vấn SQL
+- manager1 GET /api/reports/encounters?date_from=2025-10-10&date_to=2026-11-15
+    → 200 {"report":"encounters","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","date_from":"2025-10-10","date_to":"2026-11-15","generated_at":"2026-11-14T08:17:59.058148","data":{"by_type":{"ad_hoc":{"encounter_count":49,"distinct_person_count":47},"emergency":{"encounter_count":10,"distinct_person_count":10},"initial":{"encounter_count":73,"distinct_person_count":73},"periodic":{"encounter_count":30
+- SQL
+    yêu cầu: "select count(*) n, count(distinct person_id) p from encounter where facility_id='bbd4b30a-969c-4319-b572-b3c58fb42626' and status!='cancelled' and date(occurred_at) between '2025-10-10' and '2026-11-15'"
+    → - [{"n":162,"p":80}]

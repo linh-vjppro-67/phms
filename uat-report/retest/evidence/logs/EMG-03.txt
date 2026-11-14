@@ -1,0 +1,33 @@
+# EMG-03 – Đóng sự kiện cấp cứu chỉ khi hồ sơ khám hoàn tất VÀ danh tính đã đối soát; nurse không được đóng (I4/I5)
+Trạng thái: PASS   Thời gian chạy: 21 ms
+Kết quả mong đợi: Đóng sớm → 4xx; nurse đóng → 403; sau hoàn tất khám + đối soát (officer) → đóng 200
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- nurse1 POST /api/emergency-events
+    yêu cầu: {"temp_identity":"Cấp cứu đóng sự kiện 4uvjld1","description":"Ngất xỉu"}
+    → 201 {"id":"9b288f52-3e47-4345-aa41-f02523980d17","person_id":"49066bea-7663-49f3-957a-66deecfd1a5c","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","encounter_id":"94cdeba4-42b9-48a0-86e3-196051399cb1","temp_identity":"Cấp cứu đóng sự kiện 4uvjld1","location":null,"reporter":null,"description":"Ngất xỉu","status":"open","timeline":[],"late_entry_reason":null,"closing_note":null,"closed_by":null,"
+- nurse1 POST /api/emergency-events/9b288f52-3e47-4345-aa41-f02523980d17/interventions
+    yêu cầu: {"action":"Đặt nằm đầu thấp, đo huyết áp"}
+    → 200 {"id":"9b288f52-3e47-4345-aa41-f02523980d17","person_id":"49066bea-7663-49f3-957a-66deecfd1a5c","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","encounter_id":"94cdeba4-42b9-48a0-86e3-196051399cb1","temp_identity":"Cấp cứu đóng sự kiện 4uvjld1","location":null,"reporter":null,"description":"Ngất xỉu","status":"open","timeline":[{"action":"Đặt nằm đầu thấp, đo huyết áp","performer":"Điều dưỡng
+- doctor1 POST /api/emergency-events/9b288f52-3e47-4345-aa41-f02523980d17/close
+    yêu cầu: {"note":"Đóng sớm thử"}
+    → 409 {"error":{"code":"INCOMPLETE_RECORD","message":"Chưa đủ điều kiện đóng sự kiện cấp cứu","problems":["Lượt khám cấp cứu chưa hoàn tất hồ sơ","Danh tính chưa được đối soát (bắt buộc)"]}}
+- nurse1 POST /api/emergency-events/9b288f52-3e47-4345-aa41-f02523980d17/close
+    yêu cầu: {"note":"Điều dưỡng đóng"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (emergency.close)"}}
+- doctor1 POST /api/encounters/94cdeba4-42b9-48a0-86e3-196051399cb1/diagnoses
+    yêu cầu: {"text":"Ngất do hạ đường huyết","kind":"final"}
+    → 201 {"id":"df0b1913-9705-4061-ba00-fa9298ccbf60","encounter_id":"94cdeba4-42b9-48a0-86e3-196051399cb1","person_id":"49066bea-7663-49f3-957a-66deecfd1a5c","code":null,"text":"Ngất do hạ đường huyết","kind":"final","diagnosed_by":"11c7bd77-2626-4a86-81b4-08e2ad0300c2","recorded_at":"2026-11-14T08:17:58.637005"}
+- doctor1 POST /api/encounters/94cdeba4-42b9-48a0-86e3-196051399cb1/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"94cdeba4-42b9-48a0-86e3-196051399cb1","person_id":"49066bea-7663-49f3-957a-66deecfd1a5c","stay_id":"90b4d7d8-1298-4321-9dd9-f406e5b6efde","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"emergency","status":"completed","reason":"Ngất xỉu","priority":"emergent","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0300c2",
+- doctor1 POST /api/emergency-events/9b288f52-3e47-4345-aa41-f02523980d17/close
+    yêu cầu: {"note":"Chưa đối soát danh tính"}
+    → 409 {"error":{"code":"INCOMPLETE_RECORD","message":"Chưa đủ điều kiện đóng sự kiện cấp cứu","problems":["Danh tính chưa được đối soát (bắt buộc)"]}}
+- officer1 POST /api/persons/49066bea-7663-49f3-957a-66deecfd1a5c/verify
+    yêu cầu: {"full_name":"UAT Cấp Cứu Đã Đối Soát 4uvjld1","source_system":"QLPN","external_id":"UAT-EMG-4uvjld1","note":"Đối soát theo hồ sơ giấy"}
+    → 200 {"id":"49066bea-7663-49f3-957a-66deecfd1a5c","full_name":"UAT Cấp Cứu Đã Đối Soát 4uvjld1","name_key":"uat cap cuu da doi soat 4uvjld1","date_of_birth":null,"gender":null,"source_system":"QLPN","external_id":"UAT-EMG-4uvjld1","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"dd047762-e5ba-41fa-a4a5-e8a0b224fbf4","created_at":"2026-11-14T08:17:
+- doctor1 POST /api/emergency-events/9b288f52-3e47-4345-aa41-f02523980d17/close
+    yêu cầu: {"note":"Đã ổn định, hẹn theo dõi"}
+    → 200 {"id":"9b288f52-3e47-4345-aa41-f02523980d17","person_id":"49066bea-7663-49f3-957a-66deecfd1a5c","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","encounter_id":"94cdeba4-42b9-48a0-86e3-196051399cb1","temp_identity":"Cấp cứu đóng sự kiện 4uvjld1","location":null,"reporter":null,"description":"Ngất xỉu","status":"closed","timeline":[{"action":"Đặt nằm đầu thấp, đo huyết áp","performer":"Điều dưỡ

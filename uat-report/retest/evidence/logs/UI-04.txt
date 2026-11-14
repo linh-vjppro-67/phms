@@ -1,0 +1,6 @@
+# UI-04 – Cấp cứu trên giao diện: điều dưỡng ghi nhận tối thiểu (chưa rõ danh tính) → hồ sơ tạm; bác sĩ đóng sớm bị chặn kèm lý do cụ thể (I1/I4)
+Trạng thái: PASS   Thời gian chạy: 1416 ms
+Kết quả mong đợi: Thẻ sự kiện 'Danh tính tạm – cần đối soát'; đóng sớm → thông báo 'chưa hoàn tất hồ sơ… chưa được đối soát'
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL

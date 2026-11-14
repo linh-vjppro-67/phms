@@ -1,0 +1,9 @@
+# EXP-20 – Đổi mật khẩu: sai mật khẩu cũ không bị đăng xuất; đặt lại đúng mật khẩu cũ bị chặn; mật khẩu yếu bị chặn; phiên cũ bị thu hồi sau khi đổi (P2)
+Trạng thái: PASS   Thời gian chạy: 303 ms
+Kết quả mong đợi: Sai cũ → 401/422 và token còn dùng được; trùng cũ → 4xx; yếu → 422; sau đổi token cũ → 401
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- admin POST /api/users
+    yêu cầu: {"username":"uat_pwd_4uvjld1","password":"Uat@Pwd20260x","full_name":"UAT Đổi MK","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}
+    → 201 {"id":"b2bab54d-5059-4de1-ab6e-5c350b642276","username":"uat_pwd_4uvjld1","full_name":"UAT Đổi MK","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":true,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-14T08:20:33.030675","permissions":["admin.write","alert.handle",

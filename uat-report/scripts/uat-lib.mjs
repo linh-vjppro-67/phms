@@ -3,9 +3,9 @@ import { chromium } from "/Users/linhpham/Documents/phms/frontend/node_modules/p
 import fs from "node:fs";
 import { execFileSync } from "node:child_process";
 
-export const BASE = "http://localhost:8765";           // STAGING – không phải cổng 8000 (server thật)
-export const DB = "/private/tmp/claude-501/-Users-linhpham-Documents-phms/b31585b3-466f-4421-9023-356036bdd04e/scratchpad/uat/uat.db";
-export const OUT = "/private/tmp/claude-501/-Users-linhpham-Documents-phms/b31585b3-466f-4421-9023-356036bdd04e/scratchpad/uat/evidence";
+export const BASE = process.env.UAT_BASE || "http://localhost:8765";           // STAGING – không phải cổng 8000 (server thật)
+export const DB = process.env.UAT_DB || "/private/tmp/claude-501/-Users-linhpham-Documents-phms/b31585b3-466f-4421-9023-356036bdd04e/scratchpad/uat/uat.db";
+export const OUT = process.env.UAT_OUT || "/private/tmp/claude-501/-Users-linhpham-Documents-phms/b31585b3-466f-4421-9023-356036bdd04e/scratchpad/uat/evidence";
 export const PASS = "Phms@2026dev";
 fs.mkdirSync(OUT + "/shots", { recursive: true });
 if (BASE.includes(":8000")) throw new Error("Từ chối chạy trên cổng 8000 (môi trường thật)");

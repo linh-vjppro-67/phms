@@ -1,0 +1,12 @@
+# BG-02 – Vai trò không có quyền 'breakglass' (dược, cán bộ) không được truy cập khẩn (phần hết hạn: xem BG-02b)
+Trạng thái: PASS   Thời gian chạy: 4 ms
+Kết quả mong đợi: pharm2/officer2 → 403
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- pharm2 POST /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/break-glass
+    yêu cầu: {"reason":"Dược cần xem hồ sơ khẩn"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Vai trò của bạn không được truy cập khẩn cấp"}}
+- officer2 POST /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/break-glass
+    yêu cầu: {"reason":"Cán bộ cần xem hồ sơ khẩn"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Vai trò của bạn không được truy cập khẩn cấp"}}

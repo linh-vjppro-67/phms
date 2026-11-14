@@ -1,0 +1,14 @@
+# EXP-11 – Gán hàng loạt (mass-assignment): gửi kèm status/id/created_by khi tạo hồ sơ không được ghi đè trạng thái xác minh
+Trạng thái: PASS   Thời gian chạy: 64 ms
+Kết quả mong đợi: Hồ sơ không mã nguồn luôn 'pending_verification'; id do máy chủ cấp
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Mass Assign 4uvjld1","status":"verified","id":"11111111-1111-1111-1111-111111111111","is_temporary":false,"created_by":"x","merged_into_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc"}
+    → 201 {"id":"c53cd582-323a-4212-999e-b3cf862a2c24","full_name":"UAT Mass Assign 4uvjld1","name_key":"uat mass assign 4uvjld1","date_of_birth":null,"gender":null,"source_system":null,"external_id":null,"status":"pending_verification","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:20:32.103142"}
+- admin POST /api/users
+    yêu cầu: {"username":"uat_ma_4uvjld1","password":"Uat@Mass2026x","full_name":"x","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","must_change_password":false,"active":true,"permissions":["user.manage"],"mfa_enabled":false}
+    → 201 {"id":"6bdd9f0d-c305-46ec-980d-e8c1aee6771f","username":"uat_ma_4uvjld1","full_name":"x","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":true,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-14T08:20:32.133056","permissions":["admin.write","alert.handle","breakglas
+- admin GET /api/users
+    → 200 [{"id":"10e11bc0-da24-4e71-ab71-8679099a08b6","username":"admin","full_name":"Quản trị hệ thống","role":"sysadmin","facility_id":null,"active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-14T08:17:17.771772","permissions":["audit.read","catalog.read","catalog.write","scheduler.run","

@@ -94,6 +94,18 @@ def search_persons(q: str | None = None, external_id: str | None = None, status:
         d["facility_stay_status"] = mine.status if mine else None
         d["active_elsewhere"] = bool(not mine and active_stay(db, p.id))
         out.append(d)
+    # Tình huống khẩn cấp: người có quyền break-glass tìm được người NGOÀI cơ sở khi gõ ĐÚNG mã nguồn (không tìm theo tên/ngày sinh),
+    # chỉ trả thông tin tối thiểu để nhận diện; sau đó vẫn phải qua hộp thoại break-glass (lý do, chỉ đọc, có hạn, hậu kiểm).
+    code = (external_id or q or "").strip()
+    if scope is not None and "breakglass" in perms_of(user) and len(code) >= 4 and not status:
+        seen = {x["id"] for x in out}
+        for p in db.scalars(select(Person).where(Person.status != "merged", func.lower(Person.external_id) == code.lower()).limit(5)):
+            if p.id not in seen:
+                out.append({"id": p.id, "full_name": p.full_name, "external_id": p.external_id, "source_system": p.source_system,
+                            "status": p.status, "date_of_birth": None, "facility_stay_status": None,
+                            "active_elsewhere": bool(active_stay(db, p.id)), "out_of_scope": True})
+                audit(db, user, "person_lookup_out_of_scope", "Person", p.id, person_id=p.id, reason="tra cứu khẩn cấp theo mã nguồn", request=request)
+        db.commit()
     return out
 
 

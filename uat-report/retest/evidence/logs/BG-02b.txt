@@ -1,0 +1,27 @@
+# BG-02b – Quyền truy cập khẩn cấp TỰ HẾT HẠN: sau khi quá hạn, hồ sơ ngoài cơ sở bị đóng lại (cấu hình 1 phút để kiểm thật)
+Trạng thái: PASS   Thời gian chạy: 63141 ms
+Kết quả mong đợi: Trước hạn: đọc được, GET break-glass active=true; sau hạn: 403 FACILITY_SCOPE, active=false
+Kết quả thực tế: Cấp 1.0 phút; trước hạn đọc 200; sau hạn 403 FACILITY_SCOPE, active=false
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Hết Hạn 4uvjl","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4uvjl8w"}
+    → 201 {"id":"4b511000-69fd-4a30-8e57-ec8826a86036","full_name":"UAT Hết Hạn 4uvjl","name_key":"uat het han 4uvjl","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4uvjl8w","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"89ebbf72-b1eb-4a71-9201-ffbb30a71680","created_at":"2026-11-14T08:17:42.772300"}
+- officer1 POST /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/stays
+    yêu cầu: {}
+    → 201 {"id":"ae97fcaa-9d3f-4368-954a-4d25404246d9","person_id":"4b511000-69fd-4a30-8e57-ec8826a86036","facility_id":"b931c299-cdf9-4eb3-845c-4e5ce1721503","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"89ebbf72-b1eb-4a71-9201-ffbb30a71680","recorded_at":"2026-11-14T08:17:42.778977","hea
+- doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/health-summary
+    → 403 {"error":{"code":"FACILITY_SCOPE","message":"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn","break_glass_allowed":true}}
+- doctor2 POST /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/break-glass
+    yêu cầu: {"reason":"Nghi ngộ độc thuốc, cần tiền sử dị ứng gấp"}
+    → 200 {"expires_at":"2026-11-14T08:18:42.823650","minutes":1,"read_only":true}
+- doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/encounters
+    → 200 []
+- doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/break-glass
+    → 200 {"active":true,"expires_at":"2026-11-14T08:18:42.823650"}
+- NOTE
+    → undefined chờ 63s cho quyền hết hạn
+- doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/encounters
+    → 403 {"error":{"code":"FACILITY_SCOPE","message":"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn","break_glass_allowed":true}}
+- doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/break-glass
+    → 200 {"active":false,"expires_at":null}

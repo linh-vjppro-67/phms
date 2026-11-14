@@ -9,10 +9,10 @@ Hiện thực hóa *Tài liệu phân tích nghiệp vụ & thiết kế giải 
 ## Chạy nhanh
 ```bash
 cd backend
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install -r requirements-dev.txt
 .venv/bin/python -m app.seed                       # tạo 2 cơ sở, tài khoản mẫu, danh mục
 .venv/bin/uvicorn app.main:app --reload            # API http://localhost:8000  (docs: /docs)
-.venv/bin/python -m pytest -q                      # 141 test (UAT, BR, bảo mật, luồng, MFA/SSO, sao lưu…)
+.venv/bin/python -m pytest -q                      # 155 test (153 + 2 bỏ qua trên SQLite) (UAT, BR, bảo mật, luồng, MFA/SSO, sao lưu…)
 PHMS_TEST_DB_URL=postgresql+psycopg://user@host/db .venv/bin/python -m pytest -q   # cùng bộ test trên PostgreSQL
 ```
 Tài khoản mẫu (mật khẩu `Phms@2026dev`): `admin`; cơ sở F01: `officer1`, `nurse1`, `doctor1`, `pharm1`, `approver1`, `manager1`; cơ sở F02: `officer2`, `nurse2`, `doctor2`, `pharm2`, `approver2`, `manager2`.

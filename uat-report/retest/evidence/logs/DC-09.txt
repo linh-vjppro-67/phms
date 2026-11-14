@@ -1,0 +1,12 @@
+# DC-09 – Hồ sơ chuyển viện đang mở không thuộc lượt khám đã hủy; chuyển viện completed luôn có kế hoạch & kết cục
+Trạng thái: PASS   Thời gian chạy: 5 ms
+Kết quả mong đợi: 0 dòng
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- SQL
+    yêu cầu: "select r.id from referral r where r.status='completed' and (r.post_referral_plan is null or r.outcome is null)"
+    → - []
+- SQL
+    yêu cầu: "select r.id from referral r join encounter e on e.id=r.encounter_id where e.status='cancelled' and r.status not in ('cancelled')"
+    → - []

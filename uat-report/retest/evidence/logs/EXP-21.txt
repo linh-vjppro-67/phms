@@ -1,0 +1,26 @@
+# EXP-21 – Tham số phân trang bất thường (limit âm, chữ, rất lớn) không gây lỗi 500 và được giới hạn trần
+Trạng thái: PASS   Thời gian chạy: 42 ms
+Kết quả mong đợi: Không HTTP 5xx; limit lớn bị cắt trần (≤ 500)
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 GET /api/persons?limit=-1
+    → 200 [{"id":"43bb4547-4ba2-4c2c-8adc-56597d537390","full_name":"<img src=x onerror=alert(1)>UAT-XSS-4uvjld1","name_key":"<img src=x onerror=alert(1)>uat-xss-4uvjld1","date_of_birth":null,"gender":null,"source_system":null,"external_id":null,"status":"pending_verification","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_
+- admin GET /api/audit?limit=-1
+    → 200 [{"seq":2150,"id":"985b0b09-a246-4924-9ffd-8b0e134a37f1","actor_id":"03197fa1-2001-407b-9aeb-06d9a99a4aff","actor_name":"officer1","action":"person_search","object_type":null,"object_id":null,"person_id":null,"result":"success","reason":"","source_ip":"127.0.0.1","at":"2026-11-14T08:20:33.308139","prev_hash":"1d3e9eb9810b30f0b80519a95d1f295d012a6ba7a4960678cc51fa094b89b432","hash":"6143a6ff2383a45
+- officer1 GET /api/persons?limit=abc
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"limit","message":"phải là số"}]}}
+- admin GET /api/audit?limit=abc
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"limit","message":"phải là số"}]}}
+- officer1 GET /api/persons?limit=0
+    → 200 [{"id":"43bb4547-4ba2-4c2c-8adc-56597d537390","full_name":"<img src=x onerror=alert(1)>UAT-XSS-4uvjld1","name_key":"<img src=x onerror=alert(1)>uat-xss-4uvjld1","date_of_birth":null,"gender":null,"source_system":null,"external_id":null,"status":"pending_verification","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_
+- admin GET /api/audit?limit=0
+    → 200 [{"seq":2151,"id":"5d1bc76e-f865-4ba8-8ce4-2534bfab9a7b","actor_id":"03197fa1-2001-407b-9aeb-06d9a99a4aff","actor_name":"officer1","action":"person_search","object_type":null,"object_id":null,"person_id":null,"result":"success","reason":"","source_ip":"127.0.0.1","at":"2026-11-14T08:20:33.312978","prev_hash":"6143a6ff2383a4542365841438976936543e11f2326cf66e3a2581227527aa4d","hash":"ae345017b11a690
+- officer1 GET /api/persons?limit=1000000
+    → 200 [{"id":"43bb4547-4ba2-4c2c-8adc-56597d537390","full_name":"<img src=x onerror=alert(1)>UAT-XSS-4uvjld1","name_key":"<img src=x onerror=alert(1)>uat-xss-4uvjld1","date_of_birth":null,"gender":null,"source_system":null,"external_id":null,"status":"pending_verification","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_
+- admin GET /api/audit?limit=1000000
+    → 200 [{"seq":2152,"id":"a44f7e45-ef67-448c-ac55-4debd94aecbb","actor_id":"03197fa1-2001-407b-9aeb-06d9a99a4aff","actor_name":"officer1","action":"person_search","object_type":null,"object_id":null,"person_id":null,"result":"success","reason":"","source_ip":"127.0.0.1","at":"2026-11-14T08:20:33.315471","prev_hash":"ae345017b11a690607ba23a7823a4fafc627e374943dfd9d87e296fd04cff622","hash":"72976a73b894879
+- officer1 GET /api/persons?limit=1e9
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"limit","message":"phải là số"}]}}
+- admin GET /api/audit?limit=1e9
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"limit","message":"phải là số"}]}}

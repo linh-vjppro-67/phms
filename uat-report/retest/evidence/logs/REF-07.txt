@@ -1,0 +1,47 @@
+# REF-07 – Kết cục 'Tử vong'/'Không trở lại trại' gắn cờ cần hậu kiểm + thông báo Khẩn (WF-06 ngoại lệ, O12)
+Trạng thái: PASS   Thời gian chạy: 40 ms
+Kết quả mong đợi: needs_post_review=true sau hoàn thành với outcome=deceased
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT CV Kết Cục Bất Thường 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4v7mh1s"}
+    → 201 {"id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","full_name":"UAT CV Kết Cục Bất Thường 4uvjld1","name_key":"uat cv ket cuc bat thuong 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4v7mh1s","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-1
+- officer1 POST /api/persons/329f8934-be3e-4b4f-9cc1-c3826220e32b/stays
+    yêu cầu: {}
+    → 201 {"id":"97c72e0a-1b96-4a60-a4b8-5e148011b63e","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:17:58.366260","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"99bae15f-3919-4b66-a2a8-29f1e587a633","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","stay_id":"97c72e0a-1b96-4a60-a4b8-5e148011b63e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/99bae15f-3919-4b66-a2a8-29f1e587a633/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"99bae15f-3919-4b66-a2a8-29f1e587a633","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","stay_id":"97c72e0a-1b96-4a60-a4b8-5e148011b63e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/329f8934-be3e-4b4f-9cc1-c3826220e32b/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/99bae15f-3919-4b66-a2a8-29f1e587a633/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"99bae15f-3919-4b66-a2a8-29f1e587a633","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","stay_id":"97c72e0a-1b96-4a60-a4b8-5e148011b63e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"31b2ee7d-0abe-4a5e-942a-5b254e35b67f","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","stay_id":"97c72e0a-1b96-4a60-a4b8-5e148011b63e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/31b2ee7d-0abe-4a5e-942a-5b254e35b67f/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"31b2ee7d-0abe-4a5e-942a-5b254e35b67f","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","stay_id":"97c72e0a-1b96-4a60-a4b8-5e148011b63e","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/31b2ee7d-0abe-4a5e-942a-5b254e35b67f/referrals
+    yêu cầu: {"urgency":"routine","reason":"Lý do chuyên môn bí mật CV Kết Cục Bất Thường 4uvjld1","destination":"BV Đa khoa tỉnh"}
+    → 201 {"id":"f537ea72-2f94-456c-b8be-08f22d20ad3e","encounter_id":"31b2ee7d-0abe-4a5e-942a-5b254e35b67f","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":"Lý do chuyên môn bí mật CV Kết Cục Bất Thường 4uvjld1","status":"draft","destination":"BV Đa khoa tỉnh","handover_docs":null,"left_at":null,"result_note":null,"post_re
+- doctor1 PATCH /api/referrals/f537ea72-2f94-456c-b8be-08f22d20ad3e/status
+    yêu cầu: {"to":"pending"}
+    → 200 {"id":"f537ea72-2f94-456c-b8be-08f22d20ad3e","encounter_id":"31b2ee7d-0abe-4a5e-942a-5b254e35b67f","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":"Lý do chuyên môn bí mật CV Kết Cục Bất Thường 4uvjld1","status":"pending","destination":"BV Đa khoa tỉnh","handover_docs":null,"left_at":null,"result_note":null,"post_
+- approver1 PATCH /api/referrals/f537ea72-2f94-456c-b8be-08f22d20ad3e/status
+    yêu cầu: {"to":"coordinated"}
+    → 200 {"id":"f537ea72-2f94-456c-b8be-08f22d20ad3e","encounter_id":"31b2ee7d-0abe-4a5e-942a-5b254e35b67f","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":null,"status":"coordinated","destination":"BV Đa khoa tỉnh","handover_docs":null,"left_at":null,"result_note":null,"post_referral_plan":null,"outcome":null,"shortcut_us
+- nurse1 PATCH /api/referrals/f537ea72-2f94-456c-b8be-08f22d20ad3e/status
+    yêu cầu: {"to":"in_external_treatment"}
+    → 200 {"id":"f537ea72-2f94-456c-b8be-08f22d20ad3e","encounter_id":"31b2ee7d-0abe-4a5e-942a-5b254e35b67f","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":"Lý do chuyên môn bí mật CV Kết Cục Bất Thường 4uvjld1","status":"in_external_treatment","destination":"BV Đa khoa tỉnh","handover_docs":null,"left_at":"2026-11-14T08:1
+- nurse1 PATCH /api/referrals/f537ea72-2f94-456c-b8be-08f22d20ad3e/status
+    yêu cầu: {"to":"result_received","result_note":"Tiên lượng nặng"}
+    → 200 {"id":"f537ea72-2f94-456c-b8be-08f22d20ad3e","encounter_id":"31b2ee7d-0abe-4a5e-942a-5b254e35b67f","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":"Lý do chuyên môn bí mật CV Kết Cục Bất Thường 4uvjld1","status":"result_received","destination":"BV Đa khoa tỉnh","handover_docs":null,"left_at":"2026-11-14T08:17:58.3
+- doctor1 PATCH /api/referrals/f537ea72-2f94-456c-b8be-08f22d20ad3e/status
+    yêu cầu: {"to":"completed","post_referral_plan":"Báo cáo theo quy trình","outcome":"deceased"}
+    → 200 {"id":"f537ea72-2f94-456c-b8be-08f22d20ad3e","encounter_id":"31b2ee7d-0abe-4a5e-942a-5b254e35b67f","person_id":"329f8934-be3e-4b4f-9cc1-c3826220e32b","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","urgency":"routine","reason":"Lý do chuyên môn bí mật CV Kết Cục Bất Thường 4uvjld1","status":"completed","destination":"BV Đa khoa tỉnh","handover_docs":null,"left_at":"2026-11-14T08:17:58.394483"

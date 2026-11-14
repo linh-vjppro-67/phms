@@ -1,0 +1,9 @@
+# DC-04 – Không có đơn thuốc ở trạng thái nháp/hủy đã phát sinh cấp phát
+Trạng thái: PASS   Thời gian chạy: 3 ms
+Kết quả mong đợi: 0 dòng
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- SQL
+    yêu cầu: "select o.id, o.status from medication_order o join dispense_event d on d.order_id=o.id where o.status in ('draft','cancelled') group by o.id"
+    → - []

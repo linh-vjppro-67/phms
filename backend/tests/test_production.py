@@ -227,6 +227,7 @@ def test_production_refuses_default_secret(monkeypatch):
     with pytest.raises(RuntimeError):                       # khóa tài liệu trùng khóa ký phiên -> từ chối
         main._check_production_config()
     monkeypatch.setattr(config, "DOC_ENC_KEY", "y" * 40)
+    monkeypatch.setattr(config, "DATABASE_URL", "postgresql+psycopg://u:p@db/phms")      # production cần PostgreSQL (xem test_uat_fixes)
     main._check_production_config()
 
 

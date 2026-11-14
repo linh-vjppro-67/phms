@@ -1,0 +1,6 @@
+# NAV-admin – Menu của Quản trị hệ thống chỉ gồm các phân hệ được phép (đối chiếu 04-§2)
+Trạng thái: PASS   Thời gian chạy: 261 ms
+Kết quả mong đợi: Thấy: Quản trị. KHÔNG thấy: Khám ban đầu, Khám chữa bệnh, Hồ sơ sức khỏe, Cấp phát, Tiếp nhận & Hồ sơ, Chuyển viện, Báo cáo, Cấp cứu, Tài liệu y tế
+Kết quả thực tế: Menu: Bảng điều khiển | Quản trị hệ thốngM11
+
+## Nhật ký lời gọi API / truy vấn SQL

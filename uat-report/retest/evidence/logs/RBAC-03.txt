@@ -1,0 +1,27 @@
+# RBAC-03 – Điều dưỡng KHÔNG chẩn đoán, KHÔNG bắt đầu khám, KHÔNG kê đơn, KHÔNG cấp phát (phạm vi hành nghề)
+Trạng thái: PASS   Thời gian chạy: 19 ms
+Kết quả mong đợi: 403 cho diagnosis, transition in_progress, medication-orders, dispenses
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- nurse1 POST /api/encounters
+    yêu cầu: {"person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","type":"ad_hoc","reason":"Yêu cầu khám từ điều dưỡng"}
+    → 201 {"id":"1af16c8d-7ce8-480f-aa05-2352c060026c","person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","stay_id":"2b41e0e0-ef5c-4d49-87bf-6fb32f136e32","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Yêu cầu khám từ điều dưỡng","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"la
+- nurse1 POST /api/encounters/a11de813-9fc9-4675-9c03-860b11339db2/diagnoses
+    yêu cầu: {"text":"Viêm họng cấp","kind":"final"}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (diagnosis.write)"}}
+- nurse1 POST /api/encounters/1af16c8d-7ce8-480f-aa05-2352c060026c/transition
+    yêu cầu: {"to":"in_progress"}
+    → 403 {"error":{"code":"EXAMINE_REQUIRED","message":"Chỉ bác sĩ/y sĩ được bắt đầu hoặc điều hành lượt khám. Điều dưỡng ghi nhận thông tin và đo sinh hiệu."}}
+- nurse1 POST /api/encounters/a11de813-9fc9-4675-9c03-860b11339db2/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","dose":"1","route":"uống","frequency":"2/ngày","start_date":"2026-11-14","duration_days":5,"quantity_prescribed":10}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (medorder.write)"}}
+- doctor1 POST /api/encounters/a11de813-9fc9-4675-9c03-860b11339db2/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"182c5029-ba91-4dfd-bc8c-bdfa9cebbd06","encounter_id":"a11de813-9fc9-4675-9c03-860b11339db2","person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/182c5029-ba91-4dfd-bc8c-bdfa9cebbd06/confirm
+    yêu cầu: {}
+    → 200 {"id":"182c5029-ba91-4dfd-bc8c-bdfa9cebbd06","encounter_id":"a11de813-9fc9-4675-9c03-860b11339db2","person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- nurse1 POST /api/medication-orders/182c5029-ba91-4dfd-bc8c-bdfa9cebbd06/dispenses
+    yêu cầu: {"quantity":1}
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (dispense.write)"}}

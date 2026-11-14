@@ -1,0 +1,9 @@
+# DC-05 – Đợt tiếp nhận 'managed' phải đã hoàn tất khám ban đầu
+Trạng thái: PASS   Thời gian chạy: 4 ms
+Kết quả mong đợi: Mọi stay managed có initial_exam_completed_at và 1 lượt khám initial completed
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- SQL
+    yêu cầu: "select s.id from custody_stay s where s.status='managed' and (s.initial_exam_completed_at is null or not exists (select 1 from encounter e where e.stay_id=s.id and e.type='initial' and e.status='completed'))"
+    → - []

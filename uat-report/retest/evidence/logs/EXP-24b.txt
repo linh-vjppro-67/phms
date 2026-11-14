@@ -1,0 +1,47 @@
+# EXP-24b – 3 yêu cầu đồng thời ĐIỀU CHỈNH cùng một đơn đã xác nhận: chỉ 1 phiên bản mới (không sinh nhiều bản nháp v2 song song)
+Trạng thái: PASS   Thời gian chạy: 32 ms
+Kết quả mong đợi: Đúng 1 bản con (version 2) trong DB
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Đồng Thời Điều Chỉnh 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4yiqznh"}
+    → 201 {"id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","full_name":"UAT Đồng Thời Điều Chỉnh 4uvjld1","name_key":"uat dong thoi dieu chinh 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4yiqznh","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T
+- officer1 POST /api/persons/fbf55a38-c331-4420-9238-6f381cf7b4ff/stays
+    yêu cầu: {}
+    → 201 {"id":"fbe4732f-d479-47bd-9617-e67045f44bb5","person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:20:32.751682","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"be65607a-19e9-4791-b9a4-b0ba27dc6e94","person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","stay_id":"fbe4732f-d479-47bd-9617-e67045f44bb5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/be65607a-19e9-4791-b9a4-b0ba27dc6e94/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"be65607a-19e9-4791-b9a4-b0ba27dc6e94","person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","stay_id":"fbe4732f-d479-47bd-9617-e67045f44bb5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/fbf55a38-c331-4420-9238-6f381cf7b4ff/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/be65607a-19e9-4791-b9a4-b0ba27dc6e94/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"be65607a-19e9-4791-b9a4-b0ba27dc6e94","person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","stay_id":"fbe4732f-d479-47bd-9617-e67045f44bb5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","type":"ad_hoc","reason":"Khám theo yêu cầu"}
+    → 201 {"id":"1e2f38ae-d180-4ba5-be98-f4e678624213","person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","stay_id":"fbe4732f-d479-47bd-9617-e67045f44bb5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"draft","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_entry_
+- doctor1 POST /api/encounters/1e2f38ae-d180-4ba5-be98-f4e678624213/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"1e2f38ae-d180-4ba5-be98-f4e678624213","person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","stay_id":"fbe4732f-d479-47bd-9617-e67045f44bb5","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"ad_hoc","status":"in_progress","reason":"Khám theo yêu cầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2ad0
+- doctor1 POST /api/encounters/1e2f38ae-d180-4ba5-be98-f4e678624213/medication-orders
+    yêu cầu: {"drug_name":"Paracetamol 500mg","drug_code":"PARA500","dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30}
+    → 201 {"id":"4e87e0e5-a23c-4f57-af06-82513e51ce2b","encounter_id":"1e2f38ae-d180-4ba5-be98-f4e678624213","person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/4e87e0e5-a23c-4f57-af06-82513e51ce2b/confirm
+    yêu cầu: {}
+    → 200 {"id":"4e87e0e5-a23c-4f57-af06-82513e51ce2b","encounter_id":"1e2f38ae-d180-4ba5-be98-f4e678624213","person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"1 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/4e87e0e5-a23c-4f57-af06-82513e51ce2b/revise
+    yêu cầu: {"dose":"2 viên","reason":"Điều chỉnh song song"}
+    → 201 {"id":"8c8394eb-991b-4df5-8ce6-0ad5003b9d27","encounter_id":"1e2f38ae-d180-4ba5-be98-f4e678624213","person_id":"fbf55a38-c331-4420-9238-6f381cf7b4ff","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","drug_code":"PARA500","drug_name":"Paracetamol 500mg","strength":null,"dose":"2 viên","route":"uống","frequency":"2 lần/ngày","start_date":"2026-11-14","duration_days":15,"quantity_prescribed":30,"
+- doctor1 POST /api/medication-orders/4e87e0e5-a23c-4f57-af06-82513e51ce2b/revise
+    yêu cầu: {"dose":"2 viên","reason":"Điều chỉnh song song"}
+    → 409 {"error":{"code":"REVISION_PENDING","message":"Đã có bản điều chỉnh đang chờ xác nhận"}}
+- doctor1 POST /api/medication-orders/4e87e0e5-a23c-4f57-af06-82513e51ce2b/revise
+    yêu cầu: {"dose":"2 viên","reason":"Điều chỉnh song song"}
+    → 409 {"error":{"code":"REVISION_PENDING","message":"Đã có bản điều chỉnh đang chờ xác nhận"}}
+- SQL
+    yêu cầu: "select count(*) n from medication_order where parent_order_id='4e87e0e5-a23c-4f57-af06-82513e51ce2b'"
+    → - [{"n":1}]

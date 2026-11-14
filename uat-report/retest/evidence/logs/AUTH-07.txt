@@ -1,0 +1,12 @@
+# AUTH-07 – Khóa tài khoản đang đăng nhập → phiên hiện tại mất hiệu lực ngay
+Trạng thái: PASS   Thời gian chạy: 156 ms
+Kết quả mong đợi: Sau khi admin khóa, token cũ gọi API trả 401/403
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- admin POST /api/users
+    yêu cầu: {"username":"uat_off_4uvjld1","password":"Uat@Off20260x","full_name":"UAT Khóa Phiên","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}
+    → 201 {"id":"9cb42b3b-eec2-46f5-ad76-2376e8d7237f","username":"uat_off_4uvjld1","full_name":"UAT Khóa Phiên","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":true,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-14T08:17:46.564061","permissions":["admin.write","alert.hand
+- admin PATCH /api/users/9cb42b3b-eec2-46f5-ad76-2376e8d7237f
+    yêu cầu: {"active":false}
+    → 200 {"id":"9cb42b3b-eec2-46f5-ad76-2376e8d7237f","username":"uat_off_4uvjld1","full_name":"UAT Khóa Phiên","role":"nurse","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","active":false,"failed_attempts":0,"locked_until":null,"token_version":3,"must_change_password":false,"password_changed_at":"2026-11-14T08:17:46.653568","mfa_enabled":false,"created_at":"2026-11-14T08:17:46.564061","permissions":

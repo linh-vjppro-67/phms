@@ -1,0 +1,15 @@
+# INT-07 – Người đang trong đợt tiếp nhận ở cơ sở này/cơ sở khác không thể tiếp nhận thêm kỳ mới
+Trạng thái: PASS   Thời gian chạy: 8 ms
+Kết quả mong đợi: officer1 tạo kỳ thứ 2 cho người đang hoạt động → 409; officer2 tạo kỳ cho người của F01 → 409/403
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/stays
+    yêu cầu: {}
+    → 409 {"error":{"code":"ACTIVE_STAY_EXISTS","message":"Người này đang trong một đợt tiếp nhận – cần chuyển trại/kết thúc trước","stay_id":"2b41e0e0-ef5c-4d49-87bf-6fb32f136e32","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}}
+- officer2 POST /api/persons/3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc/stays
+    yêu cầu: {}
+    → 409 {"error":{"code":"ACTIVE_STAY_EXISTS","message":"Người này đang trong một đợt tiếp nhận – cần chuyển trại/kết thúc trước","stay_id":"2b41e0e0-ef5c-4d49-87bf-6fb32f136e32","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626"}}
+- SQL
+    yêu cầu: "select count(*) n from custody_stay where person_id='3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc' and status in ('received','managed')"
+    → - [{"n":1}]

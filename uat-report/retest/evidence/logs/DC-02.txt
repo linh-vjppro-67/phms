@@ -1,0 +1,9 @@
+# DC-02 – Không đơn thuốc nào có tổng cấp phát ròng vượt số lượng kê (BR-04)
+Trạng thái: PASS   Thời gian chạy: 3 ms
+Kết quả mong đợi: SUM(cấp - hoàn trả - hủy) ≤ quantity_prescribed
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- SQL
+    yêu cầu: "select o.id, o.quantity_prescribed q, sum(case d.kind when 'dispense' then d.quantity else -d.quantity end) net from medication_order o join dispense_event d on d.order_id=o.id group by o.id having net > o.quantity_prescribed + 1e-9 or net < -1e-9"
+    → - []

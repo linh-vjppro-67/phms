@@ -1,0 +1,71 @@
+[
+ {
+  "id": "BG-02b",
+  "mod": "Truy cập khẩn (D2)",
+  "kind": "Boundary",
+  "role": "doctor2",
+  "title": "Quyền truy cập khẩn cấp TỰ HẾT HẠN: sau khi quá hạn, hồ sơ ngoài cơ sở bị đóng lại (cấu hình 1 phút để kiểm thật)",
+  "expected": "Trước hạn: đọc được, GET break-glass active=true; sau hạn: 403 FACILITY_SCOPE, active=false",
+  "sev": "High",
+  "status": "PASS",
+  "actual": "Cấp 1.0 phút; trước hạn đọc 200; sau hạn 403 FACILITY_SCOPE, active=false",
+  "evidence": [
+   {
+    "call": "officer1 POST /api/persons",
+    "req": {
+     "full_name": "UAT Hết Hạn 4uvjl",
+     "date_of_birth": "1988-04-04",
+     "source_system": "QLPN",
+     "external_id": "UAT-4uvjl8w"
+    },
+    "status": 201,
+    "res": "{\"id\":\"4b511000-69fd-4a30-8e57-ec8826a86036\",\"full_name\":\"UAT Hết Hạn 4uvjl\",\"name_key\":\"uat het han 4uvjl\",\"date_of_birth\":\"1988-04-04\",\"gender\":null,\"source_system\":\"QLPN\",\"external_id\":\"UAT-4uvjl8w\",\"status\":\"verified\",\"duplicate_candidates\":null,\"is_temporary\":false,\"merged_into_id\":null,\"created_by\":\"89ebbf72-b1eb-4a71-9201-ffbb30a71680\",\"created_at\":\"2026-11-14T08:17:42.772300\"}"
+   },
+   {
+    "call": "officer1 POST /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/stays",
+    "req": {},
+    "status": 201,
+    "res": "{\"id\":\"ae97fcaa-9d3f-4368-954a-4d25404246d9\",\"person_id\":\"4b511000-69fd-4a30-8e57-ec8826a86036\",\"facility_id\":\"b931c299-cdf9-4eb3-845c-4e5ce1721503\",\"status\":\"received\",\"start_date\":\"2026-11-14\",\"end_date\":null,\"source_ref\":null,\"provisional\":false,\"initial_exam_completed_at\":null,\"void_reason\":null,\"created_by\":\"89ebbf72-b1eb-4a71-9201-ffbb30a71680\",\"recorded_at\":\"2026-11-14T08:17:42.778977\",\"hea"
+   },
+   {
+    "call": "doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/health-summary",
+    "status": 403,
+    "res": "{\"error\":{\"code\":\"FACILITY_SCOPE\",\"message\":\"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn\",\"break_glass_allowed\":true}}"
+   },
+   {
+    "call": "doctor2 POST /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/break-glass",
+    "req": {
+     "reason": "Nghi ngộ độc thuốc, cần tiền sử dị ứng gấp"
+    },
+    "status": 200,
+    "res": "{\"expires_at\":\"2026-11-14T08:18:42.823650\",\"minutes\":1,\"read_only\":true}"
+   },
+   {
+    "call": "doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/encounters",
+    "status": 200,
+    "res": "[]"
+   },
+   {
+    "call": "doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/break-glass",
+    "status": 200,
+    "res": "{\"active\":true,\"expires_at\":\"2026-11-14T08:18:42.823650\"}"
+   },
+   {
+    "call": "NOTE",
+    "res": "chờ 63s cho quyền hết hạn"
+   },
+   {
+    "call": "doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/encounters",
+    "status": 403,
+    "res": "{\"error\":{\"code\":\"FACILITY_SCOPE\",\"message\":\"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn\",\"break_glass_allowed\":true}}"
+   },
+   {
+    "call": "doctor2 GET /api/persons/4b511000-69fd-4a30-8e57-ec8826a86036/break-glass",
+    "status": 200,
+    "res": "{\"active\":false,\"expires_at\":null}"
+   }
+  ],
+  "screenshots": [],
+  "ms": 63141
+ }
+]

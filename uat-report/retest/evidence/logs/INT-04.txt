@@ -1,0 +1,12 @@
+# INT-04 – Mã nguồn và hệ thống nguồn phải đi cùng nhau
+Trạng thái: PASS   Thời gian chạy: 2 ms
+Kết quả mong đợi: HTTP 422 IDENTITY_INCOMPLETE khi chỉ có một trong hai
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Thiếu Nguồn 4uvjld1","external_id":"UAT-X-4uvjld1"}
+    → 422 {"error":{"code":"IDENTITY_INCOMPLETE","message":"external_id và source_system phải đi cùng nhau"}}
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Thiếu Mã 4uvjld1","source_system":"QLPN"}
+    → 422 {"error":{"code":"IDENTITY_INCOMPLETE","message":"external_id và source_system phải đi cùng nhau"}}

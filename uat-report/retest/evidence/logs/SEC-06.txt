@@ -1,0 +1,6 @@
+# SEC-06 – Giao diện không phát sinh lỗi JavaScript khi duyệt toàn bộ tab của từng vai trò
+Trạng thái: PASS   Thời gian chạy: 141595 ms
+Kết quả mong đợi: pageerror = 0 trên mọi tab được phép của 7 vai trò
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL

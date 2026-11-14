@@ -1,0 +1,12 @@
+Tranh chấp trên cấu hình production-like: PostgreSQL 16 + uvicorn 4 worker (cổng 8768, DB phms_race, PHMS_ENV=dev). Chạy bằng scripts/race-pg.mjs, chỉ qua API.
+DEF-02 lần 1: 1×201, 7×409 → 1 khám ban đầu
+DEF-02 lần 2: 1×201, 7×409 → 1 khám ban đầu
+DEF-02 lần 3: 1×201, 7×409 → 1 khám ban đầu
+DEF-02 lần 4: 1×201, 7×409 → 1 khám ban đầu
+DEF-02 lần 5: 1×201, 7×409 → 1 khám ban đầu
+confirm ×6: 409,200,409,409,409,409
+  audit confirmed = 1
+revise ×6: 409,201,409,409,409,409
+approve ×6: 200,409,409,409,409,409
+  sự kiện coordinated = 1
+ack: (không có cảnh báo mới để thử – DB chỉ seed; nhận cảnh báo đã kiểm ở EXP-25c trên staging SQLite)

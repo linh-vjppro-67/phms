@@ -1,0 +1,6 @@
+# NAV-pharm – Menu của Dược chỉ gồm các phân hệ được phép (đối chiếu 04-§2)
+Trạng thái: PASS   Thời gian chạy: 1332 ms
+Kết quả mong đợi: Thấy: Cấp phát thuốc, Tiếp nhận & Hồ sơ. KHÔNG thấy: Quản trị, Báo cáo, Chuyển viện, Cấp cứu
+Kết quả thực tế: Menu: Bảng điều khiển | Tiếp nhận & Hồ sơM01 | Khám chữa bệnhM04 | Chỉ định & Kê đơnM05 | Cấp phát thuốcM06 | Hồ sơ sức khỏeM02
+
+## Nhật ký lời gọi API / truy vấn SQL

@@ -1,0 +1,6 @@
+# UI-01 – Responsive: giao diện dùng được trên điện thoại (không tràn ngang, có nút mở menu)
+Trạng thái: PASS   Thời gian chạy: 775 ms
+Kết quả mong đợi: scrollWidth ≤ viewport; có .menu-btn
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL

@@ -1,0 +1,9 @@
+# DC-10 – Sự kiện cấp cứu đã đóng phải có lượt khám hoàn tất và danh tính đã đối soát
+Trạng thái: PASS   Thời gian chạy: 4 ms
+Kết quả mong đợi: 0 dòng vi phạm
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- SQL
+    yêu cầu: "select ev.id from emergency_event ev join encounter e on e.id=ev.encounter_id join person p on p.id=ev.person_id where ev.status='closed' and (e.status!='completed' or p.status!='verified')"
+    → - []

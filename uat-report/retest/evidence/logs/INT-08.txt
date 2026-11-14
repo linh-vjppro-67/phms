@@ -1,0 +1,18 @@
+# INT-08 – Đối soát danh tính: mã đã thuộc hồ sơ khác bị chặn (cần quy trình gộp); mã hợp lệ → 'Đã xác minh'
+Trạng thái: PASS   Thời gian chạy: 10 ms
+Kết quả mong đợi: Mã trùng → 409/422; mã mới → 200 verified
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT Chờ Đối Soát 4uvjld1","date_of_birth":"1988-04-04"}
+    → 201 {"id":"803f3f1b-7ff4-4948-a5fc-3c21533119aa","full_name":"UAT Chờ Đối Soát 4uvjld1","name_key":"uat cho doi soat 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":null,"external_id":null,"status":"pending_verification","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:53.579699
+- officer1 POST /api/persons/803f3f1b-7ff4-4948-a5fc-3c21533119aa/stays
+    yêu cầu: {}
+    → 201 {"id":"f0d7b1f9-993b-4e03-9d4d-48a1d3c1ca96","person_id":"803f3f1b-7ff4-4948-a5fc-3c21533119aa","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:17:53.582070","hea
+- officer1 POST /api/persons/803f3f1b-7ff4-4948-a5fc-3c21533119aa/verify
+    yêu cầu: {"source_system":"QLPN","external_id":"UAT-4uvlhc3","note":"Thử mã đã tồn tại"}
+    → 409 {"error":{"code":"PERSON_EXISTS","message":"Mã nguồn đã thuộc hồ sơ khác – cần quy trình gộp có phê duyệt","existing_person_id":"3bab4dcb-3a07-4a76-8a3d-b30fb1859dfc"}}
+- officer1 POST /api/persons/803f3f1b-7ff4-4948-a5fc-3c21533119aa/verify
+    yêu cầu: {"source_system":"QLPN","external_id":"UAT-V-4uvjld1","note":"Đối chiếu hồ sơ giấy"}
+    → 200 {"id":"803f3f1b-7ff4-4948-a5fc-3c21533119aa","full_name":"UAT Chờ Đối Soát 4uvjld1","name_key":"uat cho doi soat 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-V-4uvjld1","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:53.57969

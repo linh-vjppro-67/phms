@@ -1,0 +1,34 @@
+# HO-06 – Cơ sở không liên quan không xem/xác nhận được phiếu bàn giao; hủy phiếu bắt buộc lý do
+Trạng thái: PASS   Thời gian chạy: 22 ms
+Kết quả mong đợi: officer2 xác nhận phiếu F01→F02 chưa tới lượt: không được; người ngoài cơ sở đọc → 404; hủy không lý do → 422
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 POST /api/persons
+    yêu cầu: {"full_name":"UAT BG Hủy Phiếu 4uvjld1","date_of_birth":"1988-04-04","source_system":"QLPN","external_id":"UAT-4v7skud"}
+    → 201 {"id":"2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647","full_name":"UAT BG Hủy Phiếu 4uvjld1","name_key":"uat bg huy phieu 4uvjld1","date_of_birth":"1988-04-04","gender":null,"source_system":"QLPN","external_id":"UAT-4v7skud","status":"verified","duplicate_candidates":null,"is_temporary":false,"merged_into_id":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","created_at":"2026-11-14T08:17:58.581799"
+- officer1 POST /api/persons/2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647/stays
+    yêu cầu: {}
+    → 201 {"id":"46a2c539-05ef-464b-8720-44a073165c3d","person_id":"2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","status":"received","start_date":"2026-11-14","end_date":null,"source_ref":null,"provisional":false,"initial_exam_completed_at":null,"void_reason":null,"created_by":"03197fa1-2001-407b-9aeb-06d9a99a4aff","recorded_at":"2026-11-14T08:17:58.584209","hea
+- doctor1 POST /api/encounters
+    yêu cầu: {"person_id":"2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647","type":"initial","reason":"Khám sức khỏe ban đầu"}
+    → 201 {"id":"d9549225-4ed4-4924-af70-2fdd43551ca6","person_id":"2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647","stay_id":"46a2c539-05ef-464b-8720-44a073165c3d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"draft","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":null,"cancel_reason":null,"late_e
+- doctor1 POST /api/encounters/d9549225-4ed4-4924-af70-2fdd43551ca6/transition
+    yêu cầu: {"to":"in_progress"}
+    → 200 {"id":"d9549225-4ed4-4924-af70-2fdd43551ca6","person_id":"2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647","stay_id":"46a2c539-05ef-464b-8720-44a073165c3d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"in_progress","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08
+- doctor1 POST /api/persons/2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647/allergy-status/none-confirmed
+    → 200 {"allergy_status":"none_confirmed"}
+- doctor1 POST /api/encounters/d9549225-4ed4-4924-af70-2fdd43551ca6/transition
+    yêu cầu: {"to":"completed"}
+    → 200 {"id":"d9549225-4ed4-4924-af70-2fdd43551ca6","person_id":"2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647","stay_id":"46a2c539-05ef-464b-8720-44a073165c3d","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","type":"initial","status":"completed","reason":"Khám sức khỏe ban đầu","priority":"routine","summary":null,"nursing_assessment":null,"appointment_id":null,"practitioner_id":"11c7bd77-2626-4a86-81b4-08e2
+- officer1 POST /api/stays/46a2c539-05ef-464b-8720-44a073165c3d/handover
+    yêu cầu: {"kind":"transfer","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","reason":"Điều chuyển theo quyết định UAT"}
+    → 201 {"id":"200fa2db-2a94-453e-a087-d16bbe0df423","stay_id":"46a2c539-05ef-464b-8720-44a073165c3d","person_id":"2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647","kind":"transfer","from_facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"pending","reason":"Điều chuyển theo quyết định UAT","summary":null,"document_ids":null,"open_items":null,"initiat
+- officer1 POST /api/handovers/200fa2db-2a94-453e-a087-d16bbe0df423/cancel
+    yêu cầu: {}
+    → 422 {"error":{"code":"VALIDATION_ERROR","message":"Dữ liệu không hợp lệ","errors":[{"field":"reason","message":"bắt buộc nhập"}]}}
+- officer1 POST /api/handovers/200fa2db-2a94-453e-a087-d16bbe0df423/cancel
+    yêu cầu: {"reason":"Quyết định điều chuyển bị hủy"}
+    → 200 {"id":"200fa2db-2a94-453e-a087-d16bbe0df423","stay_id":"46a2c539-05ef-464b-8720-44a073165c3d","person_id":"2ceaea7e-1fe3-4d77-a6de-7bf2b0b3b647","kind":"transfer","from_facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","to_facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","status":"cancelled","reason":"Điều chuyển theo quyết định UAT","summary":null,"document_ids":null,"open_items":null,"initi
+- admin GET /api/handovers/200fa2db-2a94-453e-a087-d16bbe0df423
+    → 404 {"error":{"code":"NOT_FOUND","message":"Không tìm thấy phiếu bàn giao"}}

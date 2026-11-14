@@ -114,8 +114,20 @@ export async function part5(S) {
   });
   await tc({ id: "EXP-10", mod: "Phân quyền (cơ sở)", kind: "Permission", role: "pharm2/approver2/manager2/doctor2", title: "Tra cứu danh tính liên cơ sở: chỉ vai trò cần đối soát trùng (cán bộ tiếp nhận) mới tìm được người của cơ sở khác; dược sĩ/phê duyệt/bác sĩ không nên liệt kê được danh tính toàn hệ thống",
     expected: "pharm2/approver2/doctor2 tìm tên người Trại 1 (chưa từng có quan hệ) → không thấy", sev: "Medium", unconfirmed: true }, async () => {
-    const who = S.pA.full_name; const res = {}; for (const u of ["officer2", "pharm2", "approver2", "doctor2", "nurse2"]) { const r = await api(u, "GET", `/persons?q=${encodeURIComponent(who)}`); res[u] = r.status === 200 ? r.data.length : r.status; }
+    const fresh = await managedPerson(`UAT Tra Cứu Riêng ${U}`);       // người CHƯA TỪNG có quan hệ/break-glass với Trại 2 (S.pA đã bị cấp break-glass ở ABAC nên không dùng được)
+    const who = fresh.full_name; const res = {}; for (const u of ["officer2", "pharm2", "approver2", "doctor2", "nurse2"]) { const r = await api(u, "GET", `/persons?q=${encodeURIComponent(who)}`); res[u] = r.status === 200 ? r.data.length : r.status; }
     const bad = ["pharm2", "approver2", "doctor2", "nurse2"].filter((u) => res[u] > 0); must(!bad.length, `Người dùng Trại 2 tra cứu được danh tính người Trại 1: ${bad.map((u) => u + "=" + res[u]).join(", ")} (officer2=${res.officer2}, được phép theo BR-01 để đối soát trùng)`);
+  });
+  await tc({ id: "EXP-10b", mod: "Phân quyền (cơ sở)", kind: "Permission", role: "doctor2/pharm2/officer1", title: "Tình huống khẩn cấp: người có quyền break-glass tìm được người NGOÀI cơ sở chỉ bằng ĐÚNG mã nguồn, thông tin tối thiểu, có nhật ký; mở hồ sơ vẫn cần break-glass",
+    expected: "doctor2: tên → 0; mã một phần → 0; mã đầy đủ → 1 bản ghi không có ngày sinh; pharm2 (không có quyền break-glass) → 0; GET /persons/{id} → 403; có audit person_lookup_out_of_scope", sev: "High" }, async () => {
+    const p = await managedPerson(`UAT Khẩn Cấp Mã ${U}`); const ext = p.external_id; must(ext, "người thử không có mã nguồn");
+    const byName = await ok("doctor2", "GET", `/persons?q=${encodeURIComponent(p.full_name)}`); must(byName.length === 0, `Tìm theo tên thấy ${byName.length}`);
+    const part = await ok("doctor2", "GET", `/persons?q=${encodeURIComponent(ext.slice(0, ext.length - 2))}`); must(!part.some((x) => x.id === p.id), "Mã một phần vẫn thấy");
+    const full = await ok("doctor2", "GET", `/persons?q=${encodeURIComponent(ext)}`); must(full.length === 1 && full[0].id === p.id && full[0].out_of_scope === true, `Mã đầy đủ: ${full.length} kết quả`);
+    must(full[0].date_of_birth === null, "Lộ ngày sinh trong tra cứu khẩn cấp");
+    const ph = await ok("pharm2", "GET", `/persons?q=${encodeURIComponent(ext)}`); must(ph.length === 0, "Dược (không có quyền break-glass) thấy người ngoài cơ sở");
+    denied(await api("doctor2", "GET", `/persons/${p.id}`), "mở danh tính khi chưa break-glass");
+    const ev = sql(`select count(*) n from audit_event where action='person_lookup_out_of_scope' and person_id='${p.id}'`)[0].n; must(ev >= 1, "Không có nhật ký tra cứu khẩn cấp");
   });
   await tc({ id: "EXP-11", mod: "Bảo mật", kind: "Security", role: "officer1", title: "Gán hàng loạt (mass-assignment): gửi kèm status/id/created_by khi tạo hồ sơ không được ghi đè trạng thái xác minh",
     expected: "Hồ sơ không mã nguồn luôn 'pending_verification'; id do máy chủ cấp", sev: "High" }, async () => {

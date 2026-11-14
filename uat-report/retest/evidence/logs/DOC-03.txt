@@ -1,0 +1,10 @@
+# DOC-03 – Giới hạn dung lượng 10 MB: đúng 10 MiB được chấp nhận; 10 MiB + 1 byte bị từ chối
+Trạng thái: PASS   Thời gian chạy: 107 ms
+Kết quả mong đợi: 10485760 B → 201; 10485761 B → 413/422
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- nurse1 POST /api/documents (bien10mb.pdf, 10485760B)
+    → 201 {"id":"3f44e2ed-f9d6-4608-9218-f9d844f17e57","person_id":"f802c25e-d5ab-4495-b356-f5a19222d9b3","encounter_id":null,"referral_id":null,"stay_id":null,"facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","doc_type":"other","source":null,"issued_date":null,"filename":"bien10mb.pdf","mime":"application
+- nurse1 POST /api/documents (qua10mb.pdf, 10485761B)
+    → 413 {"error":{"code":"FILE_TOO_LARGE","message":"Tệp vượt 10MB"}}

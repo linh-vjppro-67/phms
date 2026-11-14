@@ -1,0 +1,15 @@
+# EMG-04 – Thông báo CẤP CỨU: điều dưỡng cùng trại nhận (Khẩn); người ghi không tự nhận; trại khác không nhận (N4)
+Trạng thái: PASS   Thời gian chạy: 11 ms
+Kết quả mong đợi: nurse1 có thông báo emergency.created; doctor1 (người ghi) & nurse2 không
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- doctor1 POST /api/emergency-events
+    yêu cầu: {"temp_identity":"Thông báo cấp cứu 4uvjld1","location":"Buồng 7"}
+    → 201 {"id":"390f26fa-446d-4249-b4e4-b43069094579","person_id":"db0d65ec-43c5-4cf0-9fe5-8342cdda4ec0","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","encounter_id":"df763963-5eac-4bb0-8058-362a327661e3","temp_identity":"Thông báo cấp cứu 4uvjld1","location":"Buồng 7","reporter":null,"description":null,"status":"open","timeline":[],"late_entry_reason":null,"closing_note":null,"closed_by":null,"crea
+- nurse1 GET /api/notifications?limit=200
+    → 200 {"items":[{"seq":595,"id":"d97a7e4d-0fdd-441d-8a79-550c729c008b","category":"emergency","kind":"emergency.created","severity":"critical","title":"CẤP CỨU: Buồng 7","body":"[TẠM] Thông báo cấp cứu 4uvjld1","link_page":"emergency","link_ref":"390f26fa-446d-4249-b4e4-b43069094579","person_id":"db0d65ec-43c5-4cf0-9fe5-8342cdda4ec0","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","created_at":"202
+- doctor1 GET /api/notifications?limit=200
+    → 200 {"items":[{"seq":588,"id":"21530bfc-6549-41ed-8f21-18aae11f62e3","category":"emergency","kind":"emergency.created","severity":"critical","title":"CẤP CỨU","body":"[TẠM] Cấp cứu đóng sự kiện 4uvjld1 – Ngất xỉu","link_page":"emergency","link_ref":"9b288f52-3e47-4345-aa41-f02523980d17","person_id":"49066bea-7663-49f3-957a-66deecfd1a5c","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","created_at"
+- nurse2 GET /api/notifications?limit=200
+    → 200 {"items":[{"seq":531,"id":"c3c3029f-2b8d-475d-89c4-d1e7a76dbca2","category":"intake","kind":"intake.new_person","severity":"info","title":"Người mới tiếp nhận cần khám ban đầu","body":"UAT BG Liên Cơ Sở 4uvjld1 vừa được tiếp nhận, chờ khám sức khỏe ban đầu.","link_page":"initial","link_ref":null,"person_id":"d9e0f93b-464d-4a13-9ddb-29468da93238","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d"

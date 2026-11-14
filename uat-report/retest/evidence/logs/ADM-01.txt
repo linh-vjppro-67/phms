@@ -1,0 +1,8 @@
+# ADM-01 – Nhật ký kiểm toán: lọc theo hành động; 'Kiểm tra toàn vẹn chuỗi' báo toàn vẹn (M8)
+Trạng thái: PASS   Thời gian chạy: 636 ms
+Kết quả mong đợi: Banner 'Chuỗi nhật ký toàn vẹn'; API /audit/verify ok
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- admin GET /api/audit/verify
+    → 200 {"ok":true,"checked":1778}

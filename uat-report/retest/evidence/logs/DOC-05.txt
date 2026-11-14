@@ -1,0 +1,18 @@
+# DOC-05 – Tải/xem tài liệu y tế: cán bộ, người phê duyệt, bác sĩ cơ sở khác bị 403; tải xuống hợp lệ được ghi nhật ký document_download (K5)
+Trạng thái: PASS   Thời gian chạy: 10 ms
+Kết quả mong đợi: 403 cho 3 vai trò; audit có document_download của doctor1
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- officer1 GET /api/documents/a3bcfbb4-cb64-4677-95f1-3091c3aeabee/download
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (document.read)"}}
+- approver1 GET /api/documents/a3bcfbb4-cb64-4677-95f1-3091c3aeabee/download
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (document.read)"}}
+- doctor2 GET /api/documents/a3bcfbb4-cb64-4677-95f1-3091c3aeabee/download
+    → 403 {"error":{"code":"FACILITY_SCOPE","message":"Hồ sơ nằm ngoài phạm vi cơ sở/nhiệm vụ của bạn","break_glass_allowed":true}}
+- admin GET /api/documents/a3bcfbb4-cb64-4677-95f1-3091c3aeabee/download
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (document.read)"}}
+- manager1 GET /api/documents/a3bcfbb4-cb64-4677-95f1-3091c3aeabee/download
+    → 403 {"error":{"code":"FORBIDDEN","message":"Không có quyền thực hiện (document.read)"}}
+- admin GET /api/audit?action=document_download&limit=50
+    → 200 [{"seq":1770,"id":"9b5cff65-3c2c-4c7e-ba21-4139804c951d","actor_id":"11c7bd77-2626-4a86-81b4-08e2ad0300c2","actor_name":"doctor1","action":"document_download","object_type":"MedicalDocument","object_id":"a3bcfbb4-cb64-4677-95f1-3091c3aeabee","person_id":"f802c25e-d5ab-4495-b356-f5a19222d9b3","result":"success","reason":null,"source_ip":"127.0.0.1","at":"2026-11-14T08:17:59.053704","prev_hash":"395

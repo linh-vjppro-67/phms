@@ -1,0 +1,12 @@
+# SCH-04 – Cách ly cơ sở: bác sĩ Trại 2 không thấy đợt khám Trại 1; manager không thấy tên người bị loại trừ (chỉ mã rút gọn) (F1/F4)
+Trạng thái: PASS   Thời gian chạy: 5 ms
+Kết quả mong đợi: doctor2 GET rounds không chứa đợt của F01; manager1 GET round: excluded không có person_name
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- doctor2 GET /api/checkup-rounds
+    → 200 [{"id":"ae22f5a7-7256-4412-a0a6-03ca824806fd","name":"Khám sức khỏe định kỳ Quý 4/2026 – Trại 2","facility_id":"0459621b-efef-4309-8dfa-ef92241d948d","due_date":"2026-11-24","criteria":{"min_days_since_last_periodic":null},"status":"open","excluded":[{"person_id":"cf7a179c-8f16-4c22-88f3-691ee9845f93","reason":"Chưa hoàn tất khám ban đầu"},{"person_id":"e159e03d-6ce3-4ca3-9b18-fef4a3ca528f","reaso
+- doctor2 GET /api/checkup-rounds/5dcb663d-79a3-4bfe-a913-e370c773a5bf
+    → 404 {"error":{"code":"NOT_FOUND","message":"Không tìm thấy đợt khám"}}
+- manager1 GET /api/checkup-rounds/5dcb663d-79a3-4bfe-a913-e370c773a5bf
+    → 200 {"id":"5dcb663d-79a3-4bfe-a913-e370c773a5bf","name":"UAT Đợt Khám 4uvjld1","facility_id":"bbd4b30a-969c-4319-b572-b3c58fb42626","due_date":"2026-12-14","criteria":{"min_days_since_last_periodic":null},"status":"locked","excluded":[{"person_id":"02360512-c110-417d-be53-0c362dd8cc8f","reason":"Đang điều trị ngoài trại (chuyển viện)"},{"person_id":"f4aefd36-100b-4ead-8e57-e04c2d9c0fda","reason":"Đã c

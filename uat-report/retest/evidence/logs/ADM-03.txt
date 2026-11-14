@@ -1,0 +1,14 @@
+# ADM-03 – Quản trị không tự hạ quyền/tự khóa mình; không hạ/khóa quản trị viên cuối cùng
+Trạng thái: PASS   Thời gian chạy: 3 ms
+Kết quả mong đợi: 409 SELF_CHANGE / LAST_ADMIN
+Kết quả thực tế: Đúng như mong đợi
+
+## Nhật ký lời gọi API / truy vấn SQL
+- admin GET /api/auth/me
+    → 200 {"id":"10e11bc0-da24-4e71-ab71-8679099a08b6","username":"admin","full_name":"Quản trị hệ thống","role":"sysadmin","facility_id":null,"active":true,"failed_attempts":0,"locked_until":null,"token_version":1,"must_change_password":false,"password_changed_at":null,"mfa_enabled":false,"created_at":"2026-11-14T08:17:17.771772","permissions":["audit.read","catalog.read","catalog.write","scheduler.run","u
+- admin PATCH /api/users/10e11bc0-da24-4e71-ab71-8679099a08b6
+    yêu cầu: {"active":false}
+    → 409 {"error":{"code":"SELF_CHANGE","message":"Không tự đổi vai trò hoặc tự khóa tài khoản của chính mình – nhờ một quản trị viên khác"}}
+- admin PATCH /api/users/10e11bc0-da24-4e71-ab71-8679099a08b6
+    yêu cầu: {"role":"nurse"}
+    → 409 {"error":{"code":"SELF_CHANGE","message":"Không tự đổi vai trò hoặc tự khóa tài khoản của chính mình – nhờ một quản trị viên khác"}}
